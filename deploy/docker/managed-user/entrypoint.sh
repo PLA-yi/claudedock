@@ -66,6 +66,9 @@ mkdir -p /workspace/.ssh
 chown -R workspace:workspace /workspace
 chmod 0700 /workspace/.ssh
 
+CONTAINER_PASSWORD="${CONTAINER_SSH_PASSWORD:-workspace}"
+echo "workspace:${CONTAINER_PASSWORD}" | chpasswd
+
 # 禁用 IPv6（防止 IPv6 泄漏真实 IP）
 sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
 sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1 || true

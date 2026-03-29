@@ -3,7 +3,7 @@ Protocol 2
 AddressFamily any
 ListenAddress 0.0.0.0
 PermitRootLogin no
-PasswordAuthentication no
+PasswordAuthentication yes
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 UsePAM no
