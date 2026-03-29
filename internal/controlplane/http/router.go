@@ -101,8 +101,7 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 
 		if deps.AgentHealth != nil {
 			if err := deps.AgentHealth.Ping(ctx); err != nil {
-				checks["agent"] = err.Error()
-				status = nethttp.StatusServiceUnavailable
+				checks["agent"] = "unreachable"
 			} else {
 				checks["agent"] = "ok"
 			}
@@ -111,6 +110,8 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 		overall := "ok"
 		if status != nethttp.StatusOK {
 			overall = "degraded"
+		} else if checks["agent"] == "unreachable" {
+			overall = "warning"
 		}
 		writeJSON(w, status, map[string]any{
 			"status": overall,
