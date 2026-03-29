@@ -58,6 +58,15 @@ RUN echo "deb [trusted=yes arch=$(dpkg --print-architecture)] http://deb.debian.
     && apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
+# sing-box: 全隧道代理，由控制面通过 nsenter 启动
+RUN ARCH=$(dpkg --print-architecture) \
+    && curl -fsSL -o /tmp/sing-box.tar.gz \
+        "https://github.com/SagerNet/sing-box/releases/download/v1.11.7/sing-box-1.11.7-linux-${ARCH}.tar.gz" \
+    && tar -xzf /tmp/sing-box.tar.gz -C /tmp \
+    && mv /tmp/sing-box-*/sing-box /usr/local/bin/sing-box \
+    && chmod +x /usr/local/bin/sing-box \
+    && rm -rf /tmp/sing-box*
+
 RUN locale-gen en_US.UTF-8
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
