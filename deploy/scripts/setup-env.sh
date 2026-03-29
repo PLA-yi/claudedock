@@ -101,9 +101,9 @@ fi
 # ── 控制面和管理员 ──────────────────────────────────────────
 
 echo ""
-printf "控制面监听地址 [:8080]: "
-read -r CP_ADDR
-CP_ADDR="${CP_ADDR:-:8080}"
+printf "控制面端口 [8080]: "
+read -r CP_PORT
+CP_PORT="${CP_PORT:-8080}"
 
 printf "管理员用户名 [admin]: "
 read -r ADMIN_USER
@@ -143,7 +143,7 @@ EOF
 DATABASE_URL=${DATABASE_URL}
 
 # Control Plane
-CONTROL_PLANE_ADDR=${CP_ADDR}
+CONTROL_PLANE_PORT=${CP_PORT}
 ADMIN_USERNAME=${ADMIN_USER}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
