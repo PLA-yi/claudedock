@@ -364,6 +364,8 @@ func (w *Worker) waitForSSH(ctx context.Context, request agentapi.HostActionRequ
 		return err
 	}
 
+	w.syncContainerCredentials(ctx, request, containerName)
+
 	w.repo.RecordEvent(ctx, repository.RecordEventParams{
 		TaskID:   &request.TaskID,
 		HostID:   &request.HostID,
@@ -384,6 +386,24 @@ func (w *Worker) waitForSSH(ctx context.Context, request agentapi.HostActionRequ
 	})
 
 	return nil
+}
+
+// syncContainerCredentials forces the container's Linux password to match
+// the request, regardless of what the entrypoint set via environment variables.
+func (w *Worker) syncContainerCredentials(ctx context.Context, request agentapi.HostActionRequest, containerName string) {
+	user := firstNonEmpty(request.Username, "workspace")
+	pass := firstNonEmpty(request.EntryPassword, "workspace")
+
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "chpasswd")
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s:%s\n", user, pass))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		w.repo.RecordEvent(ctx, repository.RecordEventParams{
+			HostID:  &request.HostID,
+			Level:   "warn",
+			Type:    "runtime.password_sync_failed",
+			Message: fmt.Sprintf("docker exec chpasswd failed: %s", strings.TrimSpace(string(out))),
+		})
+	}
 }
 
 func (w *Worker) recordNetworkError(ctx context.Context, hostID string, err error) {

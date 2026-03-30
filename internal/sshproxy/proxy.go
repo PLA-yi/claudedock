@@ -206,8 +206,8 @@ func (s *Server) handleChannel(newChan ssh.NewChannel, targetAddr, targetUser, t
 
 	targetClient, err := ssh.Dial("tcp", targetAddr, targetConfig)
 	if err != nil {
-		s.logger.Error("dial container SSH failed", "addr", targetAddr, "error", err)
-		fmt.Fprintf(clientChan.Stderr(), "Failed to connect to container: connection refused\r\n")
+		s.logger.Error("dial container SSH failed", "addr", targetAddr, "user", user, "error", err)
+		fmt.Fprintf(clientChan.Stderr(), "Failed to connect to container: %s\r\n", err.Error())
 		return
 	}
 	defer targetClient.Close()

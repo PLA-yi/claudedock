@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -122,6 +123,15 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		Username:      owner.Username,
 		EntryPassword: host.EntryPassword,
 	}
+
+	if request.EntryPassword == "" {
+		slog.Warn("host entry_password is empty, container will use default password",
+			"host_id", hostID, "action", action, "username", owner.Username)
+	}
+	slog.Info("queuing host action",
+		"host_id", hostID, "action", action,
+		"username", request.Username,
+		"has_entry_password", request.EntryPassword != "")
 
 	go func() {
 		_, _ = s.dispatcher.Dispatch(context.Background(), request)
