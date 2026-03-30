@@ -414,7 +414,7 @@ func (h *AdminHostsHandler) RotateSSHPassword() nethttp.Handler {
 
 // syncContainerPassword updates the Linux user password inside a running container via docker exec.
 func syncContainerPassword(containerName, user, password string) error {
-	cmd := exec.CommandContext(context.Background(), "docker", "exec", containerName,
+	cmd := exec.CommandContext(context.Background(), "docker", "exec", "-i", containerName,
 		"chpasswd")
 	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s:%s\n", user, password))
 	output, err := cmd.CombinedOutput()
