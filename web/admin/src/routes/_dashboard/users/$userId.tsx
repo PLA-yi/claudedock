@@ -263,11 +263,11 @@ function UserDetailPage() {
         </DropdownMenu>
       </div>
 
-      <div className="rounded-xl border border-border/80 bg-card shadow-sm">
-        <div className="border-l-4 border-primary p-6">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">
-            用户资料
-          </h2>
+      <Card className="overflow-hidden rounded-xl border-border/80 shadow-sm">
+        <CardHeader className="border-b bg-muted/30">
+          <CardTitle className="text-base">用户资料</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <dt className="text-xs font-medium text-muted-foreground">
@@ -302,8 +302,8 @@ function UserDetailPage() {
               </dd>
             </div>
           </dl>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <SSHKeyManager
         data={sshKeysQuery.data}
