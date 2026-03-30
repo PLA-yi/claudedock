@@ -66,6 +66,12 @@ fi
 CONTAINER_USER="${CONTAINER_USER:-workspace}"
 CONTAINER_PASSWORD="${CONTAINER_SSH_PASSWORD:-workspace}"
 
+# 清除 Ubuntu 镜像自带的 ubuntu 用户（UID 1000 冲突会导致 whoami 返回 ubuntu）
+if [ "$CONTAINER_USER" != "ubuntu" ] && id ubuntu >/dev/null 2>&1; then
+  userdel -f ubuntu 2>/dev/null || true
+  groupdel ubuntu 2>/dev/null || true
+fi
+
 if [ "$CONTAINER_USER" != "workspace" ] && id workspace >/dev/null 2>&1; then
   usermod -l "$CONTAINER_USER" workspace
   groupmod -n "$CONTAINER_USER" workspace 2>/dev/null || true

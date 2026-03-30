@@ -63,8 +63,10 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-RUN groupadd --force --gid "${WORKSPACE_GID}" "${WORKSPACE_USER}" \
-    && useradd --non-unique --uid "${WORKSPACE_UID}" --gid "${WORKSPACE_GID}" --home-dir /workspace --create-home --shell /bin/bash "${WORKSPACE_USER}" \
+RUN userdel -f ubuntu 2>/dev/null || true \
+    && groupdel ubuntu 2>/dev/null || true \
+    && groupadd --force --gid "${WORKSPACE_GID}" "${WORKSPACE_USER}" \
+    && useradd --uid "${WORKSPACE_UID}" --gid "${WORKSPACE_GID}" --home-dir /workspace --create-home --shell /bin/bash "${WORKSPACE_USER}" \
     && echo "${WORKSPACE_USER} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/workspace \
     && chmod 0440 /etc/sudoers.d/workspace
 
