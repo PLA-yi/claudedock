@@ -5,6 +5,9 @@ hero:
   name: Cloud CLI Proxy
   text: Containerized SSH Cloud Platform
   tagline: One command to get a cloud host with Claude Code pre-installed. All traffic through your exit IP. Zero leaks.
+  image:
+    src: /logo.svg
+    alt: Cloud CLI Proxy Logo
   actions:
     - theme: brand
       text: Quick Start

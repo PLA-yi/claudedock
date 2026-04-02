@@ -1,0 +1,41 @@
+.VPHero .image-container {
+  position: relative;
+}
+
+.VPHero .image-src {
+  position: relative;
+  z-index: 1;
+  width: clamp(160px, 24vw, 280px);
+  height: auto;
+  filter: drop-shadow(0 10px 30px rgba(14, 116, 255, 0.32));
+}
+
+.VPHero .image-container::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -72px;
+  transform: translateX(-50%);
+  width: clamp(260px, 40vw, 460px);
+  height: clamp(120px, 16vw, 220px);
+  border-radius: 999px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(34, 211, 238, 0.56) 0%,
+    rgba(37, 99, 235, 0.38) 35%,
+    rgba(37, 99, 235, 0.08) 60%,
+    rgba(37, 99, 235, 0) 78%
+  );
+  filter: blur(26px);
+}
+
+@media (max-width: 960px) {
+  .VPHero .image-container::after {
+    bottom: -56px;
+    width: clamp(220px, 70vw, 360px);
+    height: clamp(96px, 28vw, 180px);
+    filter: blur(20px);
+  }
+}

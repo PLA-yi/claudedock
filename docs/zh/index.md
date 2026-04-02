@@ -5,6 +5,9 @@ hero:
   name: Cloud CLI Proxy
   text: 容器化 SSH 云主机平台
   tagline: 一条命令获取预装 Claude Code 的云主机，所有流量走指定出口 IP，零泄漏
+  image:
+    src: /logo.svg
+    alt: Cloud CLI Proxy Logo
   actions:
     - theme: brand
       text: 快速开始
