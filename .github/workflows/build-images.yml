@@ -13,7 +13,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/cloud-cli-proxy
 
 permissions:
   contents: read
@@ -55,6 +54,9 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image prefix (lowercase)
+        run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/cloud-cli-proxy" >> "$GITHUB_ENV"
 
       - name: Extract metadata
         id: meta
