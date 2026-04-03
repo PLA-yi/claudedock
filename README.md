@@ -35,6 +35,40 @@
 
 ---
 
+## 功能预览
+
+### 仪表板
+
+可快速查看活跃用户、运行主机、可用出口 IP 和最近事件。
+
+![仪表板总览](imgs/1.png)
+
+### 主机管理列表
+
+集中查看每台主机状态、所属用户、绑定出口 IP、最近任务与操作入口。
+
+![主机管理列表](imgs/2.png)
+
+### 主机详情与接入方式
+
+主机详情页可直接复制 `curl` 入口、SSH 命令和 VNC 登录入口。
+
+![生命周期与网络操作](https://cdn.zaneliu.me/2026/04/4.png)
+
+### 生命周期与网络操作
+
+支持一站式完成出口 IP 绑定、重建、停机、密码轮换、VNC 打开等日常运维动作。
+
+![主机详情与接入方式](https://cdn.zaneliu.me/2026/04/5.png)
+
+### 浏览器远程桌面（KasmVNC）
+
+无需本地安装 GUI，直接在浏览器中进入云主机桌面环境进行操作。
+
+![浏览器远程桌面](imgs/3.png)
+
+---
+
 ## 部署
 
 ### Docker Compose
@@ -139,11 +173,66 @@ claude
 
 ## 开发
 
+### 从 clone 到本机启动（推荐流程）
+
+#### 1. 准备依赖
+
+- Git
+- Go `1.25.7+`
+- Node.js `20+`（建议启用 `corepack`）
+- pnpm `10+`
+- Docker Engine + Docker Compose v2
+- GNU Make
+
+#### 2. 克隆仓库
+
 ```bash
-make setup    # 安装依赖
-make db       # 启动 PostgreSQL
-make dev      # 后端 + 前端热重载
-make test     # 运行测试
+git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
+cd cloud-cli-proxy
+```
+
+#### 3. 初始化开发环境
+
+```bash
+make setup
+```
+
+`make setup` 会安装前端依赖，并在本地不存在 `.env` 时自动从 `.env.example` 复制一份。
+
+#### 4. 启动数据库
+
+```bash
+make db
+```
+
+默认会拉起本地 PostgreSQL（端口 `5433`）。
+
+#### 5. 启动后端 + 前端热重载
+
+```bash
+make dev
+```
+
+启动后可访问：
+
+- Admin 前端：`http://localhost:5173`
+- Control Plane API：`http://127.0.0.1:8090`
+
+#### 6. 验证与测试
+
+```bash
+curl http://127.0.0.1:8090/healthz
+make test
+```
+
+### 常用开发命令
+
+```bash
+make dev-api   # 仅启动后端
+make dev-web   # 仅启动前端
+make db-stop   # 停止本地 PostgreSQL
+make db-reset  # 重建本地数据库
+make help      # 查看所有命令
 ```
 
 更多命令见 `make help`。

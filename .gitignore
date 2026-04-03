@@ -44,3 +44,5 @@ secrets/
 
 host-agent
 web/admin/.tanstack/
+
+docs/.vitepress/.temp

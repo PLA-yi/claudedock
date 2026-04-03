@@ -8,6 +8,30 @@
 - Docker Engine 28+, Docker Compose v2
 - At least one egress IP (WireGuard config or proxy server)
 
+### UI Preview
+
+> The screenshots below are from repository `imgs/`, so you can see the admin and user experience before deploying.
+
+#### Dashboard Overview
+
+![Dashboard Overview](/imgs/1.png)
+
+#### Host Management List
+
+![Host Management List](/imgs/2.png)
+
+#### Host Detail and Access Entry
+
+![Host Detail and Access Entry](/imgs/4.png)
+
+#### Lifecycle and Network Operations
+
+![Lifecycle and Network Operations](/imgs/5.png)
+
+#### Browser Remote Desktop (KasmVNC)
+
+![Browser Remote Desktop](/imgs/3.png)
+
 ### Step 1: Clone
 
 ```bash
@@ -249,6 +273,70 @@ If your SSH connection drops, re-run the same `curl` command to reconnect. Your 
 ### Rebuilding
 
 If you need to reset your environment, click "Rebuild" in the user panel. This recreates the container but preserves your home directory data.
+
+## Local Source Development (From Clone)
+
+If you want to contribute or customize behavior, use this local development flow.
+
+### 1. Install Dependencies
+
+- Git
+- Go `1.25.7+`
+- Node.js `20+` (recommended with `corepack` enabled)
+- pnpm `10+`
+- Docker Engine + Docker Compose v2
+- GNU Make
+
+### 2. Clone Repository
+
+```bash
+git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
+cd cloud-cli-proxy
+```
+
+### 3. Initialize Dependencies and Environment
+
+```bash
+make setup
+```
+
+This installs frontend dependencies and auto-creates `.env` from `.env.example` when missing.
+
+### 4. Start Local Database
+
+```bash
+make db
+```
+
+The default local PostgreSQL endpoint is `127.0.0.1:5433`.
+
+### 5. Start Dev Mode
+
+```bash
+make dev
+```
+
+After startup:
+
+- Admin frontend: `http://localhost:5173`
+- Control Plane API: `http://127.0.0.1:8090`
+
+### 6. Verify and Run Tests
+
+```bash
+curl http://127.0.0.1:8090/healthz
+make test
+```
+
+### Common Commands
+
+```bash
+make dev-api   # backend only
+make dev-web   # frontend only
+make db-stop   # stop local database
+make db-reset  # recreate local database
+make help      # list all commands
+```
 
 ## Next Steps
 

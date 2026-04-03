@@ -8,6 +8,30 @@
 - Docker Engine 28+，Docker Compose v2
 - 至少一个出口 IP（WireGuard 配置或代理服务器）
 
+### 界面预览
+
+> 下图均来自仓库 `imgs/`，帮助你在部署前先直观看到后台和用户侧体验。
+
+#### 仪表板总览
+
+![仪表板总览](/imgs/1.png)
+
+#### 主机管理列表
+
+![主机管理列表](/imgs/2.png)
+
+#### 主机详情与连接入口
+
+![主机详情与连接入口](/imgs/4.png)
+
+#### 生命周期与网络操作
+
+![生命周期与网络操作](/imgs/5.png)
+
+#### 浏览器远程桌面（KasmVNC）
+
+![浏览器远程桌面](/imgs/3.png)
+
 ### 第 1 步：克隆代码
 
 ```bash
@@ -251,6 +275,70 @@ claude
 ### 重建主机
 
 如果需要重置环境，可以在用户面板中点击"重建"按钮。重建会重新创建容器，但 home 目录数据会保留。
+
+## 在本机进行源码开发（从 clone 开始）
+
+如果你想参与二次开发，推荐按下面流程在本机启动开发环境。
+
+### 1. 准备依赖
+
+- Git
+- Go `1.25.7+`
+- Node.js `20+`（建议启用 `corepack`）
+- pnpm `10+`
+- Docker Engine + Docker Compose v2
+- GNU Make
+
+### 2. 克隆仓库
+
+```bash
+git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
+cd cloud-cli-proxy
+```
+
+### 3. 初始化依赖与环境文件
+
+```bash
+make setup
+```
+
+该命令会安装前端依赖，并在缺失 `.env` 时从 `.env.example` 自动生成。
+
+### 4. 启动本地数据库
+
+```bash
+make db
+```
+
+默认连接本地 PostgreSQL（`127.0.0.1:5433`）。
+
+### 5. 启动开发模式
+
+```bash
+make dev
+```
+
+启动后可访问：
+
+- Admin 前端：`http://localhost:5173`
+- Control Plane API：`http://127.0.0.1:8090`
+
+### 6. 基础验证与测试
+
+```bash
+curl http://127.0.0.1:8090/healthz
+make test
+```
+
+### 常用命令
+
+```bash
+make dev-api   # 仅启动后端
+make dev-web   # 仅启动前端
+make db-stop   # 停止数据库
+make db-reset  # 重建数据库
+make help      # 查看全部命令
+```
 
 ## 下一步
 
