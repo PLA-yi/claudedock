@@ -613,6 +613,12 @@ func (h *AdminHostsHandler) UpdateClaudeSettings() nethttp.Handler {
 	})
 }
 
+type claudeProcess struct {
+	PID            int    `json:"pid"`
+	WorkDir        string `json:"work_dir"`
+	ElapsedSeconds int    `json:"elapsed_seconds"`
+}
+
 func (h *AdminHostsHandler) GetClaudeStatus() nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		hostID := r.PathValue("hostID")
@@ -636,10 +642,33 @@ func (h *AdminHostsHandler) GetClaudeStatus() nethttp.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
-		countCmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName,
-			"bash", "-c", "pgrep -c -f claude-real 2>/dev/null || echo 0")
-		countOut, _ := countCmd.CombinedOutput()
-		instances, _ := strconv.Atoi(strings.TrimSpace(string(countOut)))
+		script := `ps -eo pid=,etimes=,args= 2>/dev/null | grep '[c]laude-real' | while read -r pid etime rest; do
+  cwd=$(readlink /proc/$pid/cwd 2>/dev/null || echo "unknown")
+  printf '%s|%s|%s\n' "$pid" "$etime" "$cwd"
+done`
+		procCmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "bash", "-c", script)
+		procOut, _ := procCmd.CombinedOutput()
+
+		var processes []claudeProcess
+		for _, line := range strings.Split(strings.TrimSpace(string(procOut)), "\n") {
+			if line == "" {
+				continue
+			}
+			parts := strings.SplitN(line, "|", 3)
+			if len(parts) < 3 {
+				continue
+			}
+			pid, _ := strconv.Atoi(strings.TrimSpace(parts[0]))
+			elapsed, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+			cwd := strings.TrimSpace(parts[2])
+			if pid > 0 {
+				processes = append(processes, claudeProcess{
+					PID:            pid,
+					WorkDir:        cwd,
+					ElapsedSeconds: elapsed,
+				})
+			}
+		}
 
 		versionCmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName,
 			"bash", "-c", "claude-real --version 2>/dev/null || echo unknown")
@@ -650,8 +679,9 @@ func (h *AdminHostsHandler) GetClaudeStatus() nethttp.Handler {
 		}
 
 		writeJSON(w, nethttp.StatusOK, map[string]any{
-			"running_instances": instances,
+			"running_instances": len(processes),
 			"version":           version,
+			"processes":         processes,
 		})
 	})
 }

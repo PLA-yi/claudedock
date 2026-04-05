@@ -203,11 +203,23 @@ export function useUpdateClaudeSettings() {
   });
 }
 
+export interface ClaudeProcess {
+  pid: number;
+  work_dir: string;
+  elapsed_seconds: number;
+}
+
+export interface ClaudeStatusResponse {
+  running_instances: number;
+  version: string;
+  processes: ClaudeProcess[];
+}
+
 export function useClaudeStatus(hostId: string, enabled = true) {
   return useQuery({
     queryKey: ["hosts", hostId, "claude-status"],
     queryFn: () =>
-      apiFetch<{ running_instances: number; version: string }>(
+      apiFetch<ClaudeStatusResponse>(
         `/hosts/${hostId}/claude/status`,
       ),
     enabled: !!hostId && enabled,
