@@ -19,6 +19,7 @@ RUN apt-get update \
 COPY --from=builder /usr/local/bin/control-plane /usr/local/bin/control-plane
 
 WORKDIR /app
+COPY internal/store/migrations internal/store/migrations
 COPY deploy/docker/managed-user/image.lock deploy/docker/managed-user/image.lock
 
 EXPOSE 8080
