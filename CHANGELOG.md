@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v1.6.5 - 2026-04-05
+## What's Changed
+
+### Backend (Go / API)
+- feat: SSH代理用自己的密钥连容器，不再依赖密码 (069f2ac)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v1.6.4...v1.6.5
+
+
 ## v1.6.4 - 2026-04-05
 ## What's Changed
 
