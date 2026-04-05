@@ -5,6 +5,7 @@ import {
   Copy,
   KeyRound,
   Monitor,
+  Settings,
   Terminal,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +25,9 @@ import { BindingManager } from "@/components/hosts/binding-manager";
 import { HostLifecycleActions } from "@/components/hosts/host-lifecycle-actions";
 import { RotatePasswordDialog } from "@/components/users/rotate-password-dialog";
 import { RotateHostSSHPasswordDialog } from "@/components/hosts/rotate-host-ssh-password-dialog";
+import { ChangeRootPasswordDialog } from "@/components/hosts/change-root-password-dialog";
+import { ClaudeSettingsDialog } from "@/components/hosts/claude-settings-dialog";
+import { ClaudeStatusCard } from "@/components/hosts/claude-status-card";
 
 export const Route = createFileRoute("/_dashboard/hosts/$hostId")({
   component: HostDetailPage,
@@ -54,6 +58,8 @@ function HostDetailPage() {
   const restartVNCMutation = useRestartHostVNC();
   const [rotateLoginOpen, setRotateLoginOpen] = useState(false);
   const [rotateSSHOpen, setRotateSSHOpen] = useState(false);
+  const [changeRootPwOpen, setChangeRootPwOpen] = useState(false);
+  const [claudeSettingsOpen, setClaudeSettingsOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -309,6 +315,28 @@ function HostDetailPage() {
                   <Button
                     type="button"
                     variant="secondary"
+                    className="h-11 justify-start gap-2 px-4 sm:col-span-1"
+                    onClick={() => setChangeRootPwOpen(true)}
+                  >
+                    <KeyRound className="h-4 w-4 shrink-0" />
+                    <span className="text-left text-sm leading-snug">
+                      修改 Root 密码
+                    </span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-11 justify-start gap-2 px-4 sm:col-span-1"
+                    onClick={() => setClaudeSettingsOpen(true)}
+                  >
+                    <Settings className="h-4 w-4 shrink-0" />
+                    <span className="text-left text-sm leading-snug">
+                      编辑 Claude 配置
+                    </span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
                     className="h-11 justify-start gap-2 px-4 sm:col-span-2"
                     onClick={openVNC}
                   >
@@ -339,6 +367,8 @@ function HostDetailPage() {
         </Card>
       </div>
 
+      <ClaudeStatusCard hostId={hostId} hostStatus={host.status} />
+
       <RotatePasswordDialog
         userId={user.id}
         open={rotateLoginOpen}
@@ -348,6 +378,17 @@ function HostDetailPage() {
         hostId={host.id}
         open={rotateSSHOpen}
         onOpenChange={setRotateSSHOpen}
+      />
+      <ChangeRootPasswordDialog
+        hostId={host.id}
+        open={changeRootPwOpen}
+        onOpenChange={setChangeRootPwOpen}
+      />
+      <ClaudeSettingsDialog
+        hostId={host.id}
+        hostStatus={host.status}
+        open={claudeSettingsOpen}
+        onOpenChange={setClaudeSettingsOpen}
       />
     </div>
   );

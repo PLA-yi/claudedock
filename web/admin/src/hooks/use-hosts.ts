@@ -156,6 +156,81 @@ export function useRestartHostVNC() {
   });
 }
 
+export function useChangeRootPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hostId, password }: { hostId: string; password: string }) =>
+      apiFetch(`/hosts/${hostId}/change-root-password`, {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      }),
+    onSuccess: (_data, { hostId }) => {
+      qc.invalidateQueries({ queryKey: ["hosts", hostId] });
+    },
+  });
+}
+
+export function useClaudeSettings(hostId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["hosts", hostId, "claude-settings"],
+    queryFn: () =>
+      apiFetch<{ settings: Record<string, unknown> }>(
+        `/hosts/${hostId}/claude/settings`,
+      ),
+    enabled: !!hostId && enabled,
+  });
+}
+
+export function useUpdateClaudeSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      hostId,
+      settings,
+    }: {
+      hostId: string;
+      settings: Record<string, unknown>;
+    }) =>
+      apiFetch(`/hosts/${hostId}/claude/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ settings }),
+      }),
+    onSuccess: (_data, { hostId }) => {
+      qc.invalidateQueries({
+        queryKey: ["hosts", hostId, "claude-settings"],
+      });
+    },
+  });
+}
+
+export function useClaudeStatus(hostId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["hosts", hostId, "claude-status"],
+    queryFn: () =>
+      apiFetch<{ running_instances: number; version: string }>(
+        `/hosts/${hostId}/claude/status`,
+      ),
+    enabled: !!hostId && enabled,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useUpdateClaude() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (hostId: string) =>
+      apiFetch<{ status: string; version: string }>(
+        `/hosts/${hostId}/claude/update`,
+        { method: "POST" },
+      ),
+    onSuccess: (_data, hostId) => {
+      qc.invalidateQueries({
+        queryKey: ["hosts", hostId, "claude-status"],
+      });
+    },
+  });
+}
+
 export function useBindEgressIP() {
   const qc = useQueryClient();
   return useMutation({
