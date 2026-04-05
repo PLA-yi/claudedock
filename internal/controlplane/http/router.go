@@ -243,6 +243,7 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 			mux.Handle("GET /v1/admin/hosts/{hostID}/claude/settings", adminGuard(hostsHandler.GetClaudeSettings()))
 			mux.Handle("PUT /v1/admin/hosts/{hostID}/claude/settings", adminGuard(hostsHandler.UpdateClaudeSettings()))
 			mux.Handle("GET /v1/admin/hosts/{hostID}/claude/status", adminGuard(hostsHandler.GetClaudeStatus()))
+			mux.Handle("GET /v1/admin/hosts/{hostID}/claude/info", adminGuard(hostsHandler.GetClaudeInfo()))
 			mux.Handle("POST /v1/admin/hosts/{hostID}/claude/update", adminGuard(hostsHandler.UpdateClaude()))
 			mux.Handle("DELETE /v1/admin/hosts/{hostID}", adminGuard(hostsHandler.Delete()))
 

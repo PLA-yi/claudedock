@@ -613,6 +613,88 @@ func (h *AdminHostsHandler) UpdateClaudeSettings() nethttp.Handler {
 	})
 }
 
+func (h *AdminHostsHandler) GetClaudeInfo() nethttp.Handler {
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		hostID := r.PathValue("hostID")
+
+		host, err := h.store.GetHost(r.Context(), hostID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeJSON(w, nethttp.StatusNotFound, map[string]string{"error": "host not found"})
+				return
+			}
+			h.logger.Error("get host for claude info failed", "host_id", hostID, "error", err)
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "get host failed"})
+			return
+		}
+		if host.Status != "running" {
+			writeJSON(w, nethttp.StatusConflict, map[string]string{"error": "host is not running"})
+			return
+		}
+
+		containerName := "cloudproxy-" + hostID
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		script := `echo '===CLAUDE_JSON===' && cat /workspace/.claude.json 2>/dev/null || echo '{}' && echo '===PROJECT_SETTINGS===' && cat /workspace/.claude/settings.json 2>/dev/null || echo '{}' && echo '===UNAME===' && uname -a 2>/dev/null || echo 'unknown' && echo '===HOSTNAME===' && hostname 2>/dev/null || echo 'unknown' && echo '===NODE===' && node --version 2>/dev/null || echo 'unknown'`
+		cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "bash", "-c", script)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			writeJSON(w, nethttp.StatusOK, map[string]any{
+				"claude_json": map[string]any{},
+				"uname":       "unknown",
+				"hostname":    "unknown",
+				"node":        "unknown",
+			})
+			return
+		}
+
+		raw := string(output)
+		result := map[string]any{
+			"uname":    "unknown",
+			"hostname": "unknown",
+			"node":     "unknown",
+		}
+
+		extractSection := func(marker, next string) string {
+			start := strings.Index(raw, marker)
+			if start == -1 {
+				return ""
+			}
+			start += len(marker) + 1
+			end := len(raw)
+			if next != "" {
+				if idx := strings.Index(raw[start:], next); idx >= 0 {
+					end = start + idx
+				}
+			}
+			return strings.TrimSpace(raw[start:end])
+		}
+
+		claudeJSON := extractSection("===CLAUDE_JSON===", "===PROJECT_SETTINGS===")
+		var cj json.RawMessage
+		if err := json.Unmarshal([]byte(claudeJSON), &cj); err == nil {
+			result["claude_json"] = cj
+		} else {
+			result["claude_json"] = map[string]any{}
+		}
+
+		projectSettings := extractSection("===PROJECT_SETTINGS===", "===UNAME===")
+		var ps json.RawMessage
+		if err := json.Unmarshal([]byte(projectSettings), &ps); err == nil {
+			result["project_settings"] = ps
+		} else {
+			result["project_settings"] = map[string]any{}
+		}
+
+		result["uname"] = extractSection("===UNAME===", "===HOSTNAME===")
+		result["hostname"] = extractSection("===HOSTNAME===", "===NODE===")
+		result["node"] = extractSection("===NODE===", "")
+
+		writeJSON(w, nethttp.StatusOK, result)
+	})
+}
+
 type claudeProcess struct {
 	PID            int    `json:"pid"`
 	WorkDir        string `json:"work_dir"`

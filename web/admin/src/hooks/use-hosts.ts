@@ -203,6 +203,25 @@ export function useUpdateClaudeSettings() {
   });
 }
 
+export interface ClaudeInfoResponse {
+  claude_json: Record<string, unknown>;
+  project_settings: Record<string, unknown>;
+  uname: string;
+  hostname: string;
+  node: string;
+}
+
+export function useClaudeInfo(hostId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["hosts", hostId, "claude-info"],
+    queryFn: () =>
+      apiFetch<ClaudeInfoResponse>(
+        `/hosts/${hostId}/claude/info`,
+      ),
+    enabled: !!hostId && enabled,
+  });
+}
+
 export interface ClaudeProcess {
   pid: number;
   work_dir: string;
