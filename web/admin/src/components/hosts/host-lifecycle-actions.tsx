@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Play, Square, RefreshCw, Trash2, AlertTriangle } from "lucide-react";
+import { Play, Square, RefreshCw, Trash2, AlertTriangle, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useHostAction, useDeleteHost } from "@/hooks/use-hosts";
+import type { HostImageInfo } from "@/hooks/use-hosts";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -19,16 +21,19 @@ import { RebuildDialog } from "./rebuild-dialog";
 interface HostLifecycleActionsProps {
   hostId: string;
   hostStatus: string;
+  imageInfo?: HostImageInfo;
 }
 
 export function HostLifecycleActions({
   hostId,
   hostStatus,
+  imageInfo,
 }: HostLifecycleActionsProps) {
   const navigate = useNavigate();
   const actionMutation = useHostAction();
   const deleteMutation = useDeleteHost();
   const [rebuildOpen, setRebuildOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [forceDeleteOpen, setForceDeleteOpen] = useState(false);
 
@@ -101,6 +106,22 @@ export function HostLifecycleActions({
             <RefreshCw className="h-4 w-4 shrink-0" />
             <span className="text-left text-sm leading-snug">重建主机</span>
           </Button>
+
+          {imageInfo?.update_available && (
+            <Button
+              className="h-11 justify-start gap-2 sm:col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => setUpgradeOpen(true)}
+              disabled={actionMutation.isPending}
+            >
+              <ArrowUpCircle className="h-4 w-4 shrink-0" />
+              <span className="text-left text-sm leading-snug">
+                升级镜像
+              </span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-white/20 text-white">
+                {imageInfo.latest_image_id}
+              </Badge>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -178,6 +199,53 @@ export function HostLifecycleActions({
               onClick={() => handleDelete(true)}
             >
               强制删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <span className="flex items-center gap-2">
+                <ArrowUpCircle className="h-5 w-5 text-emerald-600" />
+                升级镜像版本
+              </span>
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <span className="block">
+                将使用最新镜像重建主机。系统会自动拉取最新镜像后重建容器。
+              </span>
+              {imageInfo && (
+                <span className="block rounded-md border bg-muted/50 p-3 text-xs space-y-1">
+                  <span className="block"><strong>当前镜像：</strong><code>{imageInfo.container_image_id}</code></span>
+                  <span className="block"><strong>最新镜像：</strong><code>{imageInfo.latest_image_id}</code></span>
+                </span>
+              )}
+              <span className="block">
+                升级会保留 home 目录数据，仅重置系统层。等同于"保留主目录"模式的重建。
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={() => {
+                actionMutation.mutate(
+                  { hostId, action: "rebuild", body: { mode: "preserve" } },
+                  {
+                    onSuccess: () => {
+                      toast.success("升级已启动，系统正在拉取最新镜像并重建");
+                      setUpgradeOpen(false);
+                    },
+                    onError: () => toast.error("升级操作提交失败"),
+                  },
+                );
+              }}
+            >
+              确认升级
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

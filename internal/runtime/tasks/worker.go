@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -133,6 +134,8 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 	if err := os.MkdirAll(homeDir, 0o755); err != nil {
 		return fmt.Errorf("prepare host home dir %s: %w", homeDir, err)
 	}
+
+	w.pullImage(ctx, request.ImageName)
 
 	if exists, err := w.containerExists(ctx, containerName); err != nil {
 		return err
@@ -498,6 +501,17 @@ func (rv *repoValidator) GetEgressIPByHost(ctx context.Context, hostID string) (
 
 func (rv *repoValidator) GetHostWgKeys(ctx context.Context, hostID string) (string, string, error) {
 	return rv.repo.GetHostWgKeys(ctx, hostID)
+}
+
+func (w *Worker) pullImage(ctx context.Context, imageName string) {
+	cmd := exec.CommandContext(ctx, "docker", "pull", imageName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Warn("docker pull failed, will use local image if available",
+			"image", imageName, "error", err, "output", strings.TrimSpace(string(output)))
+		return
+	}
+	slog.Info("pulled latest image", "image", imageName)
 }
 
 func (w *Worker) containerExists(ctx context.Context, name string) (bool, error) {

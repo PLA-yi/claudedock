@@ -262,6 +262,26 @@ export function useUpdateClaude() {
   });
 }
 
+export interface HostImageInfo {
+  container_image_id: string;
+  container_created: string;
+  latest_image_id: string;
+  latest_image_name: string;
+  latest_created: string;
+  update_available: boolean;
+  container_available: boolean;
+}
+
+export function useHostImageInfo(hostId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["hosts", hostId, "image-info"],
+    queryFn: () =>
+      apiFetch<HostImageInfo>(`/hosts/${hostId}/image-info`),
+    enabled: !!hostId && enabled,
+    refetchInterval: 60_000,
+  });
+}
+
 export function useBindEgressIP() {
   const qc = useQueryClient();
   return useMutation({

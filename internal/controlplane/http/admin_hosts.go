@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
+	"github.com/zanel1u/cloud-cli-proxy/internal/runtime"
 	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
 )
 
@@ -505,6 +506,90 @@ func (h *AdminHostsHandler) ChangeRootPassword() nethttp.Handler {
 
 		writeJSON(w, nethttp.StatusOK, map[string]string{"status": "ok"})
 	})
+}
+
+func (h *AdminHostsHandler) GetImageInfo() nethttp.Handler {
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		hostID := r.PathValue("hostID")
+		containerName := "cloudproxy-" + hostID
+
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		containerCmd := exec.CommandContext(ctx, "docker", "inspect",
+			"--format", "{{.Image}}|{{.Config.Image}}|{{.Created}}", containerName)
+		containerOut, err := containerCmd.Output()
+		if err != nil {
+			writeJSON(w, nethttp.StatusOK, map[string]any{
+				"container_image_id":  "",
+				"latest_image_id":     "",
+				"update_available":    false,
+				"container_available": false,
+			})
+			return
+		}
+
+		parts := strings.SplitN(strings.TrimSpace(string(containerOut)), "|", 3)
+		containerImageID := parts[0]
+		containerCreated := ""
+		if len(parts) > 2 {
+			containerCreated = parts[2]
+		}
+
+		spec, specErr := runtime.LoadRuntimeSpec(runtime.DefaultImageLockPath)
+		if specErr != nil {
+			writeJSON(w, nethttp.StatusOK, map[string]any{
+				"container_image_id":  shortImageID(containerImageID),
+				"container_created":   containerCreated,
+				"latest_image_id":     "",
+				"update_available":    false,
+				"container_available": true,
+			})
+			return
+		}
+
+		latestCmd := exec.CommandContext(ctx, "docker", "inspect",
+			"--format", "{{.Id}}|{{.Created}}", spec.ImageName)
+		latestOut, err := latestCmd.Output()
+		if err != nil {
+			writeJSON(w, nethttp.StatusOK, map[string]any{
+				"container_image_id":  shortImageID(containerImageID),
+				"container_created":   containerCreated,
+				"latest_image_id":     "",
+				"latest_image_name":   spec.ImageName,
+				"update_available":    false,
+				"container_available": true,
+			})
+			return
+		}
+
+		latestParts := strings.SplitN(strings.TrimSpace(string(latestOut)), "|", 2)
+		latestImageID := latestParts[0]
+		latestCreated := ""
+		if len(latestParts) > 1 {
+			latestCreated = latestParts[1]
+		}
+
+		updateAvailable := containerImageID != latestImageID
+
+		writeJSON(w, nethttp.StatusOK, map[string]any{
+			"container_image_id":  shortImageID(containerImageID),
+			"container_created":   containerCreated,
+			"latest_image_id":     shortImageID(latestImageID),
+			"latest_image_name":   spec.ImageName,
+			"latest_created":      latestCreated,
+			"update_available":    updateAvailable,
+			"container_available": true,
+		})
+	})
+}
+
+func shortImageID(id string) string {
+	id = strings.TrimPrefix(id, "sha256:")
+	if len(id) > 12 {
+		return id[:12]
+	}
+	return id
 }
 
 func (h *AdminHostsHandler) GetClaudeSettings() nethttp.Handler {

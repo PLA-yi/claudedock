@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { getToken } from "@/lib/auth";
-import { useHostDetail, useRestartHostVNC } from "@/hooks/use-hosts";
+import { useHostDetail, useHostImageInfo, useRestartHostVNC } from "@/hooks/use-hosts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +55,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 function HostDetailPage() {
   const { hostId } = Route.useParams();
   const { data, isLoading } = useHostDetail(hostId);
+  const { data: imageInfo } = useHostImageInfo(hostId, !!data?.host);
   const restartVNCMutation = useRestartHostVNC();
   const [rotateLoginOpen, setRotateLoginOpen] = useState(false);
   const [rotateSSHOpen, setRotateSSHOpen] = useState(false);
@@ -182,6 +183,32 @@ function HostDetailPage() {
                   {host.template_image_ref}
                 </dd>
               </div>
+              {imageInfo?.container_available && (
+                <>
+                  <div className="space-y-1">
+                    <dt className="text-xs text-muted-foreground">当前镜像 ID</dt>
+                    <dd className="font-mono text-xs">{imageInfo.container_image_id || "—"}</dd>
+                  </div>
+                  {imageInfo.latest_image_id && (
+                    <div className="space-y-1">
+                      <dt className="text-xs text-muted-foreground">最新镜像 ID</dt>
+                      <dd className="font-mono text-xs">
+                        {imageInfo.latest_image_id}
+                        {imageInfo.update_available && (
+                          <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">
+                            有更新
+                          </Badge>
+                        )}
+                        {!imageInfo.update_available && (
+                          <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-300">
+                            已最新
+                          </Badge>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="space-y-1">
                 <dt className="text-xs text-muted-foreground">时区</dt>
                 <dd className="text-sm">{host.timezone || "—"}</dd>
@@ -281,7 +308,7 @@ function HostDetailPage() {
           </CardHeader>
           <CardContent className="space-y-0 p-0">
             <div className="p-6 pt-5">
-              <HostLifecycleActions hostId={hostId} hostStatus={host.status} />
+              <HostLifecycleActions hostId={hostId} hostStatus={host.status} imageInfo={imageInfo} />
             </div>
             <Separator />
             <div className="space-y-4 bg-muted/25 p-6">
