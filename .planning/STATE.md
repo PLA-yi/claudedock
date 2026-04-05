@@ -76,10 +76,11 @@ None.
 | 260328-trs | 为用户容器添加资源限制功能（内存、CPU、磁盘） | 2026-03-29 | e55a4e4 | [260328-trs-cpu](./quick/260328-trs-cpu/) |
 | 260328-u4q | 重写README并创建VitePress中英文文档站部署到GitHub Pages | 2026-03-29 | d23e1b2 | [260328-u4q-readme-vitepress-github-pages](./quick/260328-u4q-readme-vitepress-github-pages/) |
 | 260405-h13 | 容器管理 API (root 密码/Claude settings/状态/更新) + 前端集成 | 2026-04-05 | 6affd42 | [260405-h13-root-claude-settings-claude-claude-code](./quick/260405-h13-root-claude-settings-claude-claude-code/) |
-| 260405-hai | 增强 Claude 状态 API：返回每个进程的 PID、工作目录和运行时间 | 2026-04-05 | — | [260405-hai-claude-api-pid](./quick/260405-hai-claude-api-pid/) |
+| 260405-hai | 增强 Claude 状态 API：返回每个进程的 PID、工作目录和运行时间 | 2026-04-05 | 2ae9592 | [260405-hai-claude-api-pid](./quick/260405-hai-claude-api-pid/) |
+| 260405-hio | Claude Code 深度配置集成：结构化settings编辑面板+系统指纹查看 | 2026-04-05 | bea7886 | [260405-hio-claude-code-settings](./quick/260405-hio-claude-code-settings/) |
 
 ## Session Continuity
 
-Last session: 2026-04-05T04:30:00.000Z
-Stopped at: Completed 260405-hai quick task
+Last session: 2026-04-05T04:45:00.000Z
+Stopped at: Completed 260405-hio quick task
 Resume file: None
