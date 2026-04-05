@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v1.6.7 - 2026-04-05
+## What's Changed
+
+### Backend (Go / API)
+- fix: curl入口变量遮蔽bug + 增强日志 + SSH快捷复制按钮 (ef07560)
+
+### Frontend (Admin Web)
+- fix: curl入口变量遮蔽bug + 增强日志 + SSH快捷复制按钮 (ef07560)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v1.6.6...v1.6.7
+
+
 ## v1.6.6 - 2026-04-05
 ## What's Changed
 
