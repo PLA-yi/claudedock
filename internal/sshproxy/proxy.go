@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,6 +67,7 @@ func loadOrGenerateHostKey(path string, logger *slog.Logger) (ssh.Signer, error)
 				return nil, fmt.Errorf("parse host key %s: %w", path, err)
 			}
 			logger.Info("SSH proxy loaded persistent host key", "path", path)
+			exportPublicKey(signer, path, logger)
 			return signer, nil
 		}
 		if !os.IsNotExist(err) {
@@ -98,9 +100,20 @@ func loadOrGenerateHostKey(path string, logger *slog.Logger) (ssh.Signer, error)
 		} else {
 			logger.Info("SSH proxy generated and persisted new host key", "path", path)
 		}
+		exportPublicKey(signer, path, logger)
 	}
 
 	return signer, nil
+}
+
+func exportPublicKey(signer ssh.Signer, privKeyPath string, logger *slog.Logger) {
+	pubKeyPath := privKeyPath + ".pub"
+	pubKeyStr := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) + " cloud-cli-proxy-proxy\n"
+	if err := os.WriteFile(pubKeyPath, []byte(pubKeyStr), 0o644); err != nil {
+		logger.Warn("cannot export proxy public key", "path", pubKeyPath, "error", err)
+	} else {
+		logger.Info("SSH proxy public key exported", "path", pubKeyPath)
+	}
 }
 
 func (s *Server) ListenAndServe(ctx context.Context) error {
@@ -208,14 +221,19 @@ func (s *Server) handleChannel(newChan ssh.NewChannel, targetAddr, targetUser, t
 	if user == "" {
 		user = s.containerUser
 	}
+
+	authMethods := []ssh.AuthMethod{
+		ssh.PublicKeys(s.hostKey),
+	}
 	pass := targetPassword
 	if pass == "" {
 		pass = s.containerPassword
 	}
+	authMethods = append(authMethods, ssh.Password(pass))
 
 	targetConfig := &ssh.ClientConfig{
 		User:            user,
-		Auth:            []ssh.AuthMethod{ssh.Password(pass)},
+		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         10 * time.Second,
 	}

@@ -423,27 +423,28 @@ func (w *Worker) injectSSHKeys(ctx context.Context, request agentapi.HostActionR
 	sshDir := "/workspace/.ssh"
 
 	var authorizedKeys []string
+	if proxyPubKey := loadProxyPublicKey(); proxyPubKey != "" {
+		authorizedKeys = append(authorizedKeys, proxyPubKey)
+	}
 	for _, key := range request.SSHKeys {
 		if key.Purpose == "inbound" && key.PublicKey != "" {
 			authorizedKeys = append(authorizedKeys, strings.TrimSpace(key.PublicKey))
 		}
 	}
-	if len(authorizedKeys) > 0 {
-		content := strings.Join(authorizedKeys, "\n") + "\n"
-		script := fmt.Sprintf(
-			"mkdir -p %s && cat > %s/authorized_keys && chmod 600 %s/authorized_keys && chown %s:%s %s/authorized_keys",
-			sshDir, sshDir, sshDir, user, user, sshDir,
-		)
-		cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "bash", "-c", script)
-		cmd.Stdin = strings.NewReader(content)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			w.repo.RecordEvent(ctx, repository.RecordEventParams{
-				HostID:  &request.HostID,
-				Level:   "warn",
-				Type:    "runtime.ssh_authorized_keys_failed",
-				Message: fmt.Sprintf("inject authorized_keys failed: %s", strings.TrimSpace(string(out))),
-			})
-		}
+	content := strings.Join(authorizedKeys, "\n") + "\n"
+	script := fmt.Sprintf(
+		"mkdir -p %s && cat > %s/authorized_keys && chmod 600 %s/authorized_keys && chown %s:%s %s/authorized_keys",
+		sshDir, sshDir, sshDir, user, user, sshDir,
+	)
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "bash", "-c", script)
+	cmd.Stdin = strings.NewReader(content)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		w.repo.RecordEvent(ctx, repository.RecordEventParams{
+			HostID:  &request.HostID,
+			Level:   "warn",
+			Type:    "runtime.ssh_authorized_keys_failed",
+			Message: fmt.Sprintf("inject authorized_keys failed: %s", strings.TrimSpace(string(out))),
+		})
 	}
 
 	outboundIdx := 0
@@ -595,6 +596,19 @@ func (rv *repoValidator) GetEgressIPByHost(ctx context.Context, hostID string) (
 
 func (rv *repoValidator) GetHostWgKeys(ctx context.Context, hostID string) (string, string, error) {
 	return rv.repo.GetHostWgKeys(ctx, hostID)
+}
+
+func loadProxyPublicKey() string {
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "/var/lib/cloud-cli-proxy"
+	}
+	pubKeyPath := dataDir + "/ssh_host_ed25519_key.pub"
+	data, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func (w *Worker) pullImage(ctx context.Context, imageName string) {

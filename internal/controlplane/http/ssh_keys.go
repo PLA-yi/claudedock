@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	nethttp "net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -281,6 +282,9 @@ func (h *SSHKeyHandler) syncKeysToRunningHosts(userID string) {
 func syncInboundKeysToContainer(ctx context.Context, containerName, user string, keys []repository.SSHKey) {
 	sshDir := "/workspace/.ssh"
 	var lines []string
+	if proxyPub := loadProxyPublicKey(); proxyPub != "" {
+		lines = append(lines, proxyPub)
+	}
 	for _, k := range keys {
 		if k.Purpose == "inbound" && k.PublicKey != "" {
 			lines = append(lines, strings.TrimSpace(k.PublicKey))
@@ -417,6 +421,19 @@ func readContainerAuthorizedKeyFingerprints(ctx context.Context, containerName s
 		}
 	}
 	return result
+}
+
+func loadProxyPublicKey() string {
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "/var/lib/cloud-cli-proxy"
+	}
+	pubKeyPath := dataDir + "/ssh_host_ed25519_key.pub"
+	data, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func computeFingerprint(pubKeyStr string) string {
