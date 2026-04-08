@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v1.6.9 - 2026-04-08
+## What's Changed
+
+### Runtime & Deployment
+- fix(runtime): remove tmux wrapper from claude (da09ba9)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v1.6.8...v1.6.9
+
+
 ## v1.6.8 - 2026-04-08
 ## What's Changed
 
