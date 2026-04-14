@@ -106,7 +106,7 @@
 
 **Milestone Goal:** 交付一个可替代原生 `claude` 命令的 Go 二进制文件 `cloud-claude`，用户 `alias claude=cloud-claude` 后输入 `claude` 的体验与本地完全一致——实际运行在远端配好代理出口的 Docker 容器里，本地目录通过 sshfs slave 实时映射到容器内。
 
-- [ ] **Phase 24: 受管镜像 FUSE 硬化与容器参数** — 镜像预装 sshfs/fuse3，Worker 附加 FUSE 设备权限，SSH Proxy 零改造验证
+- [x] **Phase 24: 受管镜像 FUSE 硬化与容器参数** — 镜像预装 sshfs/fuse3，Worker 附加 FUSE 设备权限，SSH Proxy 零改造验证 (completed 2026-04-14)
 - [ ] **Phase 25: cloud-claude CLI 骨架与连接** — Go 二进制 cloud-claude 的配置、认证和远端容器连接闭环
 - [ ] **Phase 26: 参数透传与终端体验** — claude 参数原样透传，TTY/信号/退出码与本地一致
 - [ ] **Phase 27: 双 session 目录映射** — sshfs slave + SFTP 实现当前目录到容器 /workspace 的实时双向映射
@@ -122,7 +122,7 @@
   3. SSH Proxy 现有多 session channel 和 exec 转发能力无需代码改动即可支持 cloud-claude 的连接模式
 **Plans**: 1 plan
 Plans:
-- [ ] 24-01-PLAN.md — 镜像 FUSE 预装、容器参数附加与 SSH Proxy 零改造验证
+- [x] 24-01-PLAN.md — 镜像 FUSE 预装、容器参数附加与 SSH Proxy 零改造验证
 
 ### Phase 25: cloud-claude CLI 骨架与连接
 **Goal**: 用户可以运行 cloud-claude 命令完成配置、认证和远端容器连接
@@ -174,7 +174,7 @@ Phases execute in numeric order: 24 → 25 → 26 → 27 → 28
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 24. 受管镜像 FUSE 硬化与容器参数 | 0/0 | Not started | - |
+| 24. 受管镜像 FUSE 硬化与容器参数 | 1/1 | Complete   | 2026-04-14 |
 | 25. cloud-claude CLI 骨架与连接 | 0/0 | Not started | - |
 | 26. 参数透传与终端体验 | 0/0 | Not started | - |
 | 27. 双 session 目录映射 | 0/0 | Not started | - |
