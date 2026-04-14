@@ -1,99 +1,87 @@
-# Requirements: claude-shell
+# Requirements: Cloud CLI Proxy
 
-**Defined:** 2026-04-09
-**Core Value:** 单一二进制替换 claude 命令，透明启动 Docker 容器运行 Claude Code，所有网络流量走代理出口，设备指纹完全伪装，用户和 Claude Code 均无感知。
+**Defined:** 2026-04-14
+**Core Value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
 
-## v1.3 Requirements
+## v2.0 Requirements
 
-### 容器基础设施
+Requirements for cloud-claude 透明远程 CLI 里程碑。Each maps to roadmap phases.
 
-- [ ] **INFRA-01**: 精简 Docker 镜像，通过官方安装脚本安装 Claude Code（Bun standalone），包含 sing-box 和基础开发工具
-- [ ] **INFRA-02**: entrypoint 按正确顺序编排：网络配置 → 指纹伪造 → 反检测 → 启动 Claude Code
-- [ ] **INFRA-03**: 容器内 Claude Code 自动更新被禁用（DISABLE_AUTOUPDATER）
+### CLI 基础
 
-### 网络隔离与代理
+- [ ] **CLI-01**: 用户可以运行 `cloud-claude`（无参数）透明启动远端容器并进入 Claude Code 交互会话
+- [ ] **CLI-02**: 用户可以运行 `cloud-claude init` 配置网关地址和凭证，持久化到 `~/.cloud-claude/config.yaml`
+- [ ] **CLI-03**: 用户传入的所有 claude 参数原样透传到容器内 Claude Code
+- [ ] **CLI-04**: 网关不可达、认证失败、容器未就绪等场景给出清晰的中文错误提示
+- [ ] **CLI-05**: 用户可以配置自有网关地址，支持私有部署场景
 
-- [ ] **NET-01**: sing-box tun 模式接管容器内所有出站流量，外网流量走配置的代理出口
-- [ ] **NET-02**: nftables 默认拒绝策略，仅允许 tun 和本地网络接口的流量
-- [ ] **NET-03**: DNS 查询走代理（外网域名），防止 DNS 泄漏
-- [ ] **NET-04**: 本地流量（127.0.0.1、10.0.0.0/8、172.16.0.0/12、192.168.0.0/16）通过 host-gateway 回连宿主机
-- [ ] **NET-05**: 支持多种代理协议（SOCKS5、HTTP、VMess、Shadowsocks、Trojan）
+### 终端体验
 
-### 设备指纹伪造
+- [ ] **TTY-01**: 终端窗口 resize 时 SIGWINCH 正确传递到容器内进程
+- [ ] **TTY-02**: Ctrl+C / Ctrl+\ 等信号正确转发到容器
+- [ ] **TTY-03**: 容器退出码透传给本地 CLI 进程
 
-- [ ] **SPOOF-01**: /etc/machine-id 在 entrypoint 中写入基于配置派生的伪造值
-- [ ] **SPOOF-02**: 容器 hostname 通过 Docker --hostname 设为配置的伪造值
-- [ ] **SPOOF-03**: /proc/cpuinfo 和 /proc/meminfo 通过 docker run -v 注入伪造文件
-- [ ] **SPOOF-04**: 反容器检测：删除 /.dockerenv、伪造 /proc/1/cgroup、清除 container 环境变量
+### 目录映射
 
-### CLI 包装器
+- [ ] **MAP-01**: 用户当前目录自动映射到容器 /workspace，通过 sshfs slave 实现
+- [ ] **MAP-02**: 映射为双向实时读写，本地改动容器内即时可见，反之亦然
+- [ ] **MAP-03**: 会话结束时自动清理容器内挂载点和相关资源
 
-- [ ] **CLI-01**: Go 二进制作为 claude 命令，无子命令时透传所有参数给容器内 Claude Code
-- [ ] **CLI-02**: docker run 启动容器，bind mount 当前目录到 /workspace，TTY 透传 + 信号转发
-- [ ] **CLI-03**: init 子命令生成 ~/.claude-shell/config.yaml 配置文件
-- [ ] **CLI-04**: verify 子命令在容器内运行检测脚本，验证出口 IP、DNS、指纹和容器标记
-- [ ] **CLI-05**: 自动检测 Docker 可用性，镜像不存在时自动拉取
-- [ ] **CLI-06**: YAML 配置支持代理设置、指纹参数和网络选项
+### 服务端支撑
 
-### 构建与交付
+- [ ] **SRV-01**: 容器镜像预装 sshfs + fuse3 并配置 user_allow_other
+- [ ] **SRV-02**: 容器创建时附加 `--device /dev/fuse` + `--cap-add SYS_ADMIN`
+- [ ] **SRV-03**: SSH Proxy 保持零改造，利用现有多 session channel + exec 转发能力
+- [ ] **SRV-04**: 在 Linux 生产环境验证 FUSE + AppArmor/seccomp 兼容性
 
-- [ ] **BUILD-01**: garble 混淆构建，交付单一 Go 二进制
-- [ ] **BUILD-02**: 项目位于 claude-shell/ 子目录，独立 go.mod，与 cloud-cli-proxy 零依赖
+## v2.x Requirements
 
-## v2 Requirements
+Deferred to future release. Tracked but not in current roadmap.
 
-### 进程级注入（无 Docker 高级模式）
+### 增强功能
 
-- **DYLIB-01**: macOS DYLD_INSERT_LIBRARIES + codesign 重签注入
-- **DYLIB-02**: Linux LD_PRELOAD 注入
-- **DYLIB-03**: connect$NOCANCEL 等 Bun 特有 syscall 变体 hook
-- **DYLIB-04**: PATH 劫持脚本（hostname / uname / ioreg 等）
-
-### 跨平台
-
-- **PLAT-01**: Windows DLL 注入或 IAT hook 支持
-- **PLAT-02**: 多架构 Docker 镜像（amd64 + arm64）
+- **ENH-01**: Mutagen 备选目录映射路径（当 sshfs 性能不足时切换）
+- **ENH-02**: 端口转发支持（本地 ↔ 容器端口映射）
+- **ENH-03**: SSH 连接池/复用优化（延迟成为主诉时）
+- **ENH-04**: 大目录 ignore 策略（node_modules 等排除）
+- **ENH-05**: 异常退出时终端 raw 状态恢复保障
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| 计费与套餐管理 | 不属于 claude-shell 范畴，属于 cloud-cli-proxy 主产品 |
-| Web Terminal / 浏览器远程桌面 | claude-shell 是终端工具，不需要 Web 界面 |
-| 多用户管理 | claude-shell 面向单个开发者，不需要用户管理系统 |
-| 100% 反容器检测保证 | 技术上无法承诺绝对不可检测，作为工程最佳努力而非硬承诺 |
-| Claude Code 自定义版本管理 | 使用官方安装的最新版本，不做版本锁定 |
+| WebSocket 自定义隧道 | 仅在 SSH 不可穿透时才考虑，v2.0 不需要 |
+| 多宿主调度/负载均衡 | v2.0 仍为单宿主机形态 |
+| GUI / 图形界面 | CLI 工具不需要图形界面 |
+| Windows 原生支持 | 优先 macOS/Linux，Windows 通过 WSL |
+| 静默降级到本地 claude | 与产品承诺矛盾，本地模式是 v1.3 范围 |
+| 容器生命周期管理 CLI | 已有管理后台，不重复 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 17 | Pending |
-| INFRA-02 | Phase 17 | Pending |
-| INFRA-03 | Phase 17 | Pending |
-| NET-01 | Phase 18 | Pending |
-| NET-02 | Phase 18 | Pending |
-| NET-03 | Phase 18 | Pending |
-| NET-04 | Phase 18 | Pending |
-| NET-05 | Phase 18 | Pending |
-| CLI-01 | Phase 19 | Pending |
-| CLI-02 | Phase 20 | Pending |
-| CLI-03 | Phase 19 | Pending |
-| CLI-04 | Phase 22 | Pending |
-| CLI-05 | Phase 19 | Pending |
-| CLI-06 | Phase 19 | Pending |
-| SPOOF-01 | Phase 21 | Pending |
-| SPOOF-02 | Phase 21 | Pending |
-| SPOOF-03 | Phase 21 | Pending |
-| SPOOF-04 | Phase 21 | Pending |
-| BUILD-01 | Phase 23 | Pending |
-| BUILD-02 | Phase 19 | Pending |
+| CLI-01 | TBD | Pending |
+| CLI-02 | TBD | Pending |
+| CLI-03 | TBD | Pending |
+| CLI-04 | TBD | Pending |
+| CLI-05 | TBD | Pending |
+| TTY-01 | TBD | Pending |
+| TTY-02 | TBD | Pending |
+| TTY-03 | TBD | Pending |
+| MAP-01 | TBD | Pending |
+| MAP-02 | TBD | Pending |
+| MAP-03 | TBD | Pending |
+| SRV-01 | TBD | Pending |
+| SRV-02 | TBD | Pending |
+| SRV-03 | TBD | Pending |
+| SRV-04 | TBD | Pending |
 
 **Coverage:**
-- v1.3 requirements: 20 total
-- Mapped to phases: 20 ✓
-- Unmapped: 0
+- v2.0 requirements: 15 total
+- Mapped to phases: 0
+- Unmapped: 15 ⚠️
 
 ---
-*Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 — roadmap phase mapping complete*
+*Requirements defined: 2026-04-14*
+*Last updated: 2026-04-14 after initial definition*
