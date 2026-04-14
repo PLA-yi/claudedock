@@ -2,24 +2,24 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-09)
+See: .planning/PROJECT.md (updated 2026-04-14)
 
-**Core value:** 单一二进制替换 claude 命令，透明启动 Docker 容器运行 Claude Code，所有网络流量走代理出口，设备指纹完全伪装
-**Current focus:** Phase 17 — 镜像与 Entrypoint 基线
+**Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
+**Current focus:** v2.0 cloud-claude 透明远程 CLI — 定义需求中
 
 ## Current Position
 
-Phase: 17 of 23 (镜像与 Entrypoint 基线)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-04-09 — v1.3 roadmap created
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-14 — Milestone v2.0 started
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (v1.3)
+- Total plans completed: 0 (v2.0)
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -28,10 +28,6 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | — | — | — | — |
-
-**Recent Trend:**
-- Last 5 plans: —
-- Trend: —
 
 *Updated after each plan completion*
 
@@ -42,10 +38,10 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.3 research]: 网络架构采用 bridge + 容器内 sing-box tun + route-based split tunneling
-- [v1.3 research]: Claude Code 安装走官方 curl 脚本（Bun standalone），不依赖 npm 或 spoof.js
-- [v1.3 research]: /proc 伪造优先用 docker run -v 注入，避免容器内 mount 或滥用 --privileged
-- [v1.3 research]: CLI 先用 docker run 子进程打通，后续可收敛到 Docker SDK
+- [v2.0 design]: 客户端为独立 Go 二进制 cloud-claude，与 cloud-cli-proxy 服务端零依赖
+- [v2.0 design]: 目录映射首选 sshfs -o slave over SSH 多路复用，备选 Mutagen
+- [v2.0 design]: 用户配置存储在 ~/.cloud-claude/config.yaml
+- [v2.0 design]: SSH Proxy 已支持多 session channel + exec 转发，零改造可用
 
 ### Pending Todos
 
@@ -53,11 +49,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- [research]: Docker Desktop vs Linux Engine 的 host-gateway、nft 语义差异需在 Phase 18 验证
-- [research]: garble 与 Docker client 依赖反射的组合需在 Phase 23 验证
+- sshfs -o slave 方案需在真实 SSH Proxy 上端到端验证
+- 容器 FUSE 设备权限对 AppArmor/SELinux 环境的兼容性待测
+- 目录映射在高延迟网络下的 I/O 性能需评估
 
 ## Session Continuity
 
-Last session: 2026-04-09
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-image-entrypoint-baseline/17-CONTEXT.md
+Last session: 2026-04-14
+Stopped at: Milestone v2.0 initialized, defining requirements
+Resume file: —
