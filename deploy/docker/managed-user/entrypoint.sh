@@ -82,6 +82,10 @@ fi
 
 RUN_USER="${CONTAINER_USER:-workspace}"
 
+# 确保 sudoers 始终与实际用户名一致（修复历史容器可能残留的错误配置）
+echo "${RUN_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/workspace
+chmod 0440 /etc/sudoers.d/workspace
+
 mkdir -p /workspace/.ssh
 chown -R "${RUN_USER}:${RUN_USER}" /workspace
 chmod 0700 /workspace/.ssh

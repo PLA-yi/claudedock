@@ -48,7 +48,32 @@ func main() {
 	initCmd.Flags().String("short-id", "", "用户或主机 short_id")
 	initCmd.Flags().String("password", "", "登录密码（建议交互式输入）")
 
-	rootCmd.AddCommand(initCmd)
+	envCmd := &cobra.Command{
+		Use:   "env",
+		Short: "环境相关工具",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+
+	envCheckCmd := &cobra.Command{
+		Use:   "check",
+		Short: "检测远端容器的时区、语言、出口 IP、工具链等环境信息",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE:          runEnvCheck,
+	}
+	envCmd.AddCommand(envCheckCmd)
+
+	rootCmd.AddCommand(initCmd, envCmd)
+
+	// DisableFlagParsing 会阻止 cobra 识别子命令，
+	// 在检测到已知子命令时关闭它以恢复正常路由。
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "init", "env", "help", "--help", "-h":
+			rootCmd.DisableFlagParsing = false
+		}
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "错误: %s\n", err)
@@ -107,6 +132,47 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	path, _ := cloudclaude.ConfigPath()
 	fmt.Printf("配置已保存到 %s\n", path)
+	return nil
+}
+
+func runEnvCheck(cmd *cobra.Command, args []string) error {
+	cfg, err := cloudclaude.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	client := cloudclaude.NewEntryClient(cfg.Gateway)
+
+	fmt.Println("正在连接云主机...")
+
+	authResp, err := client.AuthenticateAndWait(
+		cmd.Context(),
+		cfg.ShortID,
+		cfg.Password,
+		func(msg string) {
+			fmt.Printf("\r%s", msg)
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("认证失败: %w", err)
+	}
+
+	fmt.Println("\r正在检测远端环境...")
+
+	sshCfg := cloudclaude.SSHConfig{
+		Host:     authResp.SSHHost,
+		Port:     authResp.SSHPort,
+		User:     authResp.SSHUser,
+		Password: authResp.SSHPass,
+	}
+
+	result, err := cloudclaude.RunEnvCheck(sshCfg)
+	if err != nil {
+		return fmt.Errorf("环境检测失败: %w", err)
+	}
+
+	fmt.Println()
+	result.Print()
 	return nil
 }
 
@@ -177,7 +243,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		Password: authResp.SSHPass,
 	}
 
-	exitCode, err := cloudclaude.ConnectAndRunClaude(sshCfg, args, cwd)
+	exitCode, err := cloudclaude.ConnectAndRunClaude(sshCfg, args, cwd, cfg.EffectiveProxyCommands())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "错误: "+err.Error())
 		os.Exit(exitInternalError)

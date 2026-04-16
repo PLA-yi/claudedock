@@ -3,6 +3,8 @@ package cloudclaude
 import (
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -38,9 +40,21 @@ func (c *channelRWC) Close() error {
 }
 
 // mountWorkspace 在 SSH 连接上开启 sshfs session 并启动嵌入式 SFTP server，
-// 将 localDir 映射到容器内 /workspace。
-// 返回的 cleanup 函数按正确顺序关闭所有资源。
-func mountWorkspace(conn *ssh.Client, localDir string) (cleanup func(), err error) {
+// 将 localDir 映射到容器内 remotePath（用户的真实 CWD 路径）。
+// 返回的 cleanup 函数按正确顺序关闭所有资源并移除创建的目录。
+func mountWorkspace(conn *ssh.Client, localDir, remotePath string) (cleanup func(), err error) {
+	// 清理可能残留的上一次 FUSE mount（异常退出场景）
+	cleanupStaleFUSE(conn, remotePath)
+
+	// 在容器内创建挂载目标目录并确保当前用户可写（sshfs 要求挂载点由执行用户拥有）
+	mkdirCmd := fmt.Sprintf(
+		"sudo mkdir -p %s && sudo chown $(id -u):$(id -g) %s",
+		shellQuote(remotePath), shellQuote(remotePath),
+	)
+	if err := sshRun(conn, mkdirCmd); err != nil {
+		return nil, fmt.Errorf("创建远端挂载目录失败: %w", err)
+	}
+
 	sshfsSession, err := conn.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("创建 sshfs session 失败: %w", err)
@@ -59,7 +73,8 @@ func mountWorkspace(conn *ssh.Client, localDir string) (cleanup func(), err erro
 		return nil, fmt.Errorf("获取 sshfs stdout pipe 失败: %w", err)
 	}
 
-	if err := sshfsSession.Start("sshfs : /workspace -o passive -f"); err != nil {
+	sshfsCmd := fmt.Sprintf("sshfs : %s -o passive -f", shellQuote(remotePath))
+	if err := sshfsSession.Start(sshfsCmd); err != nil {
 		stdin.Close()
 		sshfsSession.Close()
 		return nil, fmt.Errorf("启动 sshfs 失败: %w", err)
@@ -79,20 +94,21 @@ func mountWorkspace(conn *ssh.Client, localDir string) (cleanup func(), err erro
 		sftpDone <- server.Serve()
 	}()
 
+	checkCmd := fmt.Sprintf("mountpoint -q %s", shellQuote(remotePath))
 	check := func() error {
 		sess, err := conn.NewSession()
 		if err != nil {
 			return err
 		}
 		defer sess.Close()
-		return sess.Run("mountpoint -q /workspace")
+		return sess.Run(checkCmd)
 	}
 
 	if err := waitForMount(check, 200*time.Millisecond, 10*time.Second); err != nil {
 		sshfsSession.Close()
 		<-sftpDone
 		server.Close()
-		fusermountCleanup(conn)
+		fusermountCleanup(conn, remotePath)
 		return nil, fmt.Errorf("等待挂载就绪失败: %w", err)
 	}
 
@@ -100,13 +116,13 @@ func mountWorkspace(conn *ssh.Client, localDir string) (cleanup func(), err erro
 		sshfsSession.Close()
 		<-sftpDone
 		server.Close()
-		fusermountCleanup(conn)
+		fusermountCleanup(conn, remotePath)
+		rmdirChain(conn, remotePath)
 	}
 	return cleanup, nil
 }
 
 // waitForMount 轮询 check 函数直到挂载就绪或超时。
-// check 由调用方注入，便于单元测试。
 func waitForMount(check func() error, interval, timeout time.Duration) error {
 	var lastErr error
 	if err := check(); err == nil {
@@ -124,7 +140,7 @@ func waitForMount(check func() error, interval, timeout time.Duration) error {
 		select {
 		case <-deadline.C:
 			return &MountNotReadyError{
-				MountPath: "/workspace",
+				MountPath: "(remote)",
 				Timeout:   timeout,
 				LastErr:   lastErr,
 			}
@@ -138,13 +154,41 @@ func waitForMount(check func() error, interval, timeout time.Duration) error {
 	}
 }
 
-// fusermountCleanup 通过短生命周期 session 执行防御性卸载。
-// 所有错误静默忽略——此函数为兜底措施，失败不影响退出码。
-func fusermountCleanup(conn *ssh.Client) {
+// fusermountCleanup 防御性卸载指定挂载点。
+func fusermountCleanup(conn *ssh.Client, remotePath string) {
+	_ = sshRun(conn, fmt.Sprintf("fusermount -u %s 2>/dev/null || true", shellQuote(remotePath)))
+}
+
+// cleanupStaleFUSE 清理可能因上次异常退出而残留的 FUSE 挂载。
+func cleanupStaleFUSE(conn *ssh.Client, remotePath string) {
+	_ = sshRun(conn, fmt.Sprintf("fusermount -u %s 2>/dev/null || true", shellQuote(remotePath)))
+}
+
+// rmdirChain 从叶子目录开始向上逐级删除空目录，遇到非空即停。
+func rmdirChain(conn *ssh.Client, path string) {
+	for path != "/" && path != "." && path != "" {
+		if err := sshRun(conn, fmt.Sprintf("sudo rmdir %s 2>/dev/null || rmdir %s 2>/dev/null", shellQuote(path), shellQuote(path))); err != nil {
+			return
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return
+		}
+		path = parent
+	}
+}
+
+// sshRun 在 SSH 连接上执行一条命令，返回错误。
+func sshRun(conn *ssh.Client, cmd string) error {
 	sess, err := conn.NewSession()
 	if err != nil {
-		return
+		return err
 	}
 	defer sess.Close()
-	_ = sess.Run("fusermount -u /workspace 2>/dev/null || true")
+	return sess.Run(cmd)
+}
+
+// shellQuote 为 shell 参数添加单引号转义。
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }

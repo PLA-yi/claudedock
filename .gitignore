@@ -16,6 +16,10 @@ web/admin/dist/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
+# Claude CLI cache
+.claude.json
+.claude/
+
 # IDE
 .idea/
 *.swp

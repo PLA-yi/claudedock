@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Cloud Claude CLI installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/ZaneL1u/cloud-cli-proxy/main/scripts/install.sh | bash
+
 REPO="ZaneL1u/cloud-cli-proxy"
-BINARY="cloud-claude"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+BINARY="cloud-claude"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33m警告:\033[0m %s\n' "$*"; }
@@ -15,90 +18,69 @@ detect_platform() {
   arch="$(uname -m)"
 
   case "${os}" in
-    linux)  OS="linux" ;;
-    darwin) OS="darwin" ;;
+    linux)  os="linux" ;;
+    darwin) os="darwin" ;;
     *)      error "不支持的操作系统: ${os}" ;;
   esac
 
   case "${arch}" in
-    x86_64|amd64)   ARCH="amd64" ;;
-    aarch64|arm64)  ARCH="arm64" ;;
-    *)              error "不支持的架构: ${arch}" ;;
+    x86_64|amd64)  arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)             error "不支持的架构: ${arch}" ;;
   esac
+
+  echo "${os}-${arch}"
 }
 
 get_latest_version() {
-  local url="https://api.github.com/repos/${REPO}/releases/latest"
-  VERSION="$(curl -fsSL "${url}" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')"
-  if [ -z "${VERSION}" ]; then
-    error "无法获取最新版本号，请检查网络连接"
-  fi
-}
-
-download_and_install() {
-  local archive="${BINARY}-${OS}-${ARCH}.tar.gz"
-  local url="https://github.com/${REPO}/releases/download/${VERSION}/${archive}"
-  local tmpdir
-  tmpdir="$(mktemp -d)"
-  trap 'rm -rf "${tmpdir}"' EXIT
-
-  info "下载 ${BINARY} ${VERSION} (${OS}/${ARCH})..."
-  curl -fsSL -o "${tmpdir}/${archive}" "${url}" \
-    || error "下载失败: ${url}\n请确认该版本存在: https://github.com/${REPO}/releases"
-
-  info "校验完整性..."
-  local sha_url="${url}.sha256"
-  if curl -fsSL -o "${tmpdir}/${archive}.sha256" "${sha_url}" 2>/dev/null; then
-    (cd "${tmpdir}" && sha256sum -c "${archive}.sha256" --quiet 2>/dev/null) \
-      || (cd "${tmpdir}" && shasum -a 256 -c "${archive}.sha256" --quiet 2>/dev/null) \
-      || warn "sha256 校验失败，继续安装"
-  fi
-
-  info "解压..."
-  tar xzf "${tmpdir}/${archive}" -C "${tmpdir}"
-
-  local src="${tmpdir}/${BINARY}-${OS}-${ARCH}"
-  chmod +x "${src}"
-
-  info "安装到 ${INSTALL_DIR}/${BINARY}..."
-  if [ -w "${INSTALL_DIR}" ]; then
-    mv "${src}" "${INSTALL_DIR}/${BINARY}"
-  else
-    sudo mv "${src}" "${INSTALL_DIR}/${BINARY}"
-  fi
-}
-
-verify_install() {
-  if command -v "${BINARY}" &>/dev/null; then
-    local installed_version
-    installed_version="$("${BINARY}" --version 2>/dev/null || echo "unknown")"
-    info "安装成功! ${installed_version}"
-  else
-    warn "${BINARY} 已安装到 ${INSTALL_DIR}/${BINARY}，但不在 PATH 中"
-    warn "请将 ${INSTALL_DIR} 加入 PATH，或运行: export PATH=\"${INSTALL_DIR}:\$PATH\""
-  fi
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+    | grep '"tag_name"' \
+    | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
+    || error "无法获取最新版本号，请检查网络连接"
 }
 
 main() {
-  info "Cloud CLI Proxy — cloud-claude 安装脚本"
-  echo ""
+  local platform version archive url tmp
 
-  detect_platform
+  platform="$(detect_platform)"
+  version="${1:-$(get_latest_version)}"
+  archive="${BINARY}-${platform}.tar.gz"
+  url="https://github.com/${REPO}/releases/download/${version}/${archive}"
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "${tmp}"' EXIT
 
-  if [ -n "${1:-}" ]; then
-    VERSION="$1"
-  else
-    get_latest_version
+  info "下载 ${BINARY} ${version} (${platform})..."
+  curl -fsSL -o "${tmp}/${archive}" "${url}" \
+    || error "下载失败: ${url}"
+
+  info "校验完整性..."
+  local sha_url="${url}.sha256"
+  if curl -fsSL -o "${tmp}/${archive}.sha256" "${sha_url}" 2>/dev/null; then
+    (cd "${tmp}" && sha256sum -c "${archive}.sha256" --quiet 2>/dev/null) \
+      || (cd "${tmp}" && shasum -a 256 -c "${archive}.sha256" --quiet 2>/dev/null) \
+      || warn "sha256 校验失败，继续安装"
   fi
 
-  download_and_install
-  verify_install
+  tar xzf "${tmp}/${archive}" -C "${tmp}"
+  chmod +x "${tmp}/${BINARY}-${platform}"
+
+  info "安装到 ${INSTALL_DIR}/${BINARY}..."
+  if [ -w "${INSTALL_DIR}" ]; then
+    mv "${tmp}/${BINARY}-${platform}" "${INSTALL_DIR}/${BINARY}"
+  else
+    sudo mv "${tmp}/${BINARY}-${platform}" "${INSTALL_DIR}/${BINARY}"
+  fi
+
+  if command -v "${BINARY}" &>/dev/null; then
+    info "安装成功! $("${BINARY}" --version 2>/dev/null || echo "${version}")"
+  else
+    warn "${BINARY} 已安装到 ${INSTALL_DIR}/${BINARY}，但不在 PATH 中"
+  fi
 
   echo ""
-  info "快速开始："
-  echo "  cloud-claude init        # 配置网关地址与凭证"
-  echo "  alias claude=cloud-claude"
-  echo "  claude                   # 像本地一样使用 Claude Code"
+  info "开始使用："
+  echo "  cloud-claude init    # 配置网关与凭证"
+  echo "  cloud-claude         # 启动 Claude Code 会话"
 }
 
 main "$@"

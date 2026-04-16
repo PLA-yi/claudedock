@@ -249,6 +249,8 @@ func (a *App) Run(ctx context.Context) error {
 		close(schedDone)
 	}()
 
+	cphttp.CleanupOrphanProbes(a.logger)
+
 	a.rejoinHostNetworks()
 
 	if a.sshProxy != nil {

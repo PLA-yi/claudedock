@@ -15,10 +15,21 @@ const (
 	filePerm       = 0600
 )
 
+var DefaultProxyCommands = []string{"git"}
+
 type Config struct {
-	Gateway  string `yaml:"gateway"`
-	ShortID  string `yaml:"short_id"`
-	Password string `yaml:"password"`
+	Gateway       string   `yaml:"gateway"`
+	ShortID       string   `yaml:"short_id"`
+	Password      string   `yaml:"password"`
+	ProxyCommands []string `yaml:"proxy_commands,omitempty"`
+}
+
+// EffectiveProxyCommands 返回生效的代理命令列表。
+func (c *Config) EffectiveProxyCommands() []string {
+	if len(c.ProxyCommands) > 0 {
+		return c.ProxyCommands
+	}
+	return DefaultProxyCommands
 }
 
 func (c *Config) Validate() error {

@@ -3,7 +3,7 @@ export
 
 DEV_COMPOSE := docker compose -f deploy/compose/control-plane.dev.yml
 
-.PHONY: dev dev-api dev-web db test test-go test-smoke build build-cli install-cli clean gateway-image up up-build down logs release
+.PHONY: dev dev-api dev-web db test test-go test-smoke build build-cli install-cli clean gateway-image up up-build up-rebuild up-api down logs release
 
 # ── Development ──────────────────────────────────────────────
 
@@ -89,8 +89,16 @@ up: ## Start production stack (prefer prebuilt latest images)
 	docker compose up -d
 
 up-build: ## Start production stack from local source build
+	docker compose -f docker-compose.yml -f docker-compose.build.yaml --profile build-only build
+	docker compose -f docker-compose.yml -f docker-compose.build.yaml up -d --force-recreate
+
+up-rebuild: ## Rebuild from scratch (no cache) and start
 	docker compose -f docker-compose.yml -f docker-compose.build.yaml --profile build-only build --no-cache
 	docker compose -f docker-compose.yml -f docker-compose.build.yaml up -d --force-recreate
+
+up-api: ## Rebuild and restart control-plane only (fastest for backend changes)
+	docker compose -f docker-compose.yml -f docker-compose.build.yaml build control-plane
+	docker compose -f docker-compose.yml -f docker-compose.build.yaml up -d --force-recreate --no-deps control-plane
 
 down: ## Stop production stack
 	docker compose down

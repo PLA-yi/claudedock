@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	nethttp "net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -207,13 +209,56 @@ func startLocalSingBox(ctx context.Context, proxyConfig json.RawMessage) (port i
 	return 0, nil, fmt.Errorf("需要 Docker 或 sing-box 来测试此协议，两者均未安装")
 }
 
+func probeConfigDir() string {
+	base := os.Getenv("DATA_DIR")
+	if base == "" {
+		base = "/var/lib/cloud-cli-proxy"
+	}
+	return filepath.Join(base, "probe")
+}
+
+// CleanupOrphanProbes removes leftover sing-box probe containers and temp
+// config files from a previous control-plane run that exited without cleanup.
+func CleanupOrphanProbes(logger *slog.Logger) {
+	cmd := exec.Command("docker", "ps", "-a",
+		"--filter", "name=singbox-probe-",
+		"--format", "{{.Names}}")
+	out, err := cmd.Output()
+	if err != nil {
+		return
+	}
+	for _, name := range strings.Fields(strings.TrimSpace(string(out))) {
+		if rmErr := exec.Command("docker", "rm", "-f", name).Run(); rmErr == nil {
+			logger.Info("cleaned up orphan probe container", "name", name)
+		}
+	}
+
+	dir := probeConfigDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "singbox-probe-") && strings.HasSuffix(e.Name(), ".json") {
+			os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
+	if len(entries) > 0 {
+		logger.Info("cleaned up orphan probe config files", "count", len(entries))
+	}
+}
+
 func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port int) (int, func(), error) {
 	configJSON, err := buildSingBoxConfig(proxyConfig, "0.0.0.0", port)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	tmpFile, err := os.CreateTemp("", "singbox-probe-*.json")
+	dir := probeConfigDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, nil, fmt.Errorf("create probe config dir: %w", err)
+	}
+	tmpFile, err := os.CreateTemp(dir, "singbox-probe-*.json")
 	if err != nil {
 		return 0, nil, fmt.Errorf("create temp config: %w", err)
 	}
@@ -226,9 +271,14 @@ func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port i
 
 	containerName := fmt.Sprintf("singbox-probe-%d", port)
 
+	networkArg := "host"
+	if cpID, _ := os.Hostname(); cpID != "" {
+		networkArg = "container:" + cpID
+	}
+
 	cmd := exec.CommandContext(ctx, "docker", "run", "-d",
 		"--name", containerName,
-		"--network", "host",
+		"--network", networkArg,
 		"-v", tmpFile.Name()+":/etc/sing-box/config.json:ro",
 		"ghcr.io/sagernet/sing-box",
 		"run", "-c", "/etc/sing-box/config.json",

@@ -89,14 +89,8 @@ func (r *RepoResolver) resolveTarget(ctx context.Context, auth repository.HostSS
 		return ContainerTarget{}, fmt.Errorf("cannot resolve container address: %w", err)
 	}
 
-	user := auth.Username
-	if user == "" {
-		user = "workspace"
-	}
-
 	return ContainerTarget{
 		Addr:     fmt.Sprintf("%s:22", containerIP),
-		User:     user,
 		Password: auth.EntryPassword,
 	}, nil
 }

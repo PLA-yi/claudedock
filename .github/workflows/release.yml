@@ -165,6 +165,58 @@ jobs:
           ARCHIVE="cloud-claude-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
           gh release upload "${{ github.ref_name }}" "${ARCHIVE}" "${ARCHIVE}.sha256" --clobber
 
+  update-homebrew:
+    needs: [create-release, build-binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download sha256 files from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          for platform in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
+            gh release download "${TAG}" -p "cloud-claude-${platform}.tar.gz.sha256"
+          done
+
+      - name: Extract checksums
+        id: shas
+        run: |
+          extract_sha() { awk '{print $1}' "cloud-claude-${1}.tar.gz.sha256"; }
+          echo "darwin_amd64=$(extract_sha darwin-amd64)" >> "$GITHUB_OUTPUT"
+          echo "darwin_arm64=$(extract_sha darwin-arm64)" >> "$GITHUB_OUTPUT"
+          echo "linux_amd64=$(extract_sha linux-amd64)"   >> "$GITHUB_OUTPUT"
+          echo "linux_arm64=$(extract_sha linux-arm64)"    >> "$GITHUB_OUTPUT"
+
+      - name: Generate Formula
+        run: |
+          bash scripts/release/generate-homebrew-formula.sh \
+            "${{ needs.create-release.outputs.version }}" \
+            "${{ steps.shas.outputs.darwin_amd64 }}" \
+            "${{ steps.shas.outputs.darwin_arm64 }}" \
+            "${{ steps.shas.outputs.linux_amd64 }}" \
+            "${{ steps.shas.outputs.linux_arm64 }}" \
+            > cloud-claude.rb
+
+      - name: Push to Homebrew tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/ZaneL1u/homebrew-tap.git" tap-repo
+          mkdir -p tap-repo/Formula
+          cp cloud-claude.rb tap-repo/Formula/cloud-claude.rb
+          cd tap-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/cloud-claude.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged, skip."
+          else
+            git commit -m "cloud-claude ${GITHUB_REF_NAME}"
+            git push
+          fi
+
   publish-images:
     needs: create-release
     uses: ./.github/workflows/build-images.yml

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { useUsers } from "@/hooks/use-users";
@@ -74,6 +75,18 @@ export function CreateHostDialog({
   const { data: egressData, isLoading: loadingEgress } = useEgressIPs();
   const createMutation = useCreateHost();
   const { data: task } = useTaskPolling(taskId);
+
+  const qc = useQueryClient();
+  const prevTaskStatus = useRef<string | null>(null);
+
+  useEffect(() => {
+    const prev = prevTaskStatus.current;
+    prevTaskStatus.current = taskStatus;
+    if (prev && prev !== taskStatus && (taskStatus === "succeeded" || taskStatus === "failed")) {
+      qc.invalidateQueries({ queryKey: ["hosts"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    }
+  }, [taskStatus, qc]);
 
   const users = usersData?.users ?? [];
   const activeUsers = users.filter((u) => u.status === "active");

@@ -21,23 +21,36 @@ type SSHConfig struct {
 	Password string
 }
 
-// ConnectAndRunClaude 建立 SSH 连接，挂载本地目录到容器 /workspace，
-// 然后在远端以 /workspace 为工作目录执行 claude 命令。
-// defer 顺序保证清理链：cleanupMount → conn.Close（LIFO）。
-func ConnectAndRunClaude(cfg SSHConfig, claudeArgs []string, cwd string) (int, error) {
+// ConnectAndRunClaude 建立 SSH 连接，将本地 cwd 通过 sshfs 映射到容器内同路径，
+// 启动本地命令代理，然后在远端执行 claude。
+// defer 顺序：stop exec proxy → cleanup mount → close conn（LIFO）。
+func ConnectAndRunClaude(cfg SSHConfig, claudeArgs []string, cwd string, proxyCommands []string) (int, error) {
 	conn, err := sshConnect(cfg)
 	if err != nil {
 		return 0, err
 	}
 	defer conn.Close()
 
-	cleanupMount, err := mountWorkspace(conn, cwd)
+	cleanupMount, err := mountWorkspace(conn, cwd, cwd)
 	if err != nil {
 		return 0, fmt.Errorf("目录映射失败: %w", err)
 	}
 	defer cleanupMount()
 
-	return runClaude(conn, claudeArgs)
+	var proxy *ExecProxy
+	if len(proxyCommands) > 0 {
+		proxy = NewExecProxy(cwd)
+		if err := proxy.Start(); err != nil {
+			return 0, fmt.Errorf("启动命令代理失败: %w", err)
+		}
+		defer proxy.Stop()
+
+		if err := InstallWrappers(cwd, proxyCommands, cwd); err != nil {
+			return 0, fmt.Errorf("安装命令代理脚本失败: %w", err)
+		}
+	}
+
+	return runClaude(conn, claudeArgs, cwd, len(proxyCommands) > 0)
 }
 
 func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
@@ -64,7 +77,7 @@ func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
 	return ssh.NewClient(sshConn, chans, reqs), nil
 }
 
-func runClaude(conn *ssh.Client, claudeArgs []string) (int, error) {
+func runClaude(conn *ssh.Client, claudeArgs []string, remoteCwd string, hasProxy bool) (int, error) {
 	session, err := conn.NewSession()
 	if err != nil {
 		return 0, fmt.Errorf("创建 SSH 会话失败: %w", err)
@@ -113,7 +126,14 @@ func runClaude(conn *ssh.Client, claudeArgs []string) (int, error) {
 	session.Stderr = os.Stderr
 
 	claudeCmd := shellescape.QuoteCommand(append([]string{"claude"}, claudeArgs...))
-	remoteCmd := "cd /workspace && " + claudeCmd
+	var remoteCmd string
+	if hasProxy {
+		binDir := remoteCwd + "/.cloud-claude/bin"
+		remoteCmd = fmt.Sprintf("export PATH=%s:$PATH && cd %s && %s",
+			shellescape.Quote(binDir), shellescape.Quote(remoteCwd), claudeCmd)
+	} else {
+		remoteCmd = fmt.Sprintf("cd %s && %s", shellescape.Quote(remoteCwd), claudeCmd)
+	}
 
 	if err := session.Start(remoteCmd); err != nil {
 		return 0, fmt.Errorf("启动远程 Claude Code 失败: %w", err)

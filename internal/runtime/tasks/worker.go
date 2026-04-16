@@ -176,7 +176,7 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 		"-e", "LANG=en_US.UTF-8",
 		"-e", "LANGUAGE=en_US:en",
 		"-e", "LC_ALL=en_US.UTF-8",
-		"-e", "CONTAINER_USER="+firstNonEmpty(request.Username, "workspace"),
+		"-e", "CONTAINER_USER=workspace",
 		"-e", "CONTAINER_SSH_PASSWORD="+firstNonEmpty(request.EntryPassword, "workspace"),
 		"-v", fmt.Sprintf("%s:%s", homeDir, firstNonEmpty(request.HomeMount, defaultWorkspaceMount)),
 	)
@@ -401,7 +401,7 @@ func (w *Worker) waitForSSH(ctx context.Context, request agentapi.HostActionRequ
 // syncContainerCredentials forces the container's Linux password to match
 // the request, regardless of what the entrypoint set via environment variables.
 func (w *Worker) syncContainerCredentials(ctx context.Context, request agentapi.HostActionRequest, containerName string) {
-	user := firstNonEmpty(request.Username, "workspace")
+	user := "workspace"
 	pass := firstNonEmpty(request.EntryPassword, "workspace")
 
 	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "chpasswd")
