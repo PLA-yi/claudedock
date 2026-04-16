@@ -44,8 +44,14 @@ None.
 
 None — all v2.0 blockers resolved.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260416-wvu | injectSSHKeys 幂等化，保留用户手加密钥 | 2026-04-16 | cc18acf | [260416-wvu-make-injectsshkeys-idempotent-so-user-ge](./quick/260416-wvu-make-injectsshkeys-idempotent-so-user-ge/) |
+
 ## Session Continuity
 
-Last session: 2026-04-15
-Stopped at: Milestone v2.0 completed and archived
+Last session: 2026-04-16
+Stopped at: 完成 quick task 260416-wvu (injectSSHKeys 幂等化)
 Resume file: None
