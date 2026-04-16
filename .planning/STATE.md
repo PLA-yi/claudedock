@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: cloud-claude 透明远程 CLI
 status: shipped
 stopped_at: Milestone v2.0 completed and archived
-last_updated: "2026-04-16T15:50:00.000Z"
+last_updated: "2026-04-16T17:00:00.000Z"
 last_activity: 2026-04-16
 progress:
   total_phases: 5
@@ -49,9 +49,10 @@ None — all v2.0 blockers resolved.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260416-wvu | injectSSHKeys 幂等化，保留用户手加密钥 | 2026-04-16 | cc18acf | [260416-wvu-make-injectsshkeys-idempotent-so-user-ge](./quick/260416-wvu-make-injectsshkeys-idempotent-so-user-ge/) |
+| 260417-0w4 | 新增 cloud-claude ssh doctor 子命令（owner/mode/PEM 尾换行自检与修复） | 2026-04-16 | d716b14, 3f0567c, 7836821 | [260417-0w4-cloud-claude-cli-ssh-doctor-workspace-ss](./quick/260417-0w4-cloud-claude-cli-ssh-doctor-workspace-ss/) |
 
 ## Session Continuity
 
 Last session: 2026-04-16
-Stopped at: 完成 quick task 260416-wvu (injectSSHKeys 幂等化)
+Stopped at: 完成 quick task 260417-0w4 (cloud-claude ssh doctor)
 Resume file: None
