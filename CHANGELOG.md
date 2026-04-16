@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v2.1.2 - 2026-04-16
+## What's Changed
+
+### Frontend (Admin Web)
+- fix(admin): 修复新建主机弹窗中 taskStatus 在声明前被引用 (1213659)
+
+### Docs
+- docs: Homebrew 安装与 cloud-claude 建机后连接说明 (3e2a7a5)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v2.1.1...v2.1.2
+
+
 ## v2.1.1 - 2026-04-16
 ## What's Changed
 
