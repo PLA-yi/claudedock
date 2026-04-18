@@ -125,4 +125,4 @@ WORKDIR /workspace
 EXPOSE 22
 EXPOSE 6080
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
