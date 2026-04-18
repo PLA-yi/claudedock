@@ -21,19 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** Phase 29 — v3-worker
+**Current focus:** Phase 29 — v3-worker；Phase 30 讨论与初版 PLAN 已落盘（待 plan-checker / 执行）
 
 ## Current Position
 
 Milestone: v3.0 远端开发体验升级
 Phase: 30
 Plan: Not started
-Status: Executing Phase 29
+Status: Phase 30 讨论与初版 PLAN 已落盘；执行主线仍在 Phase 29
 Last activity: 2026-04-18
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.0；Phase 29 待执行)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（v3.0；Phase 29 待执行）
 
-下一步：`/gsd:execute-phase 29-v3-worker`（建议按 Wave 划分：Wave 1 并行 Plan 01/04/05/06.1；Wave 2 Plan 02；Wave 3 Plan 03；Wave 4 Plan 06.2 CI gate）。
+下一步：继续 `/gsd:execute-phase 29-v3-worker`（Wave 建议不变）。Phase 30 可先 `/gsd-plan-phase 30 --skip-research` 跑 plan-checker 修订手写 PLAN，再 `/gsd-execute-phase 30-entry-api`。
 
 ## Accumulated Context
 
