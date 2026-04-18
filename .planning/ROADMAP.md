@@ -108,7 +108,7 @@
 | 27. 双 session 目录映射 | v2.0 | 2/2 | Complete | 2026-04-15 |
 | 28. 生产 FUSE 兼容性验证 | v2.0 | 2/2 | Complete | 2026-04-15 |
 | 29. 受管镜像 v3 + Worker 容器参数 | v3.0 | 6/6 | Complete    | 2026-04-18 |
-| 30. 控制面数据模型 + Entry API | v3.0 | 0/2 | Pending | — |
+| 30. 控制面数据模型 + Entry API | v3.0 | 1/2 | In Progress|  |
 | 31. CLI 三层文件映射重构 | v3.0 | 0/3 | Pending | — |
 | 32. SSH 会话可靠性 + tmux + 多端 | v3.0 | 0/3 | Pending | — |
 | 33. Claude Code 状态持久化 | v3.0 | 0/2 | Pending | — |
@@ -148,7 +148,7 @@
 ### Phase 30: 控制面数据模型 + Entry API 扩展
 **Goal**: 为 v3.0 体验所需的"客户端动态能力探测"打开控制面通道——`claude_accounts.persistent_volume_name` 字段就绪、`HostActionRequest` 在 API 契约层接收 `ClaudeAccountID + Volumes`、`Entry API` 在现有 `/v1/entry/{id}/auth` 响应里追加 `image_version` / `supports_mutagen` / `supports_mergerfs` / `claude_account_id` 字段（向后兼容，旧 client 不破）。本阶段不交付任何 user-facing REQ-F*，但 Phase 31/33 全部依赖它。
 **Depends on**: 无（与 Phase 29 并行）
-**Plans:** 2
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] `.planning/phases/30-entry-api/plans/01-migration-entry-store/PLAN.md` — migration `0014` + `ClaudeAccount`/`HostSSHAuth` 仓储与 `ResolveClaudeAccountIDForEntry`（D-01/D-02/D-05/D-10）
 - [ ] `.planning/phases/30-entry-api/plans/02-entry-api-host-contract/PLAN.md` — `HostActionRequest` + Entry `Auth` + `cloudclaude.AuthResponse` 与兼容测试（D-03..D-09）

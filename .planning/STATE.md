@@ -4,8 +4,8 @@ milestone: v3.0
 milestone_name: 远端开发体验升级
 status: executing
 stopped_at: Phase 30 context gathered
-last_updated: "2026-04-18T12:34:09.322Z"
-last_activity: 2026-04-18
+last_updated: "2026-04-18T13:59:35.746Z"
+last_activity: 2026-04-18 -- Phase 30 execution started
 progress:
   total_phases: 7
   completed_phases: 0
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** Phase 29 — v3-worker；Phase 30 讨论与初版 PLAN 已落盘（待 plan-checker / 执行）
+**Current focus:** Phase 30 — entry-api
 
 ## Current Position
 
 Milestone: v3.0 远端开发体验升级
-Phase: 30
-Plan: Not started
-Status: Phase 30 讨论与初版 PLAN 已落盘；执行主线仍在 Phase 29
-Last activity: 2026-04-18
+Phase: 30 (entry-api) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 30
+Last activity: 2026-04-18 -- Phase 30 execution started
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（v3.0；Phase 29 待执行）
 
