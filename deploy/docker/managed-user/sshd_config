@@ -11,4 +11,8 @@ X11Forwarding no
 PrintMotd no
 AuthorizedKeysFile .ssh/authorized_keys
 PidFile /var/run/sshd.pid
+ClientAliveInterval 15
+ClientAliveCountMax 8
+MaxSessions 30
+MaxStartups 60:30:120
 Subsystem sftp /usr/lib/openssh/sftp-server
