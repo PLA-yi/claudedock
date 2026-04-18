@@ -1,34 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: cloud-claude 透明远程 CLI
-status: shipped
-stopped_at: Milestone v2.0 completed and archived
-last_updated: "2026-04-16T17:00:00.000Z"
-last_activity: 2026-04-16
+milestone: v3.0
+milestone_name: 远端开发体验升级
+status: defining_requirements
+stopped_at: Milestone v3.0 started — defining requirements
+last_updated: "2026-04-17T00:00:00.000Z"
+last_activity: 2026-04-17
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-15)
+See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** Planning next milestone
+**Current focus:** v3.0 远端开发体验升级 — 定义需求中
 
 ## Current Position
 
-Milestone: v2.0 cloud-claude 透明远程 CLI — SHIPPED 2026-04-15
-Status: Milestone archived, ready for next milestone
+Milestone: v3.0 远端开发体验升级
+Phase: 未开始（定义需求中）
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-17 — Milestone v3.0 started
 
-Progress: [████████████████████] 100% (v2.0)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.0)
 
 ## Accumulated Context
 
@@ -36,13 +39,21 @@ Progress: [████████████████████] 100% (v
 
 Full decision log in PROJECT.md Key Decisions table.
 
+v3.0 关键方向已定：
+- 文件映射改为 Mutagen + sshfs + mergerfs 三层（替代纯 sshfs）
+- 容器内默认包一层 tmux/dtach 实现会话可恢复
+- 多端连接默认 attach 同一 session，`--new-session` 独占
+- doctor 升级为五维度自检
+- Claude Code 登录态以 claude_account 为粒度持久化
+- 性能基线：rg/ls ≤ 本地 1.5×、首连 ≤ 8s、30s 抖动无感
+
 ### Pending Todos
 
-None.
+None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ### Blockers/Concerns
 
-None — all v2.0 blockers resolved.
+无。前置调研已确认 Mutagen v0.18.1 / mergerfs 2.41.x / sshfs 容器配置全部可行。
 
 ### Quick Tasks Completed
 
@@ -53,6 +64,6 @@ None — all v2.0 blockers resolved.
 
 ## Session Continuity
 
-Last session: 2026-04-16
-Stopped at: 完成 quick task 260417-0w4 (cloud-claude ssh doctor)
+Last session: 2026-04-17
+Stopped at: v3.0 milestone 启动，准备 research 与 REQUIREMENTS.md
 Resume file: None
