@@ -96,6 +96,22 @@ RUN mkdir -p /workspace/.ssh /var/run/sshd \
     && chown -R "${WORKSPACE_UID}:${WORKSPACE_GID}" /workspace \
     && chmod 0700 /workspace/.ssh
 
+# v3: 预建 mergerfs / mutagen / 持久化 volume 挂载点 + chown 到 workspace 用户。
+# C5 / M17 防御：named volume 首次挂载会继承镜像中目标路径的权限；
+# entrypoint 会在运行时再做一次 chown 作为二次保险（Plan 03 prepare_v3_dirs）。
+RUN mkdir -p \
+        /home/claude \
+        /home/claude/.claude \
+        /home/claude/.cache/claude \
+        /workspace-hot \
+        /workspace-cold \
+        /var/lib/claude-persist \
+    && chown -R "${WORKSPACE_UID}:${WORKSPACE_GID}" \
+        /home/claude \
+        /workspace-hot \
+        /workspace-cold \
+        /var/lib/claude-persist
+
 COPY deploy/docker/managed-user/sshd_config /etc/ssh/sshd_config
 COPY deploy/docker/managed-user/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY deploy/docker/managed-user/launch-chromium.sh /usr/local/bin/launch-chromium.sh
