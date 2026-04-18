@@ -75,7 +75,7 @@
 **Milestone Goal:** 在已 ship 的 v2.0 cloud-claude 基础上做体验升级——三层文件系统（Mutagen + sshfs + mergerfs）、SSH 会话弱网容忍 + tmux 默认包装与多端共享、Claude Code OAuth 状态持久化、`cloud-claude doctor` 与统一错误码体系——把 CLI 从"能跑"升级到"能成为日常开发主战场"。零增量特权，复用 v2.0 已开放的 FUSE / SYS_ADMIN / AppArmor unconfined 通道。
 
 - [ ] **Phase 29: 受管镜像 v3 + Worker 容器参数扩展** — Dockerfile 加 mergerfs/mutagen-agent、entrypoint 串行编排、Worker `Volumes` 字段、`image.lock` 凸 v3.0.0、AppArmor 部署文档 (0/3 plans)
-- [ ] **Phase 30: 控制面数据模型 + Entry API 扩展** — `claude_accounts.persistent_volume_name` migration、`HostActionRequest` 扩展、Entry API 返回 `image_version` / `supports_*` / `claude_account_id`（向后兼容） (0/2 plans)
+- [ ] **Phase 30: 控制面数据模型 + Entry API 扩展** — `claude_accounts.persistent_volume_name` migration、`HostActionRequest` 扩展、Entry API 返回 `image_version` / `supports_*` / `claude_account_id`（向后兼容） (0/2 plans，已规划见下)
 - [ ] **Phase 31: CLI 三层文件映射重构** — cloud-claude 拆分 `mount_strategy`/`mount_mutagen`/`mount_sshfs`/`mount_merge`，实现 `--mount-mode` 降级状态机、Mutagen 白名单 + ignore、Mutagen ‖ sshfs 并发 (0/3 plans)
 - [ ] **Phase 32: SSH 会话可靠性 + tmux 包装 + 多端** — `session.go` tmux 决策、KeepAlive + 退避重连、`--new-session`/`--take-over`、多端 banner、账号级 Mutagen 单例锁 (0/3 plans)
 - [ ] **Phase 33: Claude Code 状态持久化（CLI + 镜像 + admin GC）** — entrypoint symlink `/var/lib/claude-persist`、Worker `docker volume create` 幂等、admin DELETE 事务联动 `volume rm` (0/2 plans)
@@ -148,6 +148,10 @@
 ### Phase 30: 控制面数据模型 + Entry API 扩展
 **Goal**: 为 v3.0 体验所需的"客户端动态能力探测"打开控制面通道——`claude_accounts.persistent_volume_name` 字段就绪、`HostActionRequest` 在 API 契约层接收 `ClaudeAccountID + Volumes`、`Entry API` 在现有 `/v1/entry/{id}/auth` 响应里追加 `image_version` / `supports_mutagen` / `supports_mergerfs` / `claude_account_id` 字段（向后兼容，旧 client 不破）。本阶段不交付任何 user-facing REQ-F*，但 Phase 31/33 全部依赖它。
 **Depends on**: 无（与 Phase 29 并行）
+**Plans:** 2
+Plans:
+- [ ] `.planning/phases/30-entry-api/plans/01-migration-entry-store/PLAN.md` — migration `0014` + `ClaudeAccount`/`HostSSHAuth` 仓储与 `ResolveClaudeAccountIDForEntry`（D-01/D-02/D-05/D-10）
+- [ ] `.planning/phases/30-entry-api/plans/02-entry-api-host-contract/PLAN.md` — `HostActionRequest` + Entry `Auth` + `cloudclaude.AuthResponse` 与兼容测试（D-03..D-09）
 **Requirements**: 为 F1/F2 (Phase 31)、F7 (Phase 33) 提供握手 / 数据模型支持。本阶段无独占 REQ；唯一直接涉及的字段是 REQ-F7-A 中的 volume 命名约定（`claude-state-{claude_account_id}` + label `com.cloud-cli-proxy.account_id`）的数据模型落地。
 **Scope**:
 - `internal/store/migrations/0014_claude_account_persistent_volume.sql`：新增字段 + 默认值 + 索引
