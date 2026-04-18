@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 远端开发体验升级
-status: Defining requirements
-stopped_at: Phase 29 context gathered
-last_updated: "2026-04-18T08:04:31.686Z"
-last_activity: 2026-04-17 — Milestone v3.0 started
+status: planning_done
+stopped_at: Phase 29 plans approved (round 2)
+last_updated: "2026-04-18T10:00:00.000Z"
+last_activity: 2026-04-18 — Phase 29 6 份 PLAN 完成 + plan-checker APPROVED
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
+  total_plans: 6
   completed_plans: 0
   percent: 0
 ---
@@ -21,17 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** v3.0 远端开发体验升级 — 定义需求中
+**Current focus:** v3.0 远端开发体验升级 — Phase 29 计划完成，可进入执行
 
 ## Current Position
 
 Milestone: v3.0 远端开发体验升级
-Phase: 未开始（定义需求中）
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-17 — Milestone v3.0 started
+Phase: 29 受管镜像 v3 + Worker 容器参数扩展
+Plan: 6 份 PLAN 全部完成（01-image-base / 02-binaries / 03-entrypoint-config / 04-worker-contract / 05-host-preflight-docs / 06-imagelock-ci-gate），plan-checker round 2 APPROVED
+Status: planning_done
+Last activity: 2026-04-18 — Phase 29 plan-phase 闭环（context → research → patterns → 6 plans → check×2 → APPROVED）
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.0)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v3.0；Phase 29 待执行)
+
+下一步：`/gsd:execute-phase 29-v3-worker`（建议按 Wave 划分：Wave 1 并行 Plan 01/04/05/06.1；Wave 2 Plan 02；Wave 3 Plan 03；Wave 4 Plan 06.2 CI gate）。
 
 ## Accumulated Context
 
@@ -63,8 +65,13 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 | 260416-wvu | injectSSHKeys 幂等化，保留用户手加密钥 | 2026-04-16 | cc18acf | [260416-wvu-make-injectsshkeys-idempotent-so-user-ge](./quick/260416-wvu-make-injectsshkeys-idempotent-so-user-ge/) |
 | 260417-0w4 | 新增 cloud-claude ssh doctor 子命令（owner/mode/PEM 尾换行自检与修复） | 2026-04-16 | d716b14, 3f0567c, 7836821 | [260417-0w4-cloud-claude-cli-ssh-doctor-workspace-ss](./quick/260417-0w4-cloud-claude-cli-ssh-doctor-workspace-ss/) |
 
+### Phase 29 关键修订记录
+
+- **2026-04-18 D-23 路径双修正**：(1) AppArmor override 路径由 `docker-default` → `fusermount3`（Launchpad bug #2111105 + moby#50013 + sysbox#947 + stargz-snapshotter#2144 一致证据，防御 C6）；(2) 脚本路径由"新增 `deploy/host-preflight.sh`" → "扩展现有 `deploy/scripts/host-preflight.sh`"（PATTERNS AP9 发现）。两处修正均在 29-CONTEXT.md 与 29-DISCUSSION-LOG.md 留下完整审计链。
+- **2026-04-18 plan-checker 修订**：R1 关键（Plan 05 Task 5.1 弃用不存在的 log_* helper，改用现网 `echo >&2` + `return 0/1` + `|| true` advisory）+ R2..R6 五项小修订全部完成；round 2 复核 APPROVED。
+
 ## Session Continuity
 
-Last session: 2026-04-18T08:04:31.674Z
-Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-v3-worker/29-CONTEXT.md
+Last session: 2026-04-18T10:00:00.000Z
+Stopped at: Phase 29 plans approved (round 2)
+Resume file: .planning/phases/29-v3-worker/plans/01-image-base/PLAN.md（执行起点）
