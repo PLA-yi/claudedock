@@ -18,6 +18,15 @@ type SSHKeyEntry struct {
 	KeyType    string `json:"key_type"`
 }
 
+// VolumeMount 描述 docker create --mount type=volume 的最小契约。
+// Phase 29 仅支持 named volume；生命周期（create/rm）由 Phase 33 管理。
+type VolumeMount struct {
+	Name     string            `json:"name"`
+	Target   string            `json:"target"`
+	ReadOnly bool              `json:"read_only,omitempty"`
+	Labels   map[string]string `json:"labels,omitempty"`
+}
+
 type HostActionRequest struct {
 	TaskID        string            `json:"task_id"`
 	HostID        string            `json:"host_id"`
@@ -38,6 +47,7 @@ type HostActionRequest struct {
 	SSHPublicKey  string            `json:"ssh_public_key,omitempty"`
 	SSHPrivateKey string            `json:"ssh_private_key,omitempty"`
 	SSHKeys       []SSHKeyEntry     `json:"ssh_keys,omitempty"`
+	Volumes       []VolumeMount     `json:"volumes,omitempty"`
 }
 
 type TaskStatusUpdate struct {
