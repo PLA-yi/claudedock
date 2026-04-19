@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -14,12 +15,12 @@ import (
 var Version = "dev"
 
 const (
-	exitOK             = 0
-	exitAuthFailed     = 1
-	exitNetworkError   = 2
-	exitTimeout        = 3
-	exitConfigError    = 4
-	exitInternalError  = 5
+	exitOK            = 0
+	exitAuthFailed    = 1
+	exitNetworkError  = 2
+	exitTimeout       = 3
+	exitConfigError   = 4
+	exitInternalError = 5
 )
 
 func main() {
@@ -36,9 +37,9 @@ func main() {
 	}
 
 	initCmd := &cobra.Command{
-		Use:   "init",
-		Short: "配置网关地址与用户凭证",
-		Long:  "交互式输入或通过环境变量/flag 配置网关地址、short_id 和密码，\n写入 ~/.cloud-claude/config.yaml。",
+		Use:           "init",
+		Short:         "配置网关地址与用户凭证",
+		Long:          "交互式输入或通过环境变量/flag 配置网关地址、short_id 和密码，\n写入 ~/.cloud-claude/config.yaml。",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          runInit,
@@ -49,15 +50,15 @@ func main() {
 	initCmd.Flags().String("password", "", "登录密码（建议交互式输入）")
 
 	envCmd := &cobra.Command{
-		Use:   "env",
-		Short: "环境相关工具",
+		Use:           "env",
+		Short:         "环境相关工具",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 
 	envCheckCmd := &cobra.Command{
-		Use:   "check",
-		Short: "检测远端容器的时区、语言、出口 IP、工具链等环境信息",
+		Use:           "check",
+		Short:         "检测远端容器的时区、语言、出口 IP、工具链等环境信息",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          runEnvCheck,
@@ -81,6 +82,12 @@ func main() {
 	}
 	sshDoctorCmd.Flags().Bool("fix", false, "尝试自动修复发现的问题（chown / chmod / 追加 PEM 尾换行）")
 	sshCmd.AddCommand(sshDoctorCmd)
+
+	// PersistentFlags 注册 --mount-mode；因 rootCmd.DisableFlagParsing=true，
+	// runRoot 内会手动解析并从 args 中剥离，避免透传给远端 claude。
+	// 这里注册仅用于 --help 显示与 cobra Mark Hidden 等元数据。
+	rootCmd.PersistentFlags().String("mount-mode", "auto",
+		"文件映射模式: auto|full|mutagen-only|sshfs-only")
 
 	rootCmd.AddCommand(initCmd, envCmd, sshCmd)
 
@@ -243,6 +250,30 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		args = args[1:]
 	}
 
+	// 因 DisableFlagParsing=true，cobra 不会自动解析 PersistentFlags；
+	// 这里手工扫描 --mount-mode 并从 args 中剥离，剩余 args 透传给远端 claude。
+	mountMode := "auto"
+	filtered := args[:0]
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--mount-mode" && i+1 < len(args) {
+			mountMode = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(args[i], "--mount-mode=") {
+			mountMode = strings.TrimPrefix(args[i], "--mount-mode=")
+			continue
+		}
+		filtered = append(filtered, args[i])
+	}
+	args = filtered
+
+	mode, err := cloudclaude.ParseMode(mountMode)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "错误: --mount-mode 必须是 auto / full / mutagen-only / sshfs-only 之一")
+		os.Exit(exitConfigError)
+	}
+
 	cfg, err := cloudclaude.LoadConfig()
 	if err != nil {
 		if strings.Contains(err.Error(), "不存在") {
@@ -301,7 +332,15 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		Password: authResp.SSHPass,
 	}
 
-	exitCode, err := cloudclaude.ConnectAndRunClaude(sshCfg, args, cwd, cfg.EffectiveProxyCommands())
+	mountCfg := cloudclaude.MountConfig{
+		Mode:              mode,
+		KeepAliveInterval: 15 * time.Second,
+		KeepAliveCountMax: 4,
+		NoColor:           os.Getenv("NO_COLOR") != "",
+	}
+	exitCode, err := cloudclaude.ConnectAndRunClaudeV3(
+		sshCfg, args, cwd, cfg.EffectiveProxyCommands(), mountCfg, authResp,
+	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "错误: "+err.Error())
 		os.Exit(exitInternalError)

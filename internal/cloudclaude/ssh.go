@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -21,19 +22,74 @@ type SSHConfig struct {
 	Password string
 }
 
-// ConnectAndRunClaude 建立 SSH 连接，将本地 cwd 通过 sshfs 映射到容器内同路径，
-// 启动本地命令代理，然后在远端执行 claude。
-// defer 顺序：stop exec proxy → cleanup mount → close conn（LIFO）。
+// ConnectAndRunClaude 是 v2.0 兼容入口（保持签名不变）。
+// 内部转 ConnectAndRunClaudeV3 + Mode=ModeSSHFSOnly + 默认 MountConfig，
+// 让旧调用继续走 sshfs-only 路径，与 v2.0 行为一致。
 func ConnectAndRunClaude(cfg SSHConfig, claudeArgs []string, cwd string, proxyCommands []string) (int, error) {
-	conn, err := sshConnect(cfg)
+	mountCfg := MountConfig{
+		Mode:              ModeSSHFSOnly,
+		KeepAliveInterval: 15 * time.Second,
+		KeepAliveCountMax: 4,
+	}
+	return ConnectAndRunClaudeV3(cfg, claudeArgs, cwd, proxyCommands, mountCfg, nil)
+}
+
+// ConnectAndRunClaudeV3 是 Phase 31 主入口。
+//
+// 流程：
+//  1. 建立 conn-A（控制 + 远端探测） / conn-B（数据通道，本阶段保留接口）
+//  2. 用 authResp 字段（ClaudeAccountID / ImageVersion / SupportsMutagen /
+//     SupportsMergerfs）补全 mountCfg；NoColor / Logger / LastSessionPath /
+//     SyncSessionLock 取默认值
+//  3. 调 MountWorkspace 按 cfg.Mode 调度三层 mount + 三段式进度 + banner
+//  4. 启动 ExecProxy（沿用 v2.0 行为）
+//  5. TODO(plan-03): mount ready 后、runClaude 前插入 OAuth credentials 检查
+//  6. runClaude 在 conn-A 上启动远程 claude，沿用 v2.0 PTY/window resize 逻辑
+//
+// 任何 mount error 已被 errcodes.Format 包装，可直接 stderr 输出。
+func ConnectAndRunClaudeV3(cfg SSHConfig, claudeArgs []string, cwd string,
+	proxyCommands []string, mountCfg MountConfig, authResp *AuthResponse,
+) (int, error) {
+	connA, err := sshConnect(cfg)
 	if err != nil {
 		return 0, err
 	}
-	defer conn.Close()
+	defer connA.Close()
 
-	cleanupMount, err := mountWorkspace(conn, cwd, cwd)
+	connB, err := sshConnect(cfg)
 	if err != nil {
-		return 0, fmt.Errorf("目录映射失败: %w", err)
+		return 0, err
+	}
+	defer connB.Close()
+
+	if authResp != nil {
+		if mountCfg.ClaudeAccountID == "" {
+			mountCfg.ClaudeAccountID = authResp.ClaudeAccountID
+		}
+		if mountCfg.ImageVersion == "" {
+			mountCfg.ImageVersion = authResp.ImageVersion
+		}
+		mountCfg.SupportsMutagen = authResp.SupportsMutagen
+		mountCfg.SupportsMergerfs = authResp.SupportsMergerfs
+	}
+	if mountCfg.LastSessionPath == "" {
+		if home, herr := os.UserHomeDir(); herr == nil {
+			mountCfg.LastSessionPath = filepath.Join(home, ".cloud-claude", "last-session.json")
+		}
+	}
+	if mountCfg.Logger == nil {
+		mountCfg.Logger = os.Stderr
+	}
+	if mountCfg.SyncSessionLock == nil {
+		mountCfg.SyncSessionLock = func(_ string) (func(), error) {
+			return func() {}, nil
+		}
+	}
+	mountCfg.Cwd = cwd
+
+	cleanupMount, _, mErr := MountWorkspace(connA, connB, mountCfg)
+	if mErr != nil {
+		return 0, fmt.Errorf("文件映射失败: %w", mErr)
 	}
 	defer cleanupMount()
 
@@ -50,7 +106,11 @@ func ConnectAndRunClaude(cfg SSHConfig, claudeArgs []string, cwd string, proxyCo
 		}
 	}
 
-	return runClaude(conn, claudeArgs, cwd, len(proxyCommands) > 0)
+	// TODO(plan-03): OAuth credentials 检查（mount ready 之后、runClaude 之前）
+	// 调用 CheckOAuthCredentials(connA, mountCfg.ClaudeAccountID) →
+	// 命中 NET_OAUTH_NOT_FOUND/EXPIRED 时返回对应 ExitOAuth* 退出码。
+
+	return runClaude(connA, claudeArgs, cwd, len(proxyCommands) > 0)
 }
 
 func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
