@@ -9,6 +9,7 @@ package cloudclaude
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -64,11 +65,44 @@ func CheckOAuthCredentials(connA *ssh.Client, claudeAccountID string) (*OAuthSta
 // parseExpiresAt 是纯函数，便于单元测试覆盖三态 + JSON 解析容错。
 //
 // rawJSON 为远端 cat 的 stdout；now 用于测试注入「当前时间」。
+//
+// 边界规则（CONTEXT D-22）：
+//   - expiresAt ≤ now → OAuthExpired
+//   - 0 < expiresAt - now < 5min → OAuthExpiringSoon（严格小于；正好 5min 视为 Valid）
+//   - expiresAt - now ≥ 5min → OAuthValid
+//   - 任何 JSON 解析失败 / 字段缺失 / 空输入 → OAuthNotFound（保守降级）
 func parseExpiresAt(rawJSON string, now time.Time) *OAuthStatus {
 	if rawJSON == "" {
 		return &OAuthStatus{State: OAuthNotFound}
 	}
-	return nil
+	var creds struct {
+		Inner struct {
+			ExpiresAt int64 `json:"expiresAt"`
+		} `json:"claudeAiOauth"`
+	}
+	if err := json.Unmarshal([]byte(rawJSON), &creds); err != nil {
+		return &OAuthStatus{State: OAuthNotFound}
+	}
+	if creds.Inner.ExpiresAt == 0 {
+		return &OAuthStatus{State: OAuthNotFound}
+	}
+
+	expires := time.UnixMilli(creds.Inner.ExpiresAt)
+	if !expires.After(now) {
+		return &OAuthStatus{State: OAuthExpired, ExpiresAt: expires}
+	}
+	if expires.Sub(now) < oauthExpiringWindow {
+		minutes := int(expires.Sub(now).Minutes())
+		if minutes < 1 {
+			minutes = 1
+		}
+		return &OAuthStatus{
+			State:           OAuthExpiringSoon,
+			ExpiresAt:       expires,
+			MinutesToExpire: minutes,
+		}
+	}
+	return &OAuthStatus{State: OAuthValid, ExpiresAt: expires}
 }
 
 var _ = fmt.Errorf
