@@ -157,6 +157,13 @@ func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
 		return nil, fmt.Errorf("SSH 连接失败（无法连接 %s）: %w", addr, err)
 	}
 
+	// [Phase 32 D-04] TCP keepalive — best-effort，失败仅 warning 不阻塞。
+	if tc, ok := tcpConn.(*net.TCPConn); ok {
+		if e := ConfigureTCPKeepAlive(tc, 15*time.Second); e != nil {
+			fmt.Fprintln(os.Stderr, errcodes.Format(errcodes.NET_TCP_KEEPALIVE_UNSUPPORTED, e.Error()))
+		}
+	}
+
 	sshConn, chans, reqs, err := ssh.NewClientConn(tcpConn, addr, clientCfg)
 	if err != nil {
 		tcpConn.Close()
