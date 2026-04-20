@@ -112,12 +112,16 @@ func (r *Repository) UpdateUserPassword(ctx context.Context, userID string, pass
 	return nil
 }
 
+// listHostsByUserIDSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串）。
+const listHostsByUserIDSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
+	FROM hosts WHERE user_id = $1
+	ORDER BY created_at ASC
+`
+
 func (r *Repository) ListHostsByUserID(ctx context.Context, userID string) ([]Host, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
-		FROM hosts WHERE user_id = $1
-		ORDER BY created_at ASC
-	`, userID)
+	rows, err := r.db.Query(ctx, listHostsByUserIDSQL, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query hosts by user: %w", err)
 	}
@@ -127,7 +131,7 @@ func (r *Repository) ListHostsByUserID(ctx context.Context, userID string) ([]Ho
 	for rows.Next() {
 		var item Host
 		if err := rows.Scan(
-			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
+			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.EntryPassword, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
 			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
 			&item.CreatedAt, &item.UpdatedAt,
@@ -184,12 +188,16 @@ func (r *Repository) GetDashboardStats(ctx context.Context) (DashboardStats, err
 	return stats, nil
 }
 
+// listHostsSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串）。
+const listHostsSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
+	FROM hosts
+	ORDER BY updated_at DESC
+`
+
 func (r *Repository) ListHosts(ctx context.Context) ([]Host, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
-		FROM hosts
-		ORDER BY updated_at DESC
-	`)
+	rows, err := r.db.Query(ctx, listHostsSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query hosts: %w", err)
 	}
@@ -203,6 +211,7 @@ func (r *Repository) ListHosts(ctx context.Context) ([]Host, error) {
 			&item.UserID,
 			&item.Status,
 			&item.ShortID,
+			&item.EntryPassword,
 			&item.TemplateImageRef,
 			&item.HomeVolumeName,
 			&item.SlotKey,
@@ -593,22 +602,26 @@ func (r *Repository) GetHostDetail(ctx context.Context, hostID string) (HostDeta
 	return HostDetail{Host: host, User: user, Bindings: bindings}, nil
 }
 
+// listHostsWithUsernameSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串）。
+const listHostsWithUsernameSQL = `
+	SELECT h.id::text, h.user_id::text, h.status, COALESCE(h.short_id, ''), COALESCE(h.entry_password, ''), h.template_image_ref,
+	       h.home_volume_name, h.slot_key, h.timezone, h.hostname,
+	       h.memory_limit_mb, h.cpu_limit, h.disk_limit_gb,
+	       h.created_at, h.updated_at, u.username,
+	       e.label, host(e.ip_address)
+	FROM hosts h
+	JOIN users u ON u.id = h.user_id
+	LEFT JOIN LATERAL (
+		SELECT b.egress_ip_id FROM host_egress_bindings b
+		WHERE b.host_id = h.id ORDER BY b.created_at ASC LIMIT 1
+	) lb ON true
+	LEFT JOIN egress_ips e ON e.id = lb.egress_ip_id
+	ORDER BY h.updated_at DESC
+`
+
 func (r *Repository) ListHostsWithUsername(ctx context.Context) ([]HostWithUsername, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT h.id::text, h.user_id::text, h.status, COALESCE(h.short_id, ''), h.template_image_ref,
-		       h.home_volume_name, h.slot_key, h.timezone, h.hostname,
-		       h.memory_limit_mb, h.cpu_limit, h.disk_limit_gb,
-		       h.created_at, h.updated_at, u.username,
-		       e.label, host(e.ip_address)
-		FROM hosts h
-		JOIN users u ON u.id = h.user_id
-		LEFT JOIN LATERAL (
-			SELECT b.egress_ip_id FROM host_egress_bindings b
-			WHERE b.host_id = h.id ORDER BY b.created_at ASC LIMIT 1
-		) lb ON true
-		LEFT JOIN egress_ips e ON e.id = lb.egress_ip_id
-		ORDER BY h.updated_at DESC
-	`)
+	rows, err := r.db.Query(ctx, listHostsWithUsernameSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query hosts with username: %w", err)
 	}
@@ -618,7 +631,7 @@ func (r *Repository) ListHostsWithUsername(ctx context.Context) ([]HostWithUsern
 	for rows.Next() {
 		var item HostWithUsername
 		if err := rows.Scan(
-			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
+			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.EntryPassword, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
 			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
 			&item.CreatedAt, &item.UpdatedAt,
@@ -684,17 +697,23 @@ func (r *Repository) GetEgressIPByHost(ctx context.Context, hostID string) (Egre
 	return item, nil
 }
 
+// getHostSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串
+// 进而导致 worker fallback 把容器密码写成 "workspace"）。
+const getHostSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
+	FROM hosts
+	WHERE id = $1
+`
+
 func (r *Repository) GetHost(ctx context.Context, hostID string) (Host, error) {
 	var item Host
-	if err := r.db.QueryRow(ctx, `
-		SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
-		FROM hosts
-		WHERE id = $1
-	`, hostID).Scan(
+	if err := r.db.QueryRow(ctx, getHostSQL, hostID).Scan(
 		&item.ID,
 		&item.UserID,
 		&item.Status,
 		&item.ShortID,
+		&item.EntryPassword,
 		&item.TemplateImageRef,
 		&item.HomeVolumeName,
 		&item.SlotKey,
@@ -898,12 +917,16 @@ func (r *Repository) UpdateUserExpiry(ctx context.Context, userID string, expire
 	return item, nil
 }
 
+// listRunningHostsByUserIDSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串）。
+const listRunningHostsByUserIDSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
+	FROM hosts
+	WHERE user_id = $1 AND status = 'running'
+`
+
 func (r *Repository) ListRunningHostsByUserID(ctx context.Context, userID string) ([]Host, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
-		FROM hosts
-		WHERE user_id = $1 AND status = 'running'
-	`, userID)
+	rows, err := r.db.Query(ctx, listRunningHostsByUserIDSQL, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query running hosts by user: %w", err)
 	}
@@ -913,7 +936,7 @@ func (r *Repository) ListRunningHostsByUserID(ctx context.Context, userID string
 	for rows.Next() {
 		var item Host
 		if err := rows.Scan(
-			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
+			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.EntryPassword, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
 			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
 			&item.CreatedAt, &item.UpdatedAt,
@@ -928,13 +951,18 @@ func (r *Repository) ListRunningHostsByUserID(ctx context.Context, userID string
 	return hosts, nil
 }
 
+// listRunningHostsSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言
+// 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串；
+// 也是 Phase 29.1 Plan 04 批量 resync 链路的事实数据源）。
+const listRunningHostsSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
+	FROM hosts
+	WHERE status = 'running'
+	ORDER BY updated_at ASC
+`
+
 func (r *Repository) ListRunningHosts(ctx context.Context) ([]Host, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, created_at, updated_at
-		FROM hosts
-		WHERE status = 'running'
-		ORDER BY updated_at ASC
-	`)
+	rows, err := r.db.Query(ctx, listRunningHostsSQL)
 	if err != nil {
 		return nil, fmt.Errorf("query running hosts: %w", err)
 	}
@@ -944,7 +972,7 @@ func (r *Repository) ListRunningHosts(ctx context.Context) ([]Host, error) {
 	for rows.Next() {
 		var item Host
 		if err := rows.Scan(
-			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
+			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.EntryPassword, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
 			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
 			&item.CreatedAt, &item.UpdatedAt,
