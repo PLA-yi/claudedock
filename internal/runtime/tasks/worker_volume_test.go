@@ -18,6 +18,10 @@ func minimalCreateHostRequest(hostID string) agentapi.HostActionRequest {
 		HomeMount:     "/workspace",
 		ContainerName: "c-test",
 		HomeDir:       "/tmp/cloudproxy-test-home-" + hostID,
+		// Phase 29.1：buildCreateArgs/syncContainerCredentials 对空 EntryPassword fail-fast，
+		// 工厂默认填占位密码以避免无关用例（如 volume 类）误触发空密码守卫；
+		// 真要测试空密码分支的用例需显式 override 为 ""。
+		EntryPassword: "pw-default-test",
 	}
 }
 

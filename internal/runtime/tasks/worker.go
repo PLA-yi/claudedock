@@ -157,6 +157,10 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 		args = append(args, "--cpus", fmt.Sprintf("%.1f", request.CPULimit))
 	}
 
+	if request.EntryPassword == "" {
+		return nil, fmt.Errorf("host %s entry_password is empty; refusing to build create args", request.HostID)
+	}
+
 	linuxUser := firstNonEmpty(request.DefaultUser, "workspace")
 	args = append(args,
 		"-e", "TZ="+firstNonEmpty(request.Timezone, "America/Los_Angeles"),
@@ -164,7 +168,7 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 		"-e", "LANGUAGE=en_US:en",
 		"-e", "LC_ALL=en_US.UTF-8",
 		"-e", "CONTAINER_USER="+linuxUser,
-		"-e", "CONTAINER_SSH_PASSWORD="+firstNonEmpty(request.EntryPassword, "workspace"),
+		"-e", "CONTAINER_SSH_PASSWORD="+request.EntryPassword,
 		"-v", fmt.Sprintf("%s:%s", homeDir, firstNonEmpty(request.HomeMount, defaultWorkspaceMount)),
 	)
 
@@ -429,7 +433,21 @@ func (w *Worker) waitForSSH(ctx context.Context, request agentapi.HostActionRequ
 // the request, regardless of what the entrypoint set via environment variables.
 func (w *Worker) syncContainerCredentials(ctx context.Context, request agentapi.HostActionRequest, containerName string) {
 	user := firstNonEmpty(request.DefaultUser, "workspace")
-	pass := firstNonEmpty(request.EntryPassword, "workspace")
+	if request.EntryPassword == "" {
+		w.repo.RecordEvent(ctx, repository.RecordEventParams{
+			HostID:  &request.HostID,
+			Level:   "error",
+			Type:    "runtime.entry_password_missing",
+			Message: "host entry_password is empty; refusing to sync container credentials",
+			Metadata: map[string]any{
+				"host_id":   request.HostID,
+				"container": containerName,
+				"source":    "sync",
+			},
+		})
+		return
+	}
+	pass := request.EntryPassword
 
 	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "chpasswd")
 	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s:%s\n", user, pass))
