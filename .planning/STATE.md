@@ -4,7 +4,7 @@ milestone: v3.0
 milestone_name: 远端开发体验升级
 status: executing
 stopped_at: Completed 29.1-02-PLAN.md (worker / runtime_service fail-fast + RecordEvent + 单测)
-last_updated: "2026-04-20T18:04:28.353Z"
+last_updated: "2026-04-20T18:06:05.231Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 8
@@ -63,7 +63,7 @@ v3.0 关键方向已定：
 - [Phase 32]: Plan 04 闭合 Gap #2 / SC11：MountWorkspace 真实调用 cfg.SyncSessionLock(cfg.ClaudeAccountID)，ErrSyncLocked 强制 ModeSSHFSOnly + DowngradeChain 追加 sync_locked + IsSecondaryClient=true；其它 lockErr 透传 ModeFailed（M13 防御）；成功拿锁挂入 finalCleanup LIFO 末尾。
 - [Phase 32]: Plan 05 闭合 Gap #1 / SC5：Reconnector + BufferedStdin 单例提升到 runClaudePTYWithReconnect 外层；pTYAttachOnce 删除局部 atomic.Int32 并新增 bufferedPipeR io.Reader 参数共享外层 atomic；onReconnected 闭包内 bs.Flush() 按序回放 ringBuf；input_buffer.go 新增 echoMu sync.Mutex co-fix WR-04；bs.Run 单 goroutine co-fix WR-03；新增 TestPTYReconnect_BufferedInputFlush 6 断言覆盖 SC5 端到端；公开 API zero diff（Plan 01/02/03/04 不影响）；race mode 全 PASS
 - [Phase 29.1]: Plan 01：仓储层 6 个 Host 读 SQL 一次性补齐 entry_password 列 + 提升为包级 const（getHostSQL/listHostsSQL/listHostsByUserIDSQL/listHostsWithUsernameSQL/listRunningHostsSQL/listRunningHostsByUserIDSQL），新增 TestAllHostReadQueriesIncludeEntryPassword 契约测试锁回归；commits 2af9919 (fix) + 677fe47 (test)
-- [Phase 29.1]: Plan 02：runtime_service.QueueHostAction + worker.buildCreateArgs + worker.syncContainerCredentials 三处空 EntryPassword 静默 "workspace" fallback 改造为 fail-fast (return error / RecordEvent runtime.entry_password_missing)；worker.go 中 "workspace" 字面量仅剩 4 处 firstNonEmpty(request.DefaultUser, ...) 用户名 fallback；新增 worker_password_test.go 2 条 PASS 单测；syncContainerCredentials chpasswd 调用改用 execInContainer 包级 var 以可测；commits 62e4455 (2.1) + 317c94f (2.2) + a222a2e (2.3)
+- [Phase 29.1]: Plan 02：runtime 层三处 firstNonEmpty(..., "workspace") 密码 fallback 改为 fail-fast — Service.repo/NewService 形参 interface 各加 RecordEvent 一行（concrete *Repository 已实现，调用方零破坏），QueueHostAction 空密码写 runtime.entry_password_missing 事件后 return error 不再 Dispatch；buildCreateArgs 空密码 return error，CONTAINER_SSH_PASSWORD 直接拼真值；syncContainerCredentials 空密码写事件后 return 不再 chpasswd（顺带改用 execInContainer 包级 var 提升可测性，PLAN Task 2.3 note 1 预批）；保留 4 处 firstNonEmpty(request.DefaultUser, "workspace") Linux 用户名 fallback；新增 TestBuildCreateArgs_EmptyEntryPassword_ReturnsError + TestSyncContainerCredentials_EmptyEntryPassword_RecordsEventNoChpasswd；事件 metadata 严守 T-29.1-05-log 仅 host_id/container/action/source 不含明文密码；Rule 3：minimalCreateHostRequest 工厂补 EntryPassword 占位避免无关 volume 类用例误触发新守卫；commits 62e4455 (feat) + 317c94f (fix) + a222a2e (test) + 0a60198 (docs)
 
 ### Pending Todos
 
@@ -91,6 +91,6 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-20T18:04:19.815Z
+Last session: 2026-04-20T18:06:05.227Z
 Stopped at: Completed 29.1-02-PLAN.md (worker / runtime_service fail-fast + RecordEvent + 单测)
 Resume file: None
