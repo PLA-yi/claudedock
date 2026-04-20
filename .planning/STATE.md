@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 远端开发体验升级
 status: executing
-stopped_at: "Completed 32-01-net-resilience PLAN.md"
-last_updated: "2026-04-20T09:00:00.000Z"
-last_activity: 2026-04-20 -- Phase 32 Plan 01 (net-resilience) completed
+stopped_at: "Completed 32-02-tmux-multiclient PLAN.md"
+last_updated: "2026-04-20T17:30:00.000Z"
+last_activity: 2026-04-20 -- Phase 32 Plan 02 (tmux-multiclient) completed
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 0
 ---
 
@@ -27,13 +27,13 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 Milestone: v3.0 远端开发体验升级
 Phase: 32 (ssh-tmux) — EXECUTING
-Plan: 2 of 3（Plan 01 net-resilience 已完成 ✓）
-Status: Executing Phase 32 — Plan 01 ✓ / Plan 02 / Plan 03 待执行
-Last activity: 2026-04-20 -- Phase 32 Plan 01 (net-resilience) 完成；3 个 atomic commits + SUMMARY.md
+Plan: 3 of 3（Plan 01 net-resilience ✓ / Plan 02 tmux-multiclient ✓）
+Status: Executing Phase 32 — Plan 01 ✓ / Plan 02 ✓ / Plan 03 sync-lock-integration 待执行
+Last activity: 2026-04-20 -- Phase 32 Plan 02 (tmux-multiclient) 完成；4 个 atomic task commits + SSHConnect export 包装 commit + SUMMARY.md
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（v3.0；Phase 29 待执行）
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（v3.0；Phase 32 仅剩 Plan 03 待执行）
 
-下一步：继续 `/gsd:execute-phase 29-v3-worker`（Wave 建议不变）。Phase 30 可先 `/gsd-plan-phase 30 --skip-research` 跑 plan-checker 修订手写 PLAN，再 `/gsd-execute-phase 30-entry-api`。
+下一步：`/gsd:execute-phase 32-ssh-tmux` 续做 Plan 03 sync-lock-integration（账号级 flock 单例锁 + secondary client 标志 + 6 个 TestIntegration_Phase32_* + C3/C7 回归）。完成后 Phase 32 全部 done，进入 Phase 33。
 
 ## Accumulated Context
 
@@ -57,6 +57,7 @@ v3.0 关键方向已定：
 - [Phase 31-cli]: Plan 03：MutagenSyncStatus{SessionName,ConflictCount,LastError} 引入，mountMutagen 第二返回值 int→struct，sync list --template 解析 conflict count（v0.18.1 不支持 --json）
 - [Phase 31-cli]: Plan 03：6 个 TestIntegration_* + docker compose fixture 脚本就位，未引入 testcontainers-go；C3 netem 场景 t.Skip 留 Phase 35 真机
 - [Phase 32-ssh-tmux]: Plan 01 net-resilience：keepalive (RunKeepAlive + ConfigureTCPKeepAlive 跨 linux/darwin/other build tag) + reconnect (Reconnector 退避 1/2/4/8/30s + Trigger drop + fastRetry 60s 5 次封顶 + 三态 UX) + input_buffer (BufferedStdin 4KB ringBuf + 灰色 echo + Flush) + 10 条 SESSION_*/NET_* 错误码 + last_session 三新字段 (TmuxSession/ClientRole/ReconnectCount, omitempty schema_version 仍 1) + colors.ansiGray 全部就位；ssh.go::sshConnect 仅 4 行 best-effort TCP keepalive 接入（未碰 ConnectAndRunClaudeV3 / runClaude，留 Plan 02）；windows build 因既有 syscall.SIGWINCH 失败为 out-of-scope 入 deferred
+- [Phase 32-ssh-tmux]: Plan 02 tmux-multiclient：session.go 全新文件（867 行）含 DetectTmux + 命名 helpers + D-10 远程命令模板 + 文件注册表 (writeClientFile/removeClientFile/readClientHostnames，D-12 完整方案 schema_version=1) + runClaudeWithSession (PTY/RunKeepAlive/Reconnector 三协同) + RunSessionsLs/Attach；ssh.go ConnectAndRunClaudeV3 OAuth 后插入 SessionConfig 构造 + DetectTmux 路由（runClaude 函数体 zero diff 保留作 fallback）；MountConfig 末尾追加 SessionShortID/SessionTakeOver/LocalHostname；cmd 层新增 sessions.go cobra 子命令 + main.go 4 处改造 (AddCommand/DisableFlagParsing/runRoot 剥离 --new-session/--take-over/KeepAlive < 15s 启动校验)；21 个新单测全 PASS；shellescape.Quote 11 处防注入 + TestBuildTmuxRemoteCmd_SpecialCharsQuoted 显式覆盖；BufferedStdin 跨 attach 周期持久化留 v3.1 (Plan 01 已 ship StateAddr 模式，PLAN 提到的 RegisterStateListener 接口未落地，本 plan 走每轮 attach 本地 atomic.Int32 简化方案不影响 30s 抖动恢复)
 
 ### Pending Todos
 
@@ -84,6 +85,6 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-20T09:00:00.000Z
-Stopped at: Completed 32-01-net-resilience PLAN.md
-Resume file: .planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/PLAN.md
+Last session: 2026-04-20T17:30:00.000Z
+Stopped at: Completed 32-02-tmux-multiclient PLAN.md
+Resume file: .planning/phases/32-ssh-tmux/plans/03-sync-lock-integration/PLAN.md

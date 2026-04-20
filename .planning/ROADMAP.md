@@ -84,7 +84,7 @@
 - [ ] **Phase 32: SSH 会话可靠性 + tmux 包装 + 多端** — `session.go` tmux 决策、KeepAlive + 退避重连、`--new-session`/`--take-over`、多端 banner、账号级 Mutagen 单例锁 (0/3 plans，已规划见下)
   Plans:
   - [x] `.planning/phases/32-ssh-tmux/plans/01-net-resilience/PLAN.md` — KeepAlive 应用层 + TCP 平台特化 + reconnect 退避状态机 + input_buffer 灰色未确认 + 10 条新错误码 + colors/last_session 字段（Wave 1）
-  - [ ] `.planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/PLAN.md` — session.go tmux 包装 + take-over + 多端 banner + sessions ls/attach 子命令 + ConnectAndRunClaudeV3 路由 + cmd flag 剥离与 KeepAlive 校验（Wave 2）
+  - [x] `.planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/PLAN.md` — session.go tmux 包装 + take-over + 多端 banner + sessions ls/attach 子命令 + ConnectAndRunClaudeV3 路由 + cmd flag 剥离与 KeepAlive 校验（Wave 2）
   - [ ] `.planning/phases/32-ssh-tmux/plans/03-sync-lock-integration/PLAN.md` — 账号级 flock 单例锁 + ssh.go 注入 + secondary 标志 + 6 个 TestIntegration_Phase32_* + C3/C7 回归（Wave 3）
 - [ ] **Phase 33: Claude Code 状态持久化（CLI + 镜像 + admin GC）** — entrypoint symlink `/var/lib/claude-persist`、Worker `docker volume create` 幂等、admin DELETE 事务联动 `volume rm` (0/2 plans)
 - [ ] **Phase 34: cloud-claude doctor v3 + 错误码统一** — `doctor` 5 维度子命令 + `--fix`/`--json`、统一错误码 `<DOMAIN>_<KIND>_<NUM>`、`cloud-claude explain` (0/3 plans)
