@@ -29,7 +29,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -615,6 +614,43 @@ func runClaudePTYWithReconnect(ctx context.Context, initialConn *ssh.Client, ssh
 	reconnectCount := 0
 	registryPid := 0
 
+	// [Phase 32 Gap #1 fix] Reconnector + BufferedStdin 单例（循环外）。
+	//
+	//   共享原则：
+	//     - bs 通过 reconnector.StateAddr() 拿到 *atomic.Int32；Reconnector.Run 写 state
+	//       就是 bs 读到的 state（同一指针）—— 断网时 bs 立即切 ringBuf + 灰色 echo
+	//     - bs.Run 单 goroutine 跨所有 attach 周期读 os.Stdin（WR-03 co-fix：消除
+	//       pTYAttachOnce 每次 iter 泄漏新 goroutine 的问题）
+	//     - reconnect 成功的 onReconnected 回调内 bs.Flush() —— 让 ringBuf 字节按序写到
+	//       pipeW，下一轮 pTYAttachOnce 的 session.Stdin = bufferedPipeR 立即读到（无丢字 / 无乱序）
+	//     - pendingNewConn 由 onReconnected 闭包写入；Reconnector.Run 返回 nil 后取出
+	//       作为新一轮 attach 的 conn
+	var (
+		reconnector    *Reconnector
+		bufferedPipeR  io.Reader
+		bs             *BufferedStdin
+		pendingNewConn *ssh.Client
+	)
+	isTTY := term.IsTerminal(int(os.Stdin.Fd()))
+	if isTTY && sessionCfg.ReconnectEnabled {
+		reconnector = NewReconnector(sshCfg,
+			nil, // onConnLost — Reconnector.Run 内部已 state.Store(StateReconnecting)
+			func(c *ssh.Client) error {
+				pendingNewConn = c
+				if bs != nil {
+					_ = bs.Flush() // 按序把断网期 ringBuf 写到 pipeW
+				}
+				return nil
+			},
+			os.Stderr, sessionCfg.NoColor)
+		bs, bufferedPipeR = NewBufferedStdin(os.Stdin, reconnector.StateAddr(), os.Stderr,
+			sessionCfg.NoColor, reconnector.Trigger)
+		bsCtx, cancelBs := context.WithCancel(ctx)
+		defer cancelBs()
+		go func() { _ = bs.Run(bsCtx) }()
+		defer bs.Close()
+	}
+
 	defer func() {
 		if registryPid > 0 {
 			_ = removeClientFile(conn, registryPid)
@@ -622,7 +658,7 @@ func runClaudePTYWithReconnect(ctx context.Context, initialConn *ssh.Client, ssh
 	}()
 
 	for {
-		exitCode, exitErr, reconnectableErr := pTYAttachOnce(ctx, conn, remoteCmd, sessionName, sessionCfg, &registryPid)
+		exitCode, exitErr, reconnectableErr := pTYAttachOnce(ctx, conn, remoteCmd, sessionName, sessionCfg, &registryPid, bufferedPipeR)
 
 		if exitErr == nil {
 			writeLastSessionReconnectCount(sessionCfg.LastSessionPath, reconnectCount)
@@ -633,17 +669,11 @@ func runClaudePTYWithReconnect(ctx context.Context, initialConn *ssh.Client, ssh
 			return exitCode, nil
 		}
 
-		if reconnectableErr == nil || !sessionCfg.ReconnectEnabled {
+		if reconnectableErr == nil || !sessionCfg.ReconnectEnabled || reconnector == nil {
 			return 0, exitErr
 		}
 
 		t0 := time.Now()
-		var newConn *ssh.Client
-		reconnector := NewReconnector(sshCfg,
-			nil, // onConnLost — Reconnector.Run 内部已切 state，BufferedStdin 通过共享 atomic 自动感知
-			func(c *ssh.Client) error { newConn = c; return nil },
-			os.Stderr, sessionCfg.NoColor)
-
 		if err := reconnector.Run(ctx); err != nil {
 			if errors.Is(err, ErrReconnectGaveUp) {
 				fmt.Fprintln(os.Stderr, FormatGiveUpMessage(5, time.Since(t0)))
@@ -653,7 +683,10 @@ func runClaudePTYWithReconnect(ctx context.Context, initialConn *ssh.Client, ssh
 			return 0, err
 		}
 		reconnectCount += reconnector.ReconnectCount()
-		conn = newConn
+		if pendingNewConn != nil {
+			conn = pendingNewConn
+			pendingNewConn = nil
+		}
 		// 注：registryPid 已失效（旧 conn 上的 client_pid），新一轮 attach 时由
 		// pTYAttachOnce 内 writeClientFile 重写。这里清零让循环重新写入。
 		registryPid = 0
@@ -667,9 +700,12 @@ func runClaudePTYWithReconnect(ctx context.Context, initialConn *ssh.Client, ssh
 //   - exitErr：session.Wait 的原始错误（含 nil）；nil = 正常退出
 //   - reconnectableErr：非 nil 且 ReconnectEnabled 时上层进入 Reconnector 循环
 //
+// bufferedPipeR 由 runClaudePTYWithReconnect 外层 NewBufferedStdin 返回的 io.Reader；
+// nil（非 TTY 或 ReconnectEnabled=false）→ session.Stdin 直接用 os.Stdin。
+//
 // PTY 申请 / SIGWINCH / RawMode 段一字复刻 ssh.go::runClaude line 178-216。
 func pTYAttachOnce(ctx context.Context, conn *ssh.Client, remoteCmd, sessionName string,
-	sessionCfg SessionConfig, registryPid *int,
+	sessionCfg SessionConfig, registryPid *int, bufferedPipeR io.Reader,
 ) (int, error, error) {
 	session, err := conn.NewSession()
 	if err != nil {
@@ -712,25 +748,11 @@ func pTYAttachOnce(ctx context.Context, conn *ssh.Client, remoteCmd, sessionName
 		defer signal.Stop(sigCh)
 	}
 
-	// BufferedStdin 注入（CONTEXT D-29 — 共享 Reconnector.StateAddr() 的 *atomic.Int32）。
-	// 注：本函数内 Reconnector 还没创建 — state 字段先 0 = StateConnected（等价"直传"），
-	// 进入 reconnect 循环后由 Reconnector.Run 写入 atomic 切到 Reconnecting/GaveUp。
-	// 简化：把 state 包成 atomic.Int32 局部变量；Reconnector 在外层另用自己的 state，
-	// 本端 BufferedStdin 看到的始终是 StateConnected → 等价于直传 stdin（无重连缓冲）。
-	// **本 plan 简化：BufferedStdin 仅在 reconnect 启动后挂接** —
-	// 本 attach 周期内为直接 stdin 透传；reconnect 完成 → 下一轮 attach 再决定。
-	// （完整三态共享留 v3.1，与 RegisterStateListener 接口一并落地；本阶段 BufferedStdin
-	// 在断网期间通过 ringBuf 做兜底：见下方 reconnectStateForBuffer 注入。）
-	var state atomic.Int32
-	state.Store(int32(StateConnected))
-	bs, pipeR := NewBufferedStdin(os.Stdin, &state, os.Stderr, sessionCfg.NoColor, nil)
-	bsCtx, cancelBs := context.WithCancel(ctx)
-	defer cancelBs()
-	go func() { _ = bs.Run(bsCtx) }()
-	defer bs.Close()
-
-	if isTTY {
-		session.Stdin = pipeR
+	// [Phase 32 Gap #1 fix] BufferedStdin 在 runClaudePTYWithReconnect 外层一次性创建；
+	// 此处只消费 bufferedPipeR 作为 session.Stdin（共享 Reconnector.StateAddr 的 atomic
+	// 由外层保证 —— 断网时 Reconnector.Run 写 StateReconnecting，bs 立即切 ringBuf + 灰色 echo）。
+	if isTTY && bufferedPipeR != nil {
+		session.Stdin = bufferedPipeR
 	} else {
 		session.Stdin = os.Stdin
 	}
