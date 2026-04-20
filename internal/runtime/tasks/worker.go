@@ -449,9 +449,7 @@ func (w *Worker) syncContainerCredentials(ctx context.Context, request agentapi.
 	}
 	pass := request.EntryPassword
 
-	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "chpasswd")
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("%s:%s\n", user, pass))
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := execInContainer(ctx, containerName, "chpasswd", fmt.Sprintf("%s:%s\n", user, pass)); err != nil {
 		w.repo.RecordEvent(ctx, repository.RecordEventParams{
 			HostID:  &request.HostID,
 			Level:   "warn",
