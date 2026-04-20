@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 远端开发体验升级
 status: executing
-stopped_at: Completed 29.1-02-PLAN.md (worker / runtime_service fail-fast + RecordEvent + 单测)
-last_updated: "2026-04-20T18:06:05.231Z"
+stopped_at: Completed 29.1-03-PLAN.md (entrypoint passwd -S 自检 + exit 1)
+last_updated: "2026-04-20T18:08:36.089Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 Milestone: v3.0 远端开发体验升级
 Phase: 29.1 (修复 GetHost 缺失 entry_password 字段导致容器密码退化为 workspace) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-20
 
@@ -64,6 +64,9 @@ v3.0 关键方向已定：
 - [Phase 32]: Plan 05 闭合 Gap #1 / SC5：Reconnector + BufferedStdin 单例提升到 runClaudePTYWithReconnect 外层；pTYAttachOnce 删除局部 atomic.Int32 并新增 bufferedPipeR io.Reader 参数共享外层 atomic；onReconnected 闭包内 bs.Flush() 按序回放 ringBuf；input_buffer.go 新增 echoMu sync.Mutex co-fix WR-04；bs.Run 单 goroutine co-fix WR-03；新增 TestPTYReconnect_BufferedInputFlush 6 断言覆盖 SC5 端到端；公开 API zero diff（Plan 01/02/03/04 不影响）；race mode 全 PASS
 - [Phase 29.1]: Plan 01：仓储层 6 个 Host 读 SQL 一次性补齐 entry_password 列 + 提升为包级 const（getHostSQL/listHostsSQL/listHostsByUserIDSQL/listHostsWithUsernameSQL/listRunningHostsSQL/listRunningHostsByUserIDSQL），新增 TestAllHostReadQueriesIncludeEntryPassword 契约测试锁回归；commits 2af9919 (fix) + 677fe47 (test)
 - [Phase 29.1]: Plan 02：runtime 层三处 firstNonEmpty(..., "workspace") 密码 fallback 改为 fail-fast — Service.repo/NewService 形参 interface 各加 RecordEvent 一行（concrete *Repository 已实现，调用方零破坏），QueueHostAction 空密码写 runtime.entry_password_missing 事件后 return error 不再 Dispatch；buildCreateArgs 空密码 return error，CONTAINER_SSH_PASSWORD 直接拼真值；syncContainerCredentials 空密码写事件后 return 不再 chpasswd（顺带改用 execInContainer 包级 var 提升可测性，PLAN Task 2.3 note 1 预批）；保留 4 处 firstNonEmpty(request.DefaultUser, "workspace") Linux 用户名 fallback；新增 TestBuildCreateArgs_EmptyEntryPassword_ReturnsError + TestSyncContainerCredentials_EmptyEntryPassword_RecordsEventNoChpasswd；事件 metadata 严守 T-29.1-05-log 仅 host_id/container/action/source 不含明文密码；Rule 3：minimalCreateHostRequest 工厂补 EntryPassword 占位避免无关 volume 类用例误触发新守卫；commits 62e4455 (feat) + 317c94f (fix) + a222a2e (test) + 0a60198 (docs)
+- [Phase 29.1]: Plan 03：entrypoint.sh chpasswd 之后追加 passwd -S 自检（status ∉ {P,PS} → exit 1），让密码退化故障从用户登不进去前移到容器启动失败 / restart 循环可观测
+- [Phase 29.1]: Plan 03：FATAL 消息只回显 RUN_USER + passwd -S 第 2 列状态字串，绝不写入 CONTAINER_PASSWORD / CONTAINER_SSH_PASSWORD 任一密码值（T-29.1-05-log-entrypoint mitigation）
+- [Phase 29.1]: Plan 03：自检失败 entrypoint 不做 retry，重启交给外层 docker restart policy / host-agent（T-29.1-04 accept disposition）；passwd -S 解析用 awk + 命令链 || echo UNSET 兜底，避免解析失败被当 P 通过
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-20T18:06:05.227Z
-Stopped at: Completed 29.1-02-PLAN.md (worker / runtime_service fail-fast + RecordEvent + 单测)
+Last session: 2026-04-20T18:08:36.086Z
+Stopped at: Completed 29.1-03-PLAN.md (entrypoint passwd -S 自检 + exit 1)
 Resume file: None
