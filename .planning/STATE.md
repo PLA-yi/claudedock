@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 远端开发体验升级
 status: executing
-stopped_at: Completed 29.1-03-PLAN.md (entrypoint passwd -S 自检 + exit 1)
-last_updated: "2026-04-20T18:08:36.089Z"
-last_activity: 2026-04-20
+stopped_at: Wave 1 集成门禁通过；Plan 04 待执行（Tasks 4.1-4.3 自动 + 4.4 人工 UAT 检查点）
+last_updated: "2026-04-21T03:30:00.000Z"
+last_activity: 2026-04-21
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
   completed_plans: 3
-  percent: 0
+  percent: 75
 ---
 
 # Project State
@@ -67,6 +67,7 @@ v3.0 关键方向已定：
 - [Phase 29.1]: Plan 03：entrypoint.sh chpasswd 之后追加 passwd -S 自检（status ∉ {P,PS} → exit 1），让密码退化故障从用户登不进去前移到容器启动失败 / restart 循环可观测
 - [Phase 29.1]: Plan 03：FATAL 消息只回显 RUN_USER + passwd -S 第 2 列状态字串，绝不写入 CONTAINER_PASSWORD / CONTAINER_SSH_PASSWORD 任一密码值（T-29.1-05-log-entrypoint mitigation）
 - [Phase 29.1]: Plan 03：自检失败 entrypoint 不做 retry，重启交给外层 docker restart policy / host-agent（T-29.1-04 accept disposition）；passwd -S 解析用 awk + 命令链 || echo UNSET 兜底，避免解析失败被当 P 通过
+- [Phase 29.1]: Wave 1 集成门禁：`go build ./...` PASS；`go test ./internal/store/repository/... ./internal/runtime/...` 全 PASS；`go test ./internal/controlplane/http/...` 在本机 hang，根因为既有 `getDockerStatuses()` (admin_hosts.go:73) 直接 `exec.Command("docker", "ps", ...)` 而本机 docker daemon 不可用 — 已用 `git checkout ec1e841` 复跑确认是 Phase 29.1 之前就存在的测试基础设施依赖问题；不是本 phase 引入。Plan 04 自身的 3 条 `TestResyncPasswords_*` 通过 syncContainerPassword var 化绕开 docker，不会被该问题阻塞；后续应另起 backlog 修复 List handler 的 docker 调用（注入 var 或 context timeout）。
 
 ### Pending Todos
 
@@ -94,6 +95,6 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-20T18:08:36.086Z
-Stopped at: Completed 29.1-03-PLAN.md (entrypoint passwd -S 自检 + exit 1)
+Last session: 2026-04-21T03:30:00.000Z
+Stopped at: Wave 1 集成门禁通过；进入 Wave 2 / Plan 04 ResyncPasswords endpoint
 Resume file: None
