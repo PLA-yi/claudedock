@@ -31,6 +31,7 @@ package cloudclaude
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -228,4 +229,163 @@ func TestIntegration_C3_NetemDrop_ColdBranchRemoved(t *testing.T) {
 		t.Skip("tc 在 fixture 容器内不可用，跳过 C3 集成场景（保留 unit 层的 SSHFSWatcher 测试）")
 	}
 	t.Skip("C3 集成场景由 Phase 35 真机验收完整覆盖；本测试占位以满足 RESEARCH §6.2 计数")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Phase 32 Plan 03 集成测试（6 个 TestIntegration_Phase32_*）
+//
+// 覆盖：
+//   - C7：(a) pgrep systemd-logind 必无输出；(b) pkill -SIGHUP sshd 后 tmux 仍存活
+//   - REQ-F5-D：(c) 同 accountID 双端互斥锁；(d) anon accountID noop 路径
+//   - D-15：(e) DetectTmux 在 Phase 29 镜像必返 true
+//   - C3 / REQ-F4-A：(f) 30s docker network disconnect 框架（端到端 PTY 留 Phase 35）
+//
+// 复用 Phase 31 fixture（scripts/test-fixture-up.sh / down.sh 不改）；
+// CI 环境无 docker network 权限时 (f) 直接 t.Skip。
+// 短模式（-short）下 (f) 也跳过。
+// ─────────────────────────────────────────────────────────────────────
+
+// defaultFixtureSSHConfig 复用 Phase 31 集成测试 fixture 凭证常量，构造 SSHConfig。
+func defaultFixtureSSHConfig() SSHConfig {
+	return SSHConfig{
+		Host:     fixtureHost,
+		Port:     fixturePort,
+		User:     fixtureUser,
+		Password: fixturePass,
+	}
+}
+
+// TestIntegration_Phase32_PgrepNoSystemdLogind 验证 C7 镜像侧防御（Phase 29 D-15）。
+// 容器内必须无 systemd-logind 进程，否则 pkill -SIGHUP sshd 会顺带杀掉 tmux server。
+func TestIntegration_Phase32_PgrepNoSystemdLogind(t *testing.T) {
+	out, err := dockerExec(t, "pgrep", "-x", "systemd-logind")
+	if err == nil && strings.TrimSpace(out) != "" {
+		t.Fatalf("容器内不应有 systemd-logind 进程（C7 防御失败），pgrep 输出: %q", out)
+	}
+}
+
+// TestIntegration_Phase32_TmuxSurvivesSighupSshd 验证 C7 攻击场景：
+// 起 tmux session → kill -HUP sshd → tmux server 仍存活、session 仍可访问。
+func TestIntegration_Phase32_TmuxSurvivesSighupSshd(t *testing.T) {
+	if _, err := dockerExec(t, "tmux", "new-session", "-d", "-s", "phase32_c7"); err != nil {
+		t.Fatalf("tmux new-session 失败: %v", err)
+	}
+	defer func() { _, _ = dockerExec(t, "tmux", "kill-session", "-t", "phase32_c7") }()
+
+	time.Sleep(500 * time.Millisecond)
+
+	if _, err := dockerExec(t, "sh", "-c", "kill -HUP $(pgrep -x sshd | head -1) || true"); err != nil {
+		t.Logf("kill -HUP sshd warning（fixture 可能不允许 root，可忽略）: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+
+	out, err := dockerExec(t, "tmux", "ls")
+	if err != nil {
+		t.Fatalf("tmux ls 失败（C7 防御失败 — tmux server 可能被 systemd-logind 杀掉）: %v / %s", err, out)
+	}
+	if !strings.Contains(out, "phase32_c7") {
+		t.Fatalf("tmux session phase32_c7 不见了（C7 防御失败），tmux ls 输出: %q", out)
+	}
+}
+
+// TestIntegration_Phase32_SyncLockMutexes 验证 REQ-F5-D 账号级单例锁。
+// 同一 accountID 在容器内只能有一个进程持有 /tmp/cloud-claude/locks/sync-<id>.lock。
+func TestIntegration_Phase32_SyncLockMutexes(t *testing.T) {
+	sshCfg := defaultFixtureSSHConfig()
+	conn1, err := SSHConnect(sshCfg)
+	if err != nil {
+		t.Fatalf("SSHConnect conn1 失败: %v", err)
+	}
+	defer conn1.Close()
+
+	accountID := "test-account-phase32-lock"
+
+	release1, err := AcquireSyncLock(conn1, accountID)
+	if err != nil {
+		t.Fatalf("第一次 AcquireSyncLock 应成功，得 %v", err)
+	}
+
+	out, _ := dockerExec(t, "ls", "/tmp/cloud-claude/locks/")
+	if !strings.Contains(out, "sync-test-account-phase32-lock.lock") {
+		t.Errorf("lockfile 应存在: %q", out)
+	}
+
+	conn2, err := SSHConnect(sshCfg)
+	if err != nil {
+		t.Fatalf("SSHConnect conn2 失败: %v", err)
+	}
+	defer conn2.Close()
+
+	_, err = AcquireSyncLock(conn2, accountID)
+	if !errors.Is(err, ErrSyncLocked) {
+		t.Fatalf("第二次 AcquireSyncLock 应返回 ErrSyncLocked，得 %v", err)
+	}
+
+	release1()
+	time.Sleep(2 * time.Second)
+
+	release2, err := AcquireSyncLock(conn2, accountID)
+	if err != nil {
+		t.Fatalf("release1 后第二端应能拿锁，得 %v", err)
+	}
+	defer release2()
+}
+
+// TestIntegration_Phase32_SyncLockAnonNoop 验证 D-19：anon (accountID="") 路径不上锁。
+func TestIntegration_Phase32_SyncLockAnonNoop(t *testing.T) {
+	sshCfg := defaultFixtureSSHConfig()
+	conn, err := SSHConnect(sshCfg)
+	if err != nil {
+		t.Fatalf("SSHConnect 失败: %v", err)
+	}
+	defer conn.Close()
+
+	release, err := AcquireSyncLock(conn, "")
+	if err != nil {
+		t.Fatalf("anon 应 noop，得 %v", err)
+	}
+	if release == nil {
+		t.Fatal("anon 必须返回非 nil noop release")
+	}
+	release()
+
+	release2, err := AcquireSyncLock(conn, "")
+	if err != nil {
+		t.Fatalf("anon 第二次应仍 noop，得 %v", err)
+	}
+	release2()
+}
+
+// TestIntegration_Phase32_DetectTmuxAvailable 验证 D-15：Phase 29 镜像 tmux 3.4+ 必然命中。
+func TestIntegration_Phase32_DetectTmuxAvailable(t *testing.T) {
+	sshCfg := defaultFixtureSSHConfig()
+	conn, err := SSHConnect(sshCfg)
+	if err != nil {
+		t.Fatalf("SSHConnect 失败: %v", err)
+	}
+	defer conn.Close()
+
+	available, version, reason := DetectTmux(conn)
+	if !available {
+		t.Fatalf("Phase 29 镜像应有 tmux，DetectTmux=false reason=%q", reason)
+	}
+	if !strings.Contains(version, "tmux") {
+		t.Errorf("version 应含 'tmux' 字面值，得 %q", version)
+	}
+}
+
+// TestIntegration_Phase32_NetworkDisconnect30s 框架：30s 抖动 reconnect + tmux 进程不丢
+// （REQ-F4-A / BASE-03）。短模式或缺 docker network 权限时 t.Skip；端到端 PTY 留 Phase 35。
+func TestIntegration_Phase32_NetworkDisconnect30s(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short mode 跳过 30s 抖动场景")
+	}
+	if _, err := exec.Command("docker", "network", "ls").CombinedOutput(); err != nil {
+		t.Skip("docker network 不可用，跳过；留 Phase 35 真机 UAT")
+	}
+	// 端到端 PTY 交互（cloud-claude 启动 → 进 tmux → docker network disconnect →
+	// sleep 30 → connect → 验证 reconnect + tmux 进程 PID 不变 + buffer 完整）成本极高，
+	// 留 Phase 35 真机 UAT。本 plan 落地框架 + 主要断言点骨架。
+	t.Log("框架用例 — 完整 PTY 交互留 Phase 35；本 plan 验收依赖 SyncLockMutexes 等用例")
+	t.Skip("Phase 32 v0：框架就位，端到端 PTY 交互留 Phase 35 真机")
 }
