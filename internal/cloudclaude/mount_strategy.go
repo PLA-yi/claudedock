@@ -165,6 +165,46 @@ func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), 
 		intended = ModeMutagenOnly
 	}
 
+	// [Phase 32 Gap #2 / REQ-F5-D] 账号级 Mutagen 单例锁 invoke。
+	// 闭合 Phase 31 D-31 遗留的 orphan 字段：Plan 03 在 ssh.go 注入 AcquireSyncLock 闭包，
+	// 但本函数此前从未真正调用 —— 导致 flock 永不触发，M15 双写防御失效。
+	//
+	// 三条分支：
+	//   1) ErrSyncLocked → 强制 ModeSSHFSOnly + DowngradeChain 追加 sync_locked + IsSecondaryClient=true
+	//   2) 其它 lockErr  → 错误透传（非静默降级，M13 防御）
+	//   3) 成功          → syncRelease 挂入 finalCleanup LIFO，mount 全栈退出时释放
+	//
+	// 注意：cfg 是值传递；本函数对 cfg.IsSecondaryClient 的赋值仅作为契约文档。
+	// 生产路径由 ssh.go::ConnectAndRunClaudeV3 注入的闭包通过闭包捕获 mountCfg
+	// 在拿到 ErrSyncLocked 时直接置位外层 mountCfg.IsSecondaryClient（指针语义），
+	// MountWorkspace 返回后由 ssh.go 透传到 SessionConfig。
+	var syncRelease func()
+	if cfg.SyncSessionLock != nil {
+		release, lockErr := cfg.SyncSessionLock(cfg.ClaudeAccountID)
+		if errors.Is(lockErr, ErrSyncLocked) {
+			cfg.IsSecondaryClient = true
+
+			if intended != ModeSSHFSOnly {
+				snapshot.DowngradeChain = append(snapshot.DowngradeChain, DowngradeStep{
+					From:          intended.String(),
+					To:            ModeSSHFSOnly.String(),
+					ReasonCode:    "sync_locked",
+					ReasonMessage: "账号级 Mutagen 单例锁被另一端占用",
+				})
+				fmt.Fprintf(cfg.Logger,
+					"[!] 账号级 Mutagen 单例锁已被另一端占用（%s → %s，原因: sync_locked）\n",
+					intended.String(), ModeSSHFSOnly.String())
+				intended = ModeSSHFSOnly
+			}
+		} else if lockErr != nil {
+			snapshot.ActualMode = ModeFailed.String()
+			writeLastSessionWarn(cfg.LastSessionPath, snapshot, cfg.Logger)
+			return func() {}, ModeFailed, fmt.Errorf("sync lock acquire: %w", lockErr)
+		} else if release != nil {
+			syncRelease = release
+		}
+	}
+
 	// 3) 决定 try 顺序
 	var tryOrder []Mode
 	switch intended {
@@ -196,7 +236,16 @@ func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), 
 			}
 
 			writeLastSessionWarn(cfg.LastSessionPath, snapshot, cfg.Logger)
-			return modeCleanup, mode, nil
+
+			// [Phase 32 Gap #2] LIFO cleanup：mount 全栈退出后再释放 sync 锁。
+			finalCleanup := modeCleanup
+			if syncRelease != nil {
+				finalCleanup = func() {
+					modeCleanup()
+					syncRelease()
+				}
+			}
+			return finalCleanup, mode, nil
 		}
 
 		lastErr = mErr
@@ -206,6 +255,9 @@ func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), 
 		if cfg.Mode != ModeAuto {
 			snapshot.ActualMode = ModeFailed.String()
 			writeLastSessionWarn(cfg.LastSessionPath, snapshot, cfg.Logger)
+			if syncRelease != nil {
+				syncRelease()
+			}
 			wrap := errcodes.Format(errcodes.MOUNT_FORCE_MODE_FAILED, cfg.Mode.String(), mode.String(), reason)
 			return func() {}, ModeFailed, fmt.Errorf("%s: %w", wrap, mErr)
 		}
@@ -220,6 +272,9 @@ func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), 
 	// 全部档位失败
 	snapshot.ActualMode = ModeFailed.String()
 	writeLastSessionWarn(cfg.LastSessionPath, snapshot, cfg.Logger)
+	if syncRelease != nil {
+		syncRelease()
+	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("文件映射全部档位失败")
 	}

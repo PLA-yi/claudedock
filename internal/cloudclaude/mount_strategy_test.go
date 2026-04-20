@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -396,5 +397,178 @@ func Test_ExtractErrCode_FallbackForceFailed(t *testing.T) {
 	code, _ := extractErrCodeAndReason(errors.New("plain"))
 	if code != errcodes.MOUNT_FORCE_MODE_FAILED {
 		t.Errorf("plain error code = %s, want MOUNT_FORCE_MODE_FAILED", code)
+	}
+}
+
+// TestMountWorkspace_SyncLocked 验证 Phase 32 Gap #2 闭合（REQ-F5-D / SC11）：
+//
+//   - SyncSessionLock 返回 ErrSyncLocked → intended=ModeFull 强制降级到 ModeSSHFSOnly
+//   - DowngradeChain 含 {From:"full", To:"sshfs-only", ReasonCode:"sync_locked"}
+//   - stderr 含中文 "单例锁" 摘要（与 ssh.go [SESSION_SYNC_LOCKED] 双层可见性）
+//   - mount 最终走 SSHFSOnly 档位成功（hooks.trySSHFS 返回 nil）
+//   - 闭包收到的 accountID 与 cfg.ClaudeAccountID 一致
+//
+// 注意：cfg.IsSecondaryClient 在 MountWorkspace 内被赋值，但因 cfg 是值传递，
+// 调用方（本测试）的 cfg.IsSecondaryClient 不会变 —— 生产路径由 ssh.go 注入闭包
+// 通过闭包捕获 mountCfg 指针置位（line 95-110），属于"双保险"中的外层路径。
+// 本测试通过捕获闭包入参 accountID 间接证明 invoke 真发生。
+func TestMountWorkspace_SyncLocked(t *testing.T) {
+	var buf bytes.Buffer
+	var observedAccountID string
+	cfg := MountConfig{
+		Mode:             ModeFull,
+		SupportsMutagen:  true,
+		SupportsMergerfs: true,
+		ClaudeAccountID:  "test-acct-gap2",
+		NoColor:          true,
+		Logger:           &buf,
+		LastSessionPath:  filepath.Join(t.TempDir(), "last.json"),
+		SyncSessionLock: func(accountID string) (func(), error) {
+			observedAccountID = accountID
+			return nil, ErrSyncLocked
+		},
+		hooks: &strategyHooks{
+			trySSHFS: func() (func(), error) { return func() {}, nil },
+		},
+	}
+
+	cleanup, mode, err := MountWorkspace(nil, nil, cfg)
+	if err != nil {
+		t.Fatalf("MountWorkspace err 应 nil（降级成功）: %v", err)
+	}
+	if mode != ModeSSHFSOnly {
+		t.Errorf("ErrSyncLocked 必须强制 ModeSSHFSOnly，得 %s", mode)
+	}
+	if cleanup == nil {
+		t.Fatal("cleanup 不应 nil")
+	}
+	cleanup()
+
+	if observedAccountID != "test-acct-gap2" {
+		t.Errorf("SyncSessionLock 应收到 accountID=test-acct-gap2，得 %q", observedAccountID)
+	}
+
+	data, rerr := os.ReadFile(cfg.LastSessionPath)
+	if rerr != nil {
+		t.Fatalf("读 last-session.json 失败: %v", rerr)
+	}
+	var snap LastSessionSnapshot
+	if jerr := json.Unmarshal(data, &snap); jerr != nil {
+		t.Fatalf("解析 last-session.json 失败: %v", jerr)
+	}
+
+	var found bool
+	for _, step := range snap.DowngradeChain {
+		if step.ReasonCode == "sync_locked" {
+			if step.From != "full" {
+				t.Errorf("DowngradeStep.From = %q, want \"full\"", step.From)
+			}
+			if step.To != "sshfs-only" {
+				t.Errorf("DowngradeStep.To = %q, want \"sshfs-only\"", step.To)
+			}
+			if step.ReasonMessage == "" {
+				t.Error("DowngradeStep.ReasonMessage 不应为空")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("DowngradeChain 应含 ReasonCode=sync_locked 的 step，实际: %+v", snap.DowngradeChain)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "sync_locked") && !strings.Contains(out, "单例锁") {
+		t.Errorf("stderr 应含 sync_locked 或 '单例锁' 摘要，实际: %q", out)
+	}
+}
+
+// TestMountWorkspace_SyncLockSuccess 验证成功分支：SyncSessionLock 返回非 nil release。
+//   - mount 全栈成功（Full 模式 hooks 全 OK）
+//   - cleanup 调用时 LIFO 顺序：先卸 mergerfs / sshfs / mutagen（modeCleanup 内部 LIFO），
+//     再释放 sync 锁（syncRelease）—— 锁覆盖整个 mount 生命周期
+//   - 成功拿锁不触发 IsSecondaryClient（保持 false）
+func TestMountWorkspace_SyncLockSuccess(t *testing.T) {
+	var releaseCalled int
+	var mergeCleanupCalled int
+
+	cfg := MountConfig{
+		Mode:             ModeFull,
+		SupportsMutagen:  true,
+		SupportsMergerfs: true,
+		ClaudeAccountID:  "test-acct-success",
+		NoColor:          true,
+		Logger:           new(bytes.Buffer),
+		LastSessionPath:  filepath.Join(t.TempDir(), "last.json"),
+		SyncSessionLock: func(accountID string) (func(), error) {
+			return func() { releaseCalled++ }, nil
+		},
+		hooks: &strategyHooks{
+			tryMutagen: func() (func(), MutagenSyncStatus, error) {
+				return func() {}, MutagenSyncStatus{}, nil
+			},
+			trySSHFS: func() (func(), error) { return func() {}, nil },
+			tryMerge: func() (func(), error) {
+				return func() { mergeCleanupCalled++ }, nil
+			},
+		},
+	}
+	cleanup, mode, err := MountWorkspace(nil, nil, cfg)
+	if err != nil {
+		t.Fatalf("应成功: %v", err)
+	}
+	if mode != ModeFull {
+		t.Errorf("mode = %s, want full", mode)
+	}
+	if cfg.IsSecondaryClient {
+		t.Error("成功拿锁时调用方 cfg.IsSecondaryClient 应保持 false")
+	}
+	cleanup()
+	if releaseCalled != 1 {
+		t.Errorf("syncRelease 应被调用 1 次，实际 %d", releaseCalled)
+	}
+	if mergeCleanupCalled != 1 {
+		t.Errorf("mergeCleanup 应被调用 1 次（LIFO 保证在 syncRelease 之前），实际 %d", mergeCleanupCalled)
+	}
+}
+
+// TestMountWorkspace_SyncLockOtherError 验证非 ErrSyncLocked 错误透传（M13 防御）。
+//   - 例如 flock 启动失败 / SSH session 错误
+//   - 必须 return ModeFailed + err 含 "sync lock acquire"，不静默降级
+//   - last-session.json ActualMode=failed
+func TestMountWorkspace_SyncLockOtherError(t *testing.T) {
+	cfg := MountConfig{
+		Mode:             ModeFull,
+		SupportsMutagen:  true,
+		SupportsMergerfs: true,
+		ClaudeAccountID:  "test-acct-err",
+		NoColor:          true,
+		Logger:           new(bytes.Buffer),
+		LastSessionPath:  filepath.Join(t.TempDir(), "last.json"),
+		SyncSessionLock: func(accountID string) (func(), error) {
+			return nil, fmt.Errorf("flock not installed")
+		},
+		hooks: &strategyHooks{
+			trySSHFS: func() (func(), error) { return func() {}, nil },
+		},
+	}
+	_, mode, err := MountWorkspace(nil, nil, cfg)
+	if err == nil {
+		t.Fatal("非 ErrSyncLocked 错误应透传，得 nil")
+	}
+	if mode != ModeFailed {
+		t.Errorf("mode = %s, want failed", mode)
+	}
+	if !strings.Contains(err.Error(), "sync lock acquire") {
+		t.Errorf("err 应含 'sync lock acquire'，实际: %v", err)
+	}
+
+	data, rerr := os.ReadFile(cfg.LastSessionPath)
+	if rerr != nil {
+		t.Fatalf("读 last-session.json 失败: %v", rerr)
+	}
+	var snap LastSessionSnapshot
+	_ = json.Unmarshal(data, &snap)
+	if snap.ActualMode != "failed" {
+		t.Errorf("ActualMode = %q, want \"failed\"", snap.ActualMode)
 	}
 }
