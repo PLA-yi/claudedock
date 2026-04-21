@@ -32,6 +32,7 @@ type AdminHostStore interface {
 	DeleteHost(context.Context, string) error
 	UpdateHostEntryPassword(context.Context, string, string) error
 	ListRunningHosts(ctx context.Context) ([]repository.Host, error)
+	GetHostWithClaudeAccount(ctx context.Context, hostID string) (repository.HostWithClaudeAccount, error) // Phase 33 D-22
 }
 
 type AdminHostsHandler struct {
@@ -95,7 +96,8 @@ func getDockerStatuses() map[string]string {
 
 type adminHostDetailResponse struct {
 	repository.HostDetail
-	ConnectionInfo *repository.ConnectionInfo `json:"connection_info,omitempty"`
+	ConnectionInfo       *repository.ConnectionInfo `json:"connection_info,omitempty"`
+	PersistentVolumeName string                     `json:"persistent_volume_name,omitempty"` // Phase 33 D-22
 }
 
 func (h *AdminHostsHandler) Get() nethttp.Handler {
@@ -113,6 +115,12 @@ func (h *AdminHostsHandler) Get() nethttp.Handler {
 		}
 
 		resp := adminHostDetailResponse{HostDetail: detail}
+		// Phase 33 D-22：从 LEFT JOIN 取 persistent_volume_name，失败仅记日志不影响 detail 主路径。
+		if hostWithCA, err := h.store.GetHostWithClaudeAccount(r.Context(), hostID); err == nil {
+			resp.PersistentVolumeName = hostWithCA.PersistentVolumeName
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			h.logger.Warn("get host with claude_account failed (degraded)", "host_id", hostID, "error", err)
+		}
 		resp.Host.EntryPassword = ""
 		resp.User.PasswordHash = ""
 		resp.User.EntryPassword = ""

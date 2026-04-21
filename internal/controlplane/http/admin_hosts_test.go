@@ -19,14 +19,16 @@ import (
 )
 
 type stubHostStore struct {
-	hosts        []repository.HostWithUsername
-	detail       repository.HostDetail
-	host         repository.Host
-	runningHosts []repository.Host
-	listErr      error
-	detailErr    error
-	hostErr      error
-	runningErr   error
+	hosts         []repository.HostWithUsername
+	detail        repository.HostDetail
+	host          repository.Host
+	runningHosts  []repository.Host
+	hostWithCA    repository.HostWithClaudeAccount
+	hostWithCAErr error
+	listErr       error
+	detailErr     error
+	hostErr       error
+	runningErr    error
 }
 
 func (s *stubHostStore) ListHostsWithUsername(_ context.Context) ([]repository.HostWithUsername, error) {
@@ -63,6 +65,10 @@ func (s *stubHostStore) UpdateHostEntryPassword(_ context.Context, _ string, _ s
 
 func (s *stubHostStore) ListRunningHosts(_ context.Context) ([]repository.Host, error) {
 	return s.runningHosts, s.runningErr
+}
+
+func (s *stubHostStore) GetHostWithClaudeAccount(_ context.Context, _ string) (repository.HostWithClaudeAccount, error) {
+	return s.hostWithCA, s.hostWithCAErr
 }
 
 func TestAdminHostsHandler(t *testing.T) {
@@ -348,5 +354,133 @@ func TestResyncPasswords_Success_RecordsEventsAndCallsSyncContainerPassword(t *t
 	}
 	if v, _ := body["total"].(float64); v != 1 {
 		t.Errorf("total=%v, want 1", v)
+	}
+}
+
+func TestAdminHostDetail_IncludesPersistentVolumeName_WhenAvailable(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	store := &stubHostStore{
+		detail: repository.HostDetail{
+			Host:     repository.Host{ID: "h-1", UserID: "u-1", Status: "running", CreatedAt: now, UpdatedAt: now},
+			User:     repository.User{ID: "u-1", Username: "u", Status: "active", CreatedAt: now, UpdatedAt: now},
+			Bindings: []repository.BindingWithIP{},
+		},
+		hostWithCA: repository.HostWithClaudeAccount{
+			Host:                 repository.Host{ID: "h-1"},
+			PersistentVolumeName: "claude-state-acct-1",
+		},
+	}
+	router := adminTestRouter(t, Dependencies{
+		Logger:        slog.Default(),
+		AdminHosts:    store,
+		HostActions:   &stubQueuer{},
+		EventRecorder: &stubEventRecorder{},
+	})
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	req, _ := nethttp.NewRequest("GET", srv.URL+"/v1/admin/hosts/h-1", nil)
+	req.Header.Set("Authorization", "Bearer "+validAdminToken(t))
+	resp, err := nethttp.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if v, _ := body["persistent_volume_name"].(string); v != "claude-state-acct-1" {
+		t.Errorf("persistent_volume_name=%q, want claude-state-acct-1; full=%v", v, body)
+	}
+}
+
+func TestAdminHostDetail_OmitsPersistentVolumeName_WhenEmpty(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	store := &stubHostStore{
+		detail: repository.HostDetail{
+			Host:     repository.Host{ID: "h-1", UserID: "u-1", Status: "running", CreatedAt: now, UpdatedAt: now},
+			User:     repository.User{ID: "u-1", Username: "u", Status: "active", CreatedAt: now, UpdatedAt: now},
+			Bindings: []repository.BindingWithIP{},
+		},
+		hostWithCA: repository.HostWithClaudeAccount{
+			Host:                 repository.Host{ID: "h-1"},
+			PersistentVolumeName: "",
+		},
+	}
+	router := adminTestRouter(t, Dependencies{
+		Logger:        slog.Default(),
+		AdminHosts:    store,
+		HostActions:   &stubQueuer{},
+		EventRecorder: &stubEventRecorder{},
+	})
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	req, _ := nethttp.NewRequest("GET", srv.URL+"/v1/admin/hosts/h-1", nil)
+	req.Header.Set("Authorization", "Bearer "+validAdminToken(t))
+	resp, err := nethttp.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if _, ok := body["persistent_volume_name"]; ok {
+		t.Errorf("persistent_volume_name key must be omitted when empty (omitempty); body=%v", body)
+	}
+}
+
+func TestAdminHostList_DoesNotIncludePersistentVolumeName(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	store := &stubHostStore{
+		hosts: []repository.HostWithUsername{
+			{
+				Host:     repository.Host{ID: "h-1", UserID: "u-1", Status: "running", CreatedAt: now, UpdatedAt: now},
+				Username: "u",
+			},
+		},
+	}
+	router := adminTestRouter(t, Dependencies{
+		Logger:        slog.Default(),
+		AdminHosts:    store,
+		HostActions:   &stubQueuer{},
+		EventRecorder: &stubEventRecorder{},
+	})
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	req, _ := nethttp.NewRequest("GET", srv.URL+"/v1/admin/hosts", nil)
+	req.Header.Set("Authorization", "Bearer "+validAdminToken(t))
+	resp, err := nethttp.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	hosts, ok := body["hosts"].([]any)
+	if !ok || len(hosts) == 0 {
+		t.Fatalf("expected hosts[] non-empty; body=%v", body)
+	}
+	first, _ := hosts[0].(map[string]any)
+	if _, has := first["persistent_volume_name"]; has {
+		t.Errorf("OOS-A19: list endpoint must NOT include persistent_volume_name; got %v", first)
 	}
 }
