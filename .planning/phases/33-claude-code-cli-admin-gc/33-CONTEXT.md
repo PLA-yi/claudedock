@@ -43,6 +43,7 @@
   1. `docker volume inspect <name>`：存在则比对 label，缺失或不一致写 audit event 但**不**重建（幂等优先）；
   2. 不存在则 `docker volume create --label k=v --label k=v <name>`，失败返回 `volume_create_failed` 错误码；
   3. 总是返回 `(name, nil)`，后续 `--mount` 拼装才能继续。
+- **D-04a**：D-04 第 1 条的 "label 比对" 推迟到 v3.1 backlog。理由：当前 v3.0 单 worker 实现路径下不会出现 label 漂移（worker 自动写 label 是包级常量），引入 inspect JSON 解析增加复杂度但风险面极低；M16 的覆盖由 admin DELETE 联动 + 运维手册 orphan 审计脚本兜底。Plan 01 Task 1.3 `realEnsureDockerVolume` `inspect` 成功直接 `return nil` 与本决策一致；D-25.2 测试覆盖只保留 "NotExists_RunsCreate" + "AlreadyExists_SkipsCreate"。
 - **D-05**：worker 在 `request.ClaudeAccountID != ""` 时**自动补一条** `VolumeMount{Name: BuildClaudeStateVolumeName(id), Target: "/var/lib/claude-persist", Labels: map[string]string{"com.cloud-cli-proxy.account_id": id, "com.cloud-cli-proxy.managed": "true"}}`，避免上游 dispatcher 每个调用方都重复拼。若 `request.Volumes` 已显式包含同 `Name`，跳过补写（显式优先）。
 - **D-06**：worker `createHost` 成功后调用 `repo.UpsertClaudeAccountPersistentVolumeName(ctx, accountID, name)`（仓储侧新增方法，仅在当前列为 NULL 时写入；非空一致跳过、非空冲突写 audit event）。`persistent_volume_name` 列从 `NULL` 变为已分配后**永不回写 NULL**，与 Phase 30 D-02 三态消除一致。
 - **D-07**：本阶段**不**改 dispatcher / scheduler 链路上传入 `ClaudeAccountID` 的来源——已在 Phase 30 D-09 由控制面 `EntryHandler` / `runtime_service.go` 注入；Phase 33 仅消费现有字段。如果某一调用路径仍未填 `ClaudeAccountID`（例如 v2.0 旧 host 重建），worker 跳过 volume 补写 + entrypoint symlink 走 fallback（`/var/lib/claude-persist` 内空 + symlink 仍生效但无持久化数据），**不**报错阻塞 host 启动（M16 风险但不破坏现有路径）。

@@ -931,12 +931,13 @@ func (s *stubTx) Rollback(ctx context.Context) error        { s.rolledback = tru
 - **缓解**：Plan 01 单元测试 `TestCreateHost_AutoVolumeMount_WhenAccountIDPresent` 与 `TestCreateHost_NoVolume_WhenAccountIDEmpty` 各一条；同时在 PLAN.md `verification` 段加一条 grep 断言："`grep -rn 'ClaudeAccountID' internal/controlplane/ internal/runtime/` 必须命中 dispatcher 调用点（不是只在 contracts.go 定义）"。
 - **CONTEXT.md `Deferred` 已显式提到这是 Phase 30 follow-up**，本阶段不阻塞。
 
-### 6.6 volume label 不一致（D-04 第 1 条）
+### 6.6 volume label 不一致（D-04 第 1 条） — RESOLVED
 
 - `ensureDockerVolume` 决策："存在则比对 label，缺失或不一致写 audit event 但**不**重建"。
 - **当前骨架（§2.3）未实现 label 比对**——`docker volume inspect` 返回 JSON 后需要解析 `Labels` 字段。
 - 推荐 planner 在 Plan 01 决定：(a) 简化 — 只做存在性检查，跳过 label 比对（实现成本低；缺点：人工运维错改 label 不会被发现）；(b) 完整 — 解析 inspect JSON 比对（增加 ~20 行）。
 - **本研究倾向 (a)**：Phase 33 不引入 inspect JSON 解析（与 Phase 29.1 "fail-fast 优先简洁" 一致），label 比对推到 v3.1 backlog 与 GC 任务一起做。
+- **RESOLVED：** 选 (a)，推迟 label 比对到 v3.1 backlog（参考 33-CONTEXT.md D-04a）。Plan 01 Task 1.3 `realEnsureDockerVolume` 的 `inspect` 成功直接 `return nil`，不解析 Labels 字段。
 
 ---
 
@@ -997,9 +998,11 @@ func (s *stubTx) Rollback(ctx context.Context) error        { s.rolledback = tru
 | 测试策略 | MEDIUM | `dockerVolumeRunner` 抽象需 planner 拍板 |
 | 风险边界 | MEDIUM | `cp -an` btrfs 行为为推断 + 经验综合 |
 
-### Open Questions
+### Open Questions (RESOLVED)
 - Plan 02 是否引入 `pgxmock` 还是手写最小 stub Tx？（成本 vs 维护性，planner 决定）
+  - **RESOLVED：** 不引入 `pgxmock`。Plan 02 Task 2.2 手写 `stubTx`，理由：pgxmock 引入 ~3 个新 transitive deps，与 v3.0 "依赖最小化" 方向相悖；现有 `Repository` 接口已抽象到位，`stubTx` 实现 ≤30 行。
 - D-04 第 1 条 label 比对是否实现？（推荐：v3.1 backlog 与 GC 一起做，本阶段仅做存在性检查）
+  - **RESOLVED：** 推迟到 v3.1 backlog（参考 33-CONTEXT.md D-04a）。Plan 01 Task 1.3 仅做存在性检查，`inspect` 命中直接 `return nil`，不解析 Labels JSON。
 
 ### Ready for Planning
 Research complete. Planner 可直接消费本文档创建 Plan 01（镜像 + worker + agentapi）与 Plan 02（admin DELETE + host detail + UAT）。
