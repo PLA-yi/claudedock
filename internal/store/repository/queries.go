@@ -1417,3 +1417,42 @@ func (r *Repository) GetSSHKey(ctx context.Context, keyID string) (SSHKey, error
 	}
 	return k, nil
 }
+
+const upsertClaudeAccountPersistentVolumeNameSQL = `
+	UPDATE claude_accounts
+	SET persistent_volume_name = $2, updated_at = NOW()
+	WHERE id = $1 AND persistent_volume_name IS NULL
+`
+
+const checkClaudeAccountPersistentVolumeNameSQL = `
+	SELECT COALESCE(persistent_volume_name, '')
+	FROM claude_accounts
+	WHERE id = $1
+`
+
+// UpsertClaudeAccountPersistentVolumeName 实现 Phase 33 D-06 三态语义：
+//   - persistent_volume_name IS NULL → 写入 volumeName（一次往返）
+//   - 已是相同 volumeName → 跳过返回 nil
+//   - 已是其他值（冲突） → 返回错误（调用方写 audit）
+//
+// 不允许从已分配回写 NULL（与 Phase 30 D-02 三态消除一致）。
+func (r *Repository) UpsertClaudeAccountPersistentVolumeName(ctx context.Context, accountID, volumeName string) error {
+	if accountID == "" || volumeName == "" {
+		return fmt.Errorf("upsert claude_account persistent_volume_name: empty arg")
+	}
+	tag, err := r.db.Exec(ctx, upsertClaudeAccountPersistentVolumeNameSQL, accountID, volumeName)
+	if err != nil {
+		return fmt.Errorf("update persistent_volume_name: %w", err)
+	}
+	if tag.RowsAffected() == 1 {
+		return nil
+	}
+	var current string
+	if err := r.db.QueryRow(ctx, checkClaudeAccountPersistentVolumeNameSQL, accountID).Scan(&current); err != nil {
+		return fmt.Errorf("verify persistent_volume_name: %w", err)
+	}
+	if current == volumeName {
+		return nil
+	}
+	return fmt.Errorf("persistent_volume_name conflict: current=%q want=%q", current, volumeName)
+}
