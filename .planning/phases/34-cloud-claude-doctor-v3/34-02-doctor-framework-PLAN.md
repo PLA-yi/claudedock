@@ -254,7 +254,9 @@ const (
 
 **第 2 步：** 使用 Grep 检索仓库内所有 `colorEnabled(` 与 `colorize(` 调用位置（不限于 `internal/cloudclaude/` 包），逐一替换成 `ColorEnabled(` / `Colorize(`。
 
-**第 3 步：** 本 plan 不修改 `ansiGreen / ansiYellow / ansiRed / ansiGray` 等 ANSI 常量（doctor/render.go 的状态符号彩色由大写 `Colorize` 内部处理；非跨包引用）；但如 `ansiGray` 等常量在 doctor 包需要直接使用，executor 也需要把对应常量改为大写导出（按需最小化导出）。
+**第 3 步（ANSI 常量导出）：** 导出 4 个 ANSI 常量：把 `internal/cloudclaude/colors.go` 中的 `ansiGreen` → `AnsiGreen`、`ansiYellow` → `AnsiYellow`、`ansiRed` → `AnsiRed`、`ansiGray` → `AnsiGray`（首字母大写导出），同时全仓 grep 替换所有调用点（包括 `ssh_doctor.go` 等 v2 文件内的 `ansiGreen / ansiYellow / ansiRed / ansiGray` 引用）。Task 2.9 render.go 的 `pickIcon` 直接依赖 `cloudclaude.AnsiGreen` 等导出名，若未做此步编译失败。
+
+**executor 注意（SSHConnect 无需任何改动）：** `cloudclaude.SSHConnect` 已于 Phase 32-02 在 `internal/cloudclaude/ssh.go:200` 作为 export 包装就位（`func SSHConnect(cfg SSHConfig) (*ssh.Client, error) { return sshConnect(cfg) }`），Task 2.10 RunDoctor 的 lazy connect 分支 `cloudclaude.SSHConnect(sshCfg)` 直接调用即可，本 plan 无需任何重命名 / 导出操作；**不要**去改 `internal/cloudclaude/ssh_doctor.go`（该文件只调用 `sshConnect`，没有定义；改名会破坏 Phase 32-02 已交付的公共 API）。
 
 **验证要点：**
 - `go build ./...` PASS
@@ -269,8 +271,13 @@ const (
   <acceptance_criteria>
     - `grep -q "^func ColorEnabled" internal/cloudclaude/colors.go` 命中
     - `grep -q "^func Colorize" internal/cloudclaude/colors.go` 命中
+    - `grep -qE "^\s*AnsiGreen\s*=" internal/cloudclaude/colors.go` 命中（colors.go 使用分组 `const ( ... )` 形式）
+    - `grep -qE "\bAnsiYellow\b" internal/cloudclaude/colors.go` 命中
+    - `grep -qE "\bAnsiRed\b" internal/cloudclaude/colors.go` 命中
+    - `grep -qE "\bAnsiGray\b" internal/cloudclaude/colors.go` 命中
     - `! grep -nE "^func colorEnabled\b|^func colorize\b" internal/cloudclaude/colors.go` 为空（小写版本已完全删除）
     - `! rg -nE "\bcolorEnabled\(|\bcolorize\(" internal/cloudclaude/ cmd/cloud-claude/` 结果为空（所有调用点已改大写）
+    - `! rg -nE "\bansiGreen\b|\bansiYellow\b|\bansiRed\b|\bansiGray\b" internal/cloudclaude/ cmd/cloud-claude/` 结果为空（所有 ANSI 小写引用已改大写）
     - `go build ./...` 退出码 = 0
     - `go vet ./...` 退出码 = 0
     - `go test ./internal/cloudclaude/ -count=1 -short` 退出码 = 0（既有测试不回归）
@@ -2434,7 +2441,11 @@ func RunDoctor(ctx context.Context, opts Options) (*Report, error) {
 		if want("network") && authResp != nil {
 			report.Checks = append(report.Checks, runWithTimeout(ctx, "network", "egress_ip_visible", timeout,
 				func(c context.Context) Check {
-					return checkEgressIPVisible(c, remoteRunner, authResp.ExpectedEgressIP)
+					// 安全取 authResp.ExpectedEgressIP：如 entry 包未交付该字段，executor 改为传空
+					// 字符串，由 checkEgressIPVisible 内部 `expectedIP == ""` 分支走 Pass 或与硬编码
+					// baseline 比对（warn 时仍带 NET_EGRESS_IP_DRIFT + 中文 NextAction）。
+					expectedIP := authRespExpectedEgressIP(authResp)
+					return checkEgressIPVisible(c, remoteRunner, expectedIP)
 				}))
 		}
 		report.Checks = append(report.Checks,
@@ -2559,9 +2570,23 @@ func authRespClaudeAccountID(r *cloudclaude.AuthResponse) string {
 	}
 	return r.ClaudeAccountID
 }
+
+// authRespExpectedEgressIP 安全取 authResp.ExpectedEgressIP；
+// 若 entry 包 AuthResponse 未交付该字段（v3.0 未必存在），executor 应：
+//   1. 在 entry 包补齐该字段；或
+//   2. 把本函数改为恒返回 ""（此时 checkEgressIPVisible 的 Details 记
+//      `expected: "<unknown — 字段未交付>"`，仍走 Pass，不误报 drift）。
+func authRespExpectedEgressIP(r *cloudclaude.AuthResponse) string {
+	if r == nil {
+		return ""
+	}
+	// executor：如 AuthResponse 有 ExpectedEgressIP 字段就返回之；否则返回 ""。
+	// 字段存在性检查通过编译期错误暴露 — 若编译失败，回退到 `return ""`。
+	return r.ExpectedEgressIP
+}
 ```
 
-**executor 注意：** 本 task 需要引入 `net / os / path/filepath / strings` + `cloudclaude` + `golang.org/x/crypto/ssh`。`cloudclaude.SSHConnect` 和 `AuthResponse.ExpectedEgressIP`（若不存在）需要按实际 struct 调整字段名。如 `SSHConnect` 不导出，可复用 `ssh_doctor.go:sshConnect` — Task 2.1 同步导出。
+**executor 注意：** 本 task 需要引入 `net / os / path/filepath / strings` + `cloudclaude` + `golang.org/x/crypto/ssh`。`cloudclaude.SSHConnect` 已由 Phase 32-02 在 `internal/cloudclaude/ssh.go:200` 导出（`return sshConnect(cfg)` 包装），本 plan 不需任何重命名 / 导出动作。`AuthResponse.ExpectedEgressIP` 字段：executor 先尝试编译，若 entry 包 `AuthResponse` 未定义该字段，把 `authRespExpectedEgressIP` 改为恒返回 `""`（`return ""`）并把该现象记录到 `34-02-SUMMARY.md` carry-over，由 v3.1 backlog 补齐 entry.go 字段。此时 `checkEgressIPVisible` 走 `expectedIP == ""` 分支，不触发 drift 警告，仅 Details 里记 `expected: "<unknown — 字段未交付>"`。
 
 **(b) 新建 `internal/cloudclaude/doctor/doctor_test.go`（RunDoctor 集成点单测，mock 所有包级 var）：**
 
@@ -2796,16 +2821,18 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 }
 
 // contextWithDoctorTimeout 顶层 timeout：verbose 2min，默认 60s（足够跑完 17 项 + ensureRemote）。
-func contextWithDoctorTimeout(parent interface{}, verbose bool) (ctx interface{}, cancel func()) {
-	// executor：用 context.WithTimeout(parent, timeout)；签名此处简化。
-	return parent, func() {}
+func contextWithDoctorTimeout(parent context.Context, verbose bool) (context.Context, context.CancelFunc) {
+	if verbose {
+		return context.WithTimeout(parent, 2*time.Minute)
+	}
+	return context.WithTimeout(parent, 60*time.Second)
 }
 
 // anyFixerRegistered 是 Plan 03 完成前的占位（恒 false）。Plan 03 会改为检查 doctor.FixerRegistry 长度。
 func anyFixerRegistered() bool { return false }
 ```
 
-**executor 注意：** `contextWithDoctorTimeout` 的签名应为 `(ctx context.Context, cancel context.CancelFunc)` — 上面为简化示意，按 `context.Context` 真正实现即可（import "context"）。
+**executor 注意：** `contextWithDoctorTimeout` 使用标准 `context.Context` / `context.CancelFunc` 签名；需在 `cmd/cloud-claude/doctor.go` 的 import 中补上 `"context"` 与 `"time"`。
 
 **(b) 修改 `cmd/cloud-claude/main.go` — 在 Plan 01 修改过的 AddCommand 行末尾再追加 `newDoctorCmd()`：**
 
@@ -2851,6 +2878,8 @@ case "init", "env", "ssh", "sync", "sessions", "explain", "doctor", "help", "--h
     - `grep -q "doctor.RenderText" cmd/cloud-claude/doctor.go` 命中
     - `grep -q "newDoctorCmd()" cmd/cloud-claude/main.go` 命中
     - `grep -qE 'case "init", "env", "ssh", "sync", "sessions", "explain", "doctor",' cmd/cloud-claude/main.go` 命中
+    - `grep -q "context.CancelFunc" cmd/cloud-claude/doctor.go` 命中（contextWithDoctorTimeout 真实签名）
+    - `grep -q "context.WithTimeout(parent" cmd/cloud-claude/doctor.go` 命中（contextWithDoctorTimeout 真实实现）
     - `go build ./cmd/cloud-claude/...` 退出码 = 0
     - `go vet ./cmd/cloud-claude/...` 退出码 = 0
     - 人工 smoke：`./cloud-claude doctor --help` 输出含 `--fix` / `--json` / `--verbose` / `--yes`（可在 done 中作 manual 项；CI 不强求）
