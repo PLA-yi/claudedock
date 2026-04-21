@@ -68,6 +68,29 @@ prepare_v3_dirs() {
     /var/lib/claude-persist 2>/dev/null || true
 }
 
+prepare_persistent_state() {
+  local root=/var/lib/claude-persist
+  mkdir -p "$root/.claude" "$root/.cache/claude"
+
+  if [ -d /home/claude/.claude ] && [ -z "$(ls -A "$root/.claude" 2>/dev/null)" ]; then
+    cp -an /home/claude/.claude/. "$root/.claude/" 2>/dev/null || true
+  fi
+  if [ -d /home/claude/.cache/claude ] && [ -z "$(ls -A "$root/.cache/claude" 2>/dev/null)" ]; then
+    cp -an /home/claude/.cache/claude/. "$root/.cache/claude/" 2>/dev/null || true
+  fi
+
+  chown -R 1000:1000 "$root"
+
+  rm -rf /home/claude/.claude /home/claude/.cache/claude
+  ln -sfn "$root/.claude" /home/claude/.claude
+  mkdir -p /home/claude/.cache
+  ln -sfn "$root/.cache/claude" /home/claude/.cache/claude
+
+  chown -h 1000:1000 /home/claude/.claude /home/claude/.cache/claude
+
+  echo "[entrypoint] v3: persistent state ready (volume=/var/lib/claude-persist)"
+}
+
 prepare_mutagen_agent() {
   local src=/opt/mutagen-agents.tar.gz
   local dest=/usr/local/libexec/mutagen/agents
@@ -253,6 +276,7 @@ su "${RUN_USER}" -c 'HOME=/workspace /usr/local/bin/launch-chromium.sh --version
 
 # ===== v3.0 stages (serialized fail-fast, D-09 order) =====
 prepare_v3_dirs
+prepare_persistent_state
 prepare_mutagen_agent
 prepare_mergerfs_check
 assert_tmux_version
