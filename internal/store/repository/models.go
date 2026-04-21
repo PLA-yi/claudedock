@@ -162,6 +162,13 @@ type HostWithUsername struct {
 	DockerStatus   string  `json:"docker_status,omitempty"`
 }
 
+// HostWithClaudeAccount D-23：纯 DB JOIN，避免在 detail handler 引入 docker exec。
+// 配合 GetHostWithClaudeAccount LEFT JOIN 使用；空 PersistentVolumeName = 该 host 关联 account 未分配 volume 或无 account。
+type HostWithClaudeAccount struct {
+	Host
+	PersistentVolumeName string `json:"persistent_volume_name,omitempty"`
+}
+
 type UserHostSummary struct {
 	ID        string    `json:"id"`
 	Hostname  string    `json:"hostname"`

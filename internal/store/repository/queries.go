@@ -1456,3 +1456,68 @@ func (r *Repository) UpsertClaudeAccountPersistentVolumeName(ctx context.Context
 	}
 	return fmt.Errorf("persistent_volume_name conflict: current=%q want=%q", current, volumeName)
 }
+
+const getHostWithClaudeAccountSQL = `
+	SELECT
+		h.id::text, h.user_id::text, h.status, COALESCE(h.short_id, ''),
+		COALESCE(h.entry_password, ''), h.template_image_ref, h.home_volume_name,
+		h.slot_key, h.timezone, h.hostname, h.memory_limit_mb, h.cpu_limit,
+		h.disk_limit_gb, h.created_at, h.updated_at,
+		COALESCE(ca.persistent_volume_name, '')
+	FROM hosts h
+	LEFT JOIN claude_accounts ca ON ca.host_id = h.id
+	WHERE h.id = $1
+	ORDER BY ca.created_at ASC
+	LIMIT 1
+`
+
+// GetHostWithClaudeAccount D-23：单次 LEFT JOIN 返回 host + 可能 NULL 的 persistent_volume_name。
+// 与 GetHost / ListHostsWithUsername 等 6 个既有 SELECT 解耦，不修改 Phase 29.1 已锁定的查询。
+func (r *Repository) GetHostWithClaudeAccount(ctx context.Context, hostID string) (HostWithClaudeAccount, error) {
+	var item HostWithClaudeAccount
+	if err := r.db.QueryRow(ctx, getHostWithClaudeAccountSQL, hostID).Scan(
+		&item.ID, &item.UserID, &item.Status, &item.ShortID,
+		&item.EntryPassword, &item.TemplateImageRef, &item.HomeVolumeName,
+		&item.SlotKey, &item.Timezone, &item.Hostname,
+		&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+		&item.CreatedAt, &item.UpdatedAt,
+		&item.PersistentVolumeName,
+	); err != nil {
+		return HostWithClaudeAccount{}, fmt.Errorf("get host with claude_account: %w", err)
+	}
+	return item, nil
+}
+
+// BeginTx 暴露 pgx 事务给 admin handler（D-18），避免把 *pgxpool.Pool 泄漏到 control plane。
+// 与 internal/store/migrator/migrator.go:46 唯一既有 r.db.Begin 调用点对齐。
+func (r *Repository) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	return r.db.Begin(ctx)
+}
+
+const lockClaudeAccountForDeleteSQL = `
+	SELECT id::text, COALESCE(persistent_volume_name, '')
+	FROM claude_accounts
+	WHERE id = $1
+	FOR UPDATE
+`
+
+const deleteClaudeAccountSQL = `DELETE FROM claude_accounts WHERE id = $1`
+
+// LockClaudeAccountForDelete D-18 强一致路径第 2 步：BEGIN 后行锁 + 读 volume 名。
+// 包级函数（非 method）以便 handler 显式持有 tx ref。
+func LockClaudeAccountForDelete(ctx context.Context, tx pgx.Tx, id string) (accountID, volumeName string, err error) {
+	err = tx.QueryRow(ctx, lockClaudeAccountForDeleteSQL, id).Scan(&accountID, &volumeName)
+	return
+}
+
+// DeleteClaudeAccountTx 在事务内删除 claude_account 行；RowsAffected==0 返回 pgx.ErrNoRows。
+func DeleteClaudeAccountTx(ctx context.Context, tx pgx.Tx, id string) error {
+	tag, err := tx.Exec(ctx, deleteClaudeAccountSQL, id)
+	if err != nil {
+		return fmt.Errorf("delete claude_account: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
