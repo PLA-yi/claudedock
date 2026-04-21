@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 远端开发体验升级
-status: verifying
-stopped_at: Phase 34 context gathered (--auto)
-last_updated: "2026-04-21T07:54:20.211Z"
+status: executing
+stopped_at: Completed 34-01-errcodes-explain-PLAN.md
+last_updated: "2026-04-21T10:17:20.998Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 22
-  completed_plans: 22
-  percent: 100
+  total_plans: 25
+  completed_plans: 23
+  percent: 92
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** Phase 33 — claude-code-cli-admin-gc
+**Current focus:** Phase 34 — cloud-claude-doctor-v3
 
 ## Current Position
 
 Milestone: v3.0 远端开发体验升级
-Phase: 34
-Plan: Not started
-Status: Plan 02 verified, ready for phase completion
+Phase: 34 (cloud-claude-doctor-v3) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-21
 
 Progress: [████████████████████] 100%（Phase 33 plans 全 ship；等 phase-level verification 后 mark complete）
@@ -71,6 +71,7 @@ v3.0 关键方向已定：
 - [Phase 33]: 关键 landings 汇总（Plan 01+02 + post-execution patches 联合）：(1) **entrypoint v3 stage symlink**：`prepare_persistent_state` 通过 `cp -an` seed + `ln -sfn` 把 `/home/claude/.claude` 与 `~/.cache/claude` 重定向到 `/var/lib/claude-persist` named volume，1000:1000 双重 chown（Plan 01 / 7acf3d6）；(2) **worker 自动补 volume**：`createHost` 在 ClaudeAccountID 非空时调 `ensureDockerVolume` 幂等创建 `claude-state-{id}` + 追加 mount + Upsert 写库（Plan 01 / 2d0bc22）；(3) **admin DELETE 双一致性路径**：强一致 (10s timeout) 事务内调 host-agent rm 失败 ROLLBACK + 409 + 中文 next_action；force=true (30s timeout) DB 先 COMMIT，rm 失败仅 audit + 200 + next_action 含 `docker volume rm -f`；错误码 `STATE_VOLUME_IN_USE_001` + 3 类 audit 事件（Plan 02 / 11989dd）；(4) **dispatcher 注入 ClaudeAccountID**（post-fix 27ab2d7）：抽出 `QueueHostActionRepo.ResolveClaudeAccountIDForEntry`，在 `RuntimeService.QueueHostAction` 路径填充 `request.ClaudeAccountID`，闭合 Plan 01 SUMMARY 显式列出的 D-04 dispatcher 缺口；(5) **pullImage 5min timeout**（post-fix 3e2ba6b）：`worker.pullImage` 加 `context.WithTimeout`，根治 ghcr.io pull hang 导致的 "rebuild 卡 pending + container missing + DB running" 三态分裂；(6) **EmbeddedDispatcher RunHostAction 适配**（post-fix c09a4d0）：引入 `HostActionRunner` 接口，`EmbeddedDispatcher` 实现适配器，`cmd/control-plane/app.go` 按 mode wire 正确 runner，闭合 Plan 02 Task 2.4 router.go 改了但 app.go 漏 wire 的 deployment 缺口。SC1-SC6 全部 ✅ APPROVED；UAT D-26 五步 + SC3/D-22 通过；23 条新单测全 PASS（4 仓储 + 8 admin handler + 3 admin host detail + 4 post-fix + 4 Plan 01 carry）；运维手册 docs/runbooks/v3-claude-state-volumes.md ship。Plan 02 commits: e232d40 / 11989dd / f05cdd4 / ba5b533 / db582e8 + post-fix 3e2ba6b / 27ab2d7 / c09a4d0。
 - [Phase 33-02]: 控制面侧闭环代码已落地（Tasks 2.1-2.4 + 2.6，5 commits e232d40 / 11989dd / f05cdd4 / ba5b533 / db582e8）。仓储新增 BeginTx + LockClaudeAccountForDelete + DeleteClaudeAccountTx + GetHostWithClaudeAccount + HostWithClaudeAccount 类型 (4 SQL/类型单测)；admin_claude_accounts.go 新建 AdminClaudeAccountsHandler 含强一致 (10s timeout) + force (30s timeout) 双路径，错误码 STATE_VOLUME_IN_USE_001 + 中文消息 + 3 类 audit 事件 (claude_account.deleted / delete_volume_rm_failed / force_volume_rm_failed)，metadata 白名单严守 (account_id / volume_name / error_code / error_message / force)；admin_hosts.go AdminHostStore 接口扩展 GetHostWithClaudeAccount + adminHostDetailResponse 追加 PersistentVolumeName (omitempty，list 不动 — OOS-A19 守恒)；router.go Dependencies 追加 AdminClaudeAccounts/AgentClient + DELETE /v1/admin/claude-accounts/{accountID} 注册走 adminGuard。手写 stubTx 实现 pgx.Tx 最小接口，零新依赖 (go.mod / go.sum diff 空)。8 条 handler 单测 + 3 条 admin host detail 单测 + 4 条仓储单测 = 15 条新单测全 PASS；既有 internal/runtime/tasks/ + internal/store/repository/ 全包测试无回归；go build ./... PASS。运维手册 docs/runbooks/v3-claude-state-volumes.md 新建（命名规范 / 生命周期 / 6 类 audit 事件 / 孤儿审计脚本 / 故障排查 / v3.1 backlog），关键 verbatim token 全部命中。Task 2.5 人工 UAT (D-26 五步 + SC3/D-22) → APPROVED by user "成了" 2026-04-21。
 - [Phase 33-01]: 镜像层 entrypoint 追加 `prepare_persistent_state` v3 stage（位于 `prepare_v3_dirs → prepare_mutagen_agent` 之间），通过 `cp -an` 幂等 seed + `ln -sfn` 把 `/home/claude/.claude` 与 `.cache/claude` 重定向到 `/var/lib/claude-persist`；agentapi 增 `ActionVolumeRemove = "volume_remove"` 协议常量（D-13）；worker 新增 `BuildClaudeStateVolumeName / dockerVolumeRunner / ensureDockerVolume / removeDockerVolume / removeVolumes`（包级 var 注入 mock 模式），Execute switch 增 `case ActionVolumeRemove` + `volume_in_use` 错误码映射；`createHost` 在 `ClaudeAccountID != ""` 时自动 ensure volume + 追加 mount + upsert 写库 + 失败写 audit；WorkerRepo 接口扩展 `UpsertClaudeAccountPersistentVolumeName`（Repository 三态语义实现 NULL→写入 / 一致跳过 / 冲突错误，SQL 提升包级 const）。fakeWorkerRepo 同步实现新方法以闭环包测试编译。Audit event metadata 严守白名单 `account_id/volume_name/force/host_id`，`grep Metadata:.*"(email|entry_password|credentials|oauth_token)"` 命中 0。新增 12 条单测全 PASS（2 协议 round-trip + 7 lifecycle + 3 SQL/边界），既有 `internal/runtime/tasks/` + `internal/store/repository/` 全包无回归；`go build ./...` PASS。Carry-over：(a) dispatcher 链路 `ClaudeAccountID:` 字段在生产代码全无注入，目前 createHost 走 D-07 fallback 不激活自动 volume — Plan 02 admin handler 走显式 Volumes 不依赖此字段，但 SC1 端到端激活责任移交后续 phase；(b) `ensureDockerVolume` label 一致性比对推迟 v3.1 backlog。Commits: 7acf3d6 (entrypoint) + 235d969 (agentapi) + 2d0bc22 (worker) + 208df5f (repo)。
+- [Phase 34-cloud-claude-doctor-v3]: [Phase 34-01]: 8 域闭合错误码 Registry (42 条) + ExtendedExplanations 38 条 ≥200 中文字符长说明 + cloud-claude explain <code> CLI 子命令 (rustc-style); ExplainExempt 4 条 Info 豁免 (Rule 1: MOUNT_AUTO_DOWNGRADED Severity=Warn 移到 ExtendedExplanations 避免与 TestExplainExemptOnlyInformational 矛盾); NET_EGRESS_IP_DRIFT 登记到 auth.go init (避免新建独立 network.go); STATE_VOLUME_IN_USE_001 字面量与 Phase 33 admin handler 守恒 (D-27); 9 errcodes test + 3 explain 子进程 test 全 PASS; commits 01d9f12 / b2fcd24 / b421445 / 2a03abe / 6ae00c6 / 6dc4037 / 75ae2d7 / ccd9317
 
 ### Pending Todos
 
@@ -98,6 +99,6 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-21T07:54:20.201Z
-Stopped at: Phase 34 context gathered (--auto)
-Resume file: .planning/phases/34-cloud-claude-doctor-v3/34-CONTEXT.md
+Last session: 2026-04-21T10:17:08.485Z
+Stopped at: Completed 34-01-errcodes-explain-PLAN.md
+Resume file: None
