@@ -8,11 +8,16 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
 	"github.com/zanel1u/cloud-cli-proxy/internal/network"
 	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
 )
+
+// pullImageTimeout 限制 docker pull 单次最长执行时间，防止 registry 卡死无限期 hold task
+// （Phase 33 后置修复：原实现复用 outer task ctx，registry hang 会让 host 操作永远 pending）。
+const pullImageTimeout = 5 * time.Minute
 
 const (
 	defaultHostRoot       = "/var/lib/cloud-cli-proxy/hosts/"
@@ -867,11 +872,18 @@ func loadProxyPublicKey() string {
 }
 
 func (w *Worker) pullImage(ctx context.Context, imageName string) {
-	cmd := exec.CommandContext(ctx, "docker", "pull", imageName)
+	pullCtx, cancel := context.WithTimeout(ctx, pullImageTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(pullCtx, "docker", "pull", imageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		timedOut := errors.Is(pullCtx.Err(), context.DeadlineExceeded)
 		slog.Warn("docker pull failed, will use local image if available",
-			"image", imageName, "error", err, "output", strings.TrimSpace(string(output)))
+			"image", imageName,
+			"error", err,
+			"timed_out", timedOut,
+			"timeout", pullImageTimeout,
+			"output", strings.TrimSpace(string(output)))
 		return
 	}
 	slog.Info("pulled latest image", "image", imageName)
