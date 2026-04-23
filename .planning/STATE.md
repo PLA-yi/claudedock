@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-04-23 — v3.1 milestone started)
 
 ## Current Position
 
-Milestone: v3.1 映射语义补齐与懒加载 — 🟡 IN PROGRESS (defining requirements)
-Phase: Not started (REQUIREMENTS.md / ROADMAP.md to be written next)
+Milestone: v3.1 映射语义补齐与懒加载 — 🟡 IN PROGRESS (roadmap ready)
+Phase: Not started (Phase 36 next — 映射前置约束 + sshfs 内核缓存)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-23 — Milestone v3.1 started
+Status: Ready to start Phase 36
+Last activity: 2026-04-23 — Milestone v3.1 roadmap committed (2 phases, 16 REQ)
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（0/2 phases）
 

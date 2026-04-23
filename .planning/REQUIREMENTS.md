@@ -92,7 +92,7 @@
 | REQ-MOUNT-V31-15 | 37 | pending |
 | REQ-MOUNT-V31-16 | 37 | pending |
 
-> Coverage: 16/16 mapped to phases (100%)；将由 ROADMAP.md 写入完整映射后回填本表 status。
+> Coverage: 16/16 mapped to phases (100%)；ROADMAP.md 已写入完整映射；status 将随 phase 执行进度更新。
 
 ---
 
