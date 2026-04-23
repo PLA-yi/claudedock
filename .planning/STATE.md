@@ -1,41 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: 远端开发体验升级
-status: shipped
-stopped_at: "v3.0 milestone shipped 2026-04-23 — 8/8 phases archived to milestones/v3.0-phases/，33/34 REQ satisfied，BASE-02 + 3 项真机签字 deferred-to-ship；ready for /gsd-new-milestone v3.1"
-last_updated: "2026-04-23T08:50:00Z"
+milestone: v3.1
+milestone_name: 映射语义补齐与懒加载
+status: defining_requirements
+stopped_at: "v3.1 milestone started 2026-04-23 — defining requirements (2 phases, 12 REQ-MOUNT-V31-XX); next: /gsd-discuss-phase 36"
+last_updated: "2026-04-23T09:00:00Z"
 last_activity: 2026-04-23
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 30
-  completed_plans: 30
-  percent: 100
+  total_phases: 2
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-23 after v3.0 milestone)
+See: .planning/PROJECT.md (updated 2026-04-23 — v3.1 milestone started)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** v3.0 已 shipped；准备 `/gsd-new-milestone` 进入 v3.1 增量优化或继续走 ship 闸门补 3 项真机签字
+**Current focus:** v3.1 映射语义补齐与懒加载 — Phase 36（前置约束 + FUSE 缓存）→ Phase 37（冷文件读触发晋升 + e2e UAT）
 
 ## Current Position
 
-Milestone: v3.0 远端开发体验升级 — ✅ SHIPPED 2026-04-23
-Phase: —（all 8 phases archived）
+Milestone: v3.1 映射语义补齐与懒加载 — 🟡 IN PROGRESS (defining requirements)
+Phase: Not started (REQUIREMENTS.md / ROADMAP.md to be written next)
 Plan: —
-Status: Milestone shipped, ready for next
-Last activity: 2026-04-23
+Status: Defining requirements
+Last activity: 2026-04-23 — Milestone v3.1 started
 
-Progress: [████████████████████] 100%（8/8 phases complete + archived）
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%（0/2 phases）
 
 下一步选项：
-- `/gsd-new-milestone` — 进入 v3.1 增量优化（容器预热、metrics 上报、Mutagen mono-repo 优化等）
-- `/gsd-ship` — 补完 3 项真机签字（M5 APFS / BASE-03 2min / C6 Ubuntu 25.04），跟踪在 milestones/v3.0-phases/35-e2e/35-HUMAN-UAT.md
+- `/gsd-discuss-phase 36` — gather context for Phase 36（推荐）
+- `/gsd-plan-phase 36` — skip discussion, plan directly
 
 ## Accumulated Context
 
@@ -83,7 +83,9 @@ v3.0 关键方向已定：
 
 ### Pending Todos
 
-None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
+v3.1 milestone 已启动；等待 ROADMAP.md 写入后进入 Phase 36 执行：
+- Phase 36 — 映射前置约束 + sshfs 内核缓存（MOUNT-V31-01..05）
+- Phase 37 — 冷文件读触发晋升 + e2e UAT（MOUNT-V31-06..12）
 
 ### Blockers/Concerns
 
@@ -107,8 +109,8 @@ None — 等待 REQUIREMENTS.md 与 ROADMAP.md 产出后进入 phase 执行。
 
 ## Session Continuity
 
-Last session: 2026-04-22T11:23:59.275Z
-Stopped at: Plan 35-05 in_progress at T3 (checkpoint:human-verify, gate=blocking) — T1 b4b22cc + T2 5923288 done; awaiting 真机三项签字 (M5 APFS / BASE-03 2min / C6 Ubuntu 25.04)
+Last session: 2026-04-23T09:00:00Z
+Stopped at: v3.1 milestone start — PROJECT.md / STATE.md updated; REQUIREMENTS.md + ROADMAP.md to be written next
 Resume file: None
 
 ## Deferred Items
