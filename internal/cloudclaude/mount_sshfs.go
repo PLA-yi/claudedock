@@ -46,7 +46,7 @@ func mountSSHFS(conn *ssh.Client, localDir, remotePath string) (cleanup func(), 
 	}
 
 	sshfsCmd := fmt.Sprintf(
-		"sshfs : %s -o passive,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10 -f",
+		"sshfs : %s -o passive,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10,cache=yes,kernel_cache,auto_cache,cache_timeout=300 -f",
 		shellQuote(remotePath),
 	)
 	if err := sshfsSession.Start(sshfsCmd); err != nil {
