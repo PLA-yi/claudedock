@@ -186,16 +186,16 @@ func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), 
 	//   2) 其它 lockErr  → 错误透传（非静默降级，M13 防御）
 	//   3) 成功          → syncRelease 挂入 finalCleanup LIFO，mount 全栈退出时释放
 	//
-	// 注意：cfg 是值传递；本函数对 cfg.IsSecondaryClient 的赋值仅作为契约文档。
-	// 生产路径由 ssh.go::ConnectAndRunClaudeV3 注入的闭包通过闭包捕获 mountCfg
-	// 在拿到 ErrSyncLocked 时直接置位外层 mountCfg.IsSecondaryClient（指针语义），
+	// 注意：cfg 是值传递，本函数无法把 IsSecondaryClient 透传给调用方。
+	// 真实副作用由 ssh.go::ConnectAndRunClaudeV3 注入的闭包在拿到 ErrSyncLocked
+	// 时直接置位外层 mountCfg.IsSecondaryClient（闭包指针语义），
 	// MountWorkspace 返回后由 ssh.go 透传到 SessionConfig。
+	// WR-04：删除原 cfg.IsSecondaryClient = true 死赋值（go vet/staticcheck SA4006），
+	// 该写入仅修改局部副本，对外不可见，反而误导后续维护者。
 	var syncRelease func()
 	if cfg.SyncSessionLock != nil {
 		release, lockErr := cfg.SyncSessionLock(cfg.ClaudeAccountID)
 		if errors.Is(lockErr, ErrSyncLocked) {
-			cfg.IsSecondaryClient = true
-
 			if intended != ModeSSHFSOnly {
 				snapshot.DowngradeChain = append(snapshot.DowngradeChain, DowngradeStep{
 					From:          intended.String(),
