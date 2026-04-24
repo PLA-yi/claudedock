@@ -133,3 +133,17 @@ func TestExplain_MountOversizedFileSkipped_Exit0_MinLen(t *testing.T) {
 		t.Errorf("stdout 字符数 %d < 200", n)
 	}
 }
+
+func TestExplain_MountPromoterFailed_Exit0_MinLen(t *testing.T) {
+	bin := buildOnceExplainBin(t)
+	code, stdout, stderr := runExplainBin(t, bin, "explain", "MOUNT_PROMOTER_FAILED")
+	if code != 0 {
+		t.Fatalf("known code 应 exit 0，实际 %d；stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stdout, "MOUNT_PROMOTER_FAILED") {
+		t.Errorf("stdout 未包含错误码字面量")
+	}
+	if n := utf8.RuneCountInString(stdout); n < 200 {
+		t.Errorf("stdout 字符数 %d < 200（ExtendedExplanations >=200 中文字符）", n)
+	}
+}
