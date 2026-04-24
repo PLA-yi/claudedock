@@ -10,11 +10,11 @@ import (
 
 func TestEmbeddedDispatcher_PanicRecovered(t *testing.T) {
 	// 注入 testPanicTrigger，让 worker.Execute panic
-	origTrigger := testPanicTrigger
-	testPanicTrigger = func(action agentapi.HostAction) bool {
+	origTrigger := TestPanicTrigger
+	TestPanicTrigger = func(action agentapi.HostAction) bool {
 		return action == agentapi.ActionCreateHost
 	}
-	t.Cleanup(func() { testPanicTrigger = origTrigger })
+	t.Cleanup(func() { TestPanicTrigger = origTrigger })
 
 	repo := &fakeWorkerRepo{}
 	worker := NewWorker(repo, nil)
@@ -68,11 +68,11 @@ func TestEmbeddedDispatcher_NormalPath_Unchanged(t *testing.T) {
 
 func TestEmbeddedDispatcher_RunHostAction_PanicRecovered(t *testing.T) {
 	// RunHostAction 是 Dispatch 的适配器，也应继承 panic recovery
-	origTrigger := testPanicTrigger
-	testPanicTrigger = func(action agentapi.HostAction) bool {
+	origTrigger := TestPanicTrigger
+	TestPanicTrigger = func(action agentapi.HostAction) bool {
 		return action == agentapi.ActionCreateHost
 	}
-	t.Cleanup(func() { testPanicTrigger = origTrigger })
+	t.Cleanup(func() { TestPanicTrigger = origTrigger })
 
 	repo := &fakeWorkerRepo{}
 	worker := NewWorker(repo, nil)

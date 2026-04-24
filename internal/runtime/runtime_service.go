@@ -186,7 +186,34 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		"has_entry_password", request.EntryPassword != "")
 
 	go func() {
-		_, _ = s.dispatcher.Dispatch(context.Background(), request)
+		resp, derr := s.dispatcher.Dispatch(context.Background(), request)
+		if derr != nil {
+			slog.Error("host action dispatch failed",
+				"task_id", task.ID,
+				"host_id", hostID,
+				"action", action,
+				"error", derr)
+			if s.repo != nil {
+				_, _ = s.repo.RecordEvent(context.Background(), repository.RecordEventParams{
+					HostID:  &hostID,
+					Level:   "error",
+					Type:    "runtime.dispatch_failed",
+					Message: derr.Error(),
+					Metadata: map[string]any{
+						"task_id": task.ID,
+						"action":  string(action),
+					},
+				})
+			}
+			return
+		}
+		if resp.Update.Status == string(repository.TaskStatusFailed) {
+			slog.Error("host action execution failed",
+				"task_id", task.ID,
+				"host_id", hostID,
+				"error_code", resp.Update.ErrorCode,
+				"error_message", resp.Update.ErrorMessage)
+		}
 	}()
 
 	return task, nil

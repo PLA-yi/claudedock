@@ -43,6 +43,14 @@ func (d *EmbeddedDispatcher) Dispatch(ctx context.Context, request agentapi.Host
 		"action", request.Action,
 	)
 
+	running := agentapi.TaskStatusUpdate{
+		TaskID: request.TaskID,
+		Status: taskStateRunning,
+	}
+	if err := d.worker.UpdateTaskStatus(ctx, running); err != nil {
+		slog.Error("embedded: failed to update task status to running", "error", err)
+	}
+
 	update := d.worker.Execute(ctx, request)
 
 	if uerr := d.worker.UpdateTaskStatus(ctx, update); uerr != nil {

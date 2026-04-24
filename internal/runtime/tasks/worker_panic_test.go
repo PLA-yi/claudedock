@@ -26,11 +26,11 @@ func (r *panicRepo) UpdateTaskStatus(_ context.Context, _ string, _ string, _ st
 
 func TestWorkerExecute_PanicRecovered(t *testing.T) {
 	// 临时注入 testPanicTrigger，让特定 action 触发 panic
-	origTrigger := testPanicTrigger
-	testPanicTrigger = func(action agentapi.HostAction) bool {
+	origTrigger := TestPanicTrigger
+	TestPanicTrigger = func(action agentapi.HostAction) bool {
 		return action == agentapi.ActionCreateHost
 	}
-	t.Cleanup(func() { testPanicTrigger = origTrigger })
+	t.Cleanup(func() { TestPanicTrigger = origTrigger })
 
 	repo := &fakeWorkerRepo{}
 	w := NewWorker(repo, nil)
@@ -53,11 +53,11 @@ func TestWorkerExecute_PanicRecovered(t *testing.T) {
 }
 
 func TestWorkerExecute_PanicRecovered_UpdatesHostStatus(t *testing.T) {
-	origTrigger := testPanicTrigger
-	testPanicTrigger = func(action agentapi.HostAction) bool {
+	origTrigger := TestPanicTrigger
+	TestPanicTrigger = func(action agentapi.HostAction) bool {
 		return action == agentapi.ActionCreateHost
 	}
-	t.Cleanup(func() { testPanicTrigger = origTrigger })
+	t.Cleanup(func() { TestPanicTrigger = origTrigger })
 
 	repo := &fakeWorkerRepo{}
 	w := NewWorker(repo, nil)

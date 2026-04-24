@@ -51,9 +51,10 @@ func NewWorker(repo WorkerRepo, provider network.Provider) *Worker {
 	return &Worker{repo: repo, provider: provider}
 }
 
-// testPanicTrigger 是包级测试钩子，供单元测试注入 panic。
+// TestPanicTrigger 是包级测试钩子，供单元测试注入 panic。
 // 与 net/http 的 testHook 模式一致：默认恒返回 false，test 中临时替换。
-var testPanicTrigger = func(action agentapi.HostAction) bool { return false }
+// 导出为 TestPanicTrigger 以便跨包（如 internal/agent）测试使用。
+var TestPanicTrigger = func(action agentapi.HostAction) bool { return false }
 
 func (w *Worker) Execute(ctx context.Context, request agentapi.HostActionRequest) (update agentapi.TaskStatusUpdate) {
 	defer func() {
@@ -75,7 +76,7 @@ func (w *Worker) Execute(ctx context.Context, request agentapi.HostActionRequest
 		}
 	}()
 
-	if testPanicTrigger(request.Action) {
+	if TestPanicTrigger(request.Action) {
 		panic("test panic")
 	}
 
