@@ -141,6 +141,12 @@ registerExplanation(MOUNT_FORCE_MODE_FAILED, `触发场景：用户通过 --moun
 修复路径：在 shell 中执行 unset CLOUD_CLAUDE_NO_DEFAULT_IGNORE 或在 ~/.zshrc / ~/.bashrc 里删除对应的 export 行后重启终端；如果确实需要长期保留某些被默认黑名单覆盖但又想同步的路径，建议改用 .gitignore + mount-ignore 的组合而不是关闭整个默认黑名单；最后再跑一次 cloud-claude doctor mount 确认本条 check 变回 Pass。
 关联文档：.planning/phases/36-sshfs/36-REVIEW.md WR-01；internal/cloudclaude/doctor/mount.go checkDefaultIgnoreLoaded；CLOUD_CLAUDE_NO_DEFAULT_IGNORE 默认黑名单设计`)
 
+	registerExplanation(MOUNT_PROMOTER_FAILED, `触发场景：cold-promoter（inotify watcher + PromotionEngine）在 cloud-claude Full 模式 mount 就绪后尝试启动时失败，inotify_init 系统调用或 inotify_add_watch 返回错误，导致晋升引擎无法初始化，系统降级为无晋升模式继续运行。
+	根本原因：inotify 是 Linux 内核子系统，冷文件晋升引擎完全依赖它来监听 cold 分支上的文件读事件。启动失败通常由两类原因引起。第一类是 /proc/sys/fs/inotify/max_user_watches 值太低，每个被监听目录消耗一个 watch，大型仓库下可能达到甚至超出系统默认上限（通常 8192）。第二类是 cold 分支路径本身不存在或不可访问，或者容器内 /dev/fuse 状态异常导致 sshfs 挂载未就绪时 watcher 就提前被启动。此外在非 Linux 平台（如 macOS 开发机）上 inotify 完全不可用属于预期内的降级路径。
+	复现方式：在容器内运行 echo 128 | sudo tee /proc/sys/fs/inotify/max_user_watches 将 watch 上限压到极低值，然后在一个包含数百文件的仓库下启动 cloud-claude --mount-mode=full。watcher 初始化时 inotify_add_watch 会因为超过 max_user_watches 而失败，stderr 出现 [MOUNT_PROMOTER_FAILED] 输出，promotion_count 在 last-session.json 中保持缺失或为零。
+	修复路径：首先通过 sudo sysctl fs.inotify.max_user_watches 确认当前值，默认 8192 通常足够中等规模的仓库。如果确实超限，临时调高命令为 sudo sysctl -w fs.inotify.max_user_watches=65536，永久写入 /etc/sysctl.d/99-inotify.conf。其次确认 cold 分支 mount 就绪后再启动 watcher（tryModeReal 已保证顺序，通常不是问题）。如果你刻意不需要晋升功能，设置环境变量 CLOUD_CLAUDE_NO_PROMOTION=1 可完全关闭 cold-promoter，此时 cold 分支每次读都走 sshfs 回源，性能降低但功能完整。
+	关联文档：.planning/phases/37-e2e-uat/37-RESEARCH.md §4；internal/cloudclaude/cold_promoter.go；CLOUD_CLAUDE_NO_PROMOTION 环境变量定义`)
+
 	// ────────────────────────────────────────────────────────────────────
 	// NET_OAUTH_* 域 + NET_RECONNECT_* + NET_TCP_KEEPALIVE_*（Phase 31/32）
 	// ────────────────────────────────────────────────────────────────────

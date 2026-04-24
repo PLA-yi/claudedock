@@ -241,16 +241,21 @@ func (cp *ColdPromoter) promotePath(relPath string) {
 
 // ---------- copyFromCold（SFTP 拉取实现） ----------
 
-// promoterSFTPClientFactory 由测试注入 fake SFTP client。
-// 默认使用 sftp.NewClient。
-var promoterSFTPClientFactory = func(conn *ssh.Client) (*sftp.Client, error) {
-	return sftp.NewClient(conn)
+// promoterCopyFileFn 是 copyFromCold 的核心 SFTP 拉取逻辑，测试可覆盖。
+// 默认实现调用 copyFromColdImpl 通过 sftp.Client 完成文件传输。
+var promoterCopyFileFn = func(cp *ColdPromoter, remotePath, localPath string) (int64, error) {
+	return cp.copyFromColdImpl(remotePath, localPath)
 }
 
-// copyFromCold 通过 SFTP 从 remotePath 拉取文件到 localPath。
+// copyFromCold 通过 SFTP 从 remotePath 拉取文件到 localPath（可注入版本）。
 // 返回写入的字节数和可能的错误。
 func (cp *ColdPromoter) copyFromCold(remotePath, localPath string) (int64, error) {
-	client, err := promoterSFTPClientFactory(cp.connB)
+	return promoterCopyFileFn(cp, remotePath, localPath)
+}
+
+// copyFromColdImpl 是 copyFromCold 的真实 SFTP 实现。
+func (cp *ColdPromoter) copyFromColdImpl(remotePath, localPath string) (int64, error) {
+	client, err := sftp.NewClient(cp.connB)
 	if err != nil {
 		return 0, fmt.Errorf("创建 SFTP client 失败: %w", err)
 	}
