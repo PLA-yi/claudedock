@@ -71,18 +71,14 @@ func TestIgnoreMatcher_OutsideRoot(t *testing.T) {
 	}
 }
 
-func TestLoadProjectIgnore_ReadsBothFiles(t *testing.T) {
+func TestLoadGitIgnorePatterns_ReadsGitIgnore(t *testing.T) {
 	root := t.TempDir()
 	gi := "# comment\n\nnode_modules/\n*.log\n"
-	cci := "!app.log\n"
 	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(gi), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".cloud-claude-ignore"), []byte(cci), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	patterns := LoadProjectIgnore(root)
-	want := []string{"node_modules/", "*.log", "!app.log"}
+	patterns := LoadGitIgnorePatterns(root)
+	want := []string{"node_modules/", "*.log"}
 	if len(patterns) != len(want) {
 		t.Fatalf("got %d patterns, want %d: %v", len(patterns), len(want), patterns)
 	}
@@ -93,11 +89,11 @@ func TestLoadProjectIgnore_ReadsBothFiles(t *testing.T) {
 	}
 }
 
-func TestLoadProjectIgnore_MissingFilesOK(t *testing.T) {
+func TestLoadGitIgnorePatterns_MissingFileOK(t *testing.T) {
 	root := t.TempDir()
-	patterns := LoadProjectIgnore(root)
+	patterns := LoadGitIgnorePatterns(root)
 	if len(patterns) != 0 {
-		t.Errorf("missing files should yield empty; got %v", patterns)
+		t.Errorf("missing file should yield empty; got %v", patterns)
 	}
 }
 
@@ -162,7 +158,7 @@ func TestLoadMountIgnorePatterns_EnvDisable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 默认启用：含黑名单 + 用户 gitignore
+	// 默认启用：含黑名单 + 用户 .gitignore
 	t.Setenv("CLOUD_CLAUDE_NO_DEFAULT_IGNORE", "")
 	got := LoadMountIgnorePatterns(root)
 	if len(got) <= 1 {
@@ -179,10 +175,10 @@ func TestLoadMountIgnorePatterns_EnvDisable(t *testing.T) {
 		t.Error("default glb pattern missing when env unset")
 	}
 	if got[len(got)-1] != "*.log" {
-		t.Errorf("user gitignore should be appended last; got tail %q", got[len(got)-1])
+		t.Errorf("user .gitignore should be appended last; got tail %q", got[len(got)-1])
 	}
 
-	// env=1 时禁用默认黑名单，仅用户 gitignore
+	// env=1 时禁用默认黑名单，仅用户 .gitignore
 	t.Setenv("CLOUD_CLAUDE_NO_DEFAULT_IGNORE", "1")
 	got = LoadMountIgnorePatterns(root)
 	if len(got) != 1 || got[0] != "*.log" {

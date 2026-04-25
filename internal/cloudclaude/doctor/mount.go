@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -263,37 +262,15 @@ func checkDefaultIgnoreLoaded(ctx context.Context) Check {
 
 // ── Phase 37 晋升可观测：4 项 promotion check ────────────────────────────────
 
-// checkPromoterAlive 通过 PID file + kill -0 检测 cold-promoter 进程是否存活。
+// checkPromoterAlive 远程 promoter 随 cloud-claude SSH session 生命周期运行，
+// 不在本地驻留 PID，doctor 不单独检测其存活状态。
 func checkPromoterAlive(ctx context.Context) Check {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return newSkip("mount", "promoter_alive", "无法定位 home 目录: "+err.Error())
-	}
-	pidFile := filepath.Join(home, ".cloud-claude", "cold-promoter.pid")
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
-		return newSkip("mount", "promoter_alive", "PID file 不存在（watcher 未启动或 NO_PROMOTION=1）")
-	}
-	pidStr := strings.TrimSpace(string(data))
-	cmd := exec.Command("kill", "-0", pidStr)
-	if err := cmd.Run(); err != nil {
-		return newWarn("mount", "promoter_alive", errcodes.MOUNT_PROMOTER_FAILED)
-	}
-	return newPass("mount", "promoter_alive", "cold-promoter 进程存活（PID "+pidStr+"）")
+	return newSkip("mount", "promoter_alive", "远程 promoter 随会话运行，无本地 PID 可检测")
 }
 
-// checkPromotionQueueDepth 通过 last-session.json 判断晋升引擎是否活跃。
-// Plan 02 写端在 cleanup 时落盘 promotion_count；若字段不存在，退化为 skip。
+// checkPromotionQueueDepth 远程 promoter 无本地队列深度统计，退化为 skip。
 func checkPromotionQueueDepth(ctx context.Context) Check {
-	snap, err := cloudclaude.LoadLastSession()
-	if err != nil || snap == nil {
-		return newSkip("mount", "promotion_queue_depth", "last-session.json 不存在")
-	}
-	if snap.PromotionCount > 0 {
-		return newPass("mount", "promotion_queue_depth",
-			fmt.Sprintf("promotion 活跃（累计 %d 次晋升）", snap.PromotionCount))
-	}
-	return newSkip("mount", "promotion_queue_depth", "无晋升活动记录")
+	return newSkip("mount", "promotion_queue_depth", "远程 promoter 无本地 queue depth 统计")
 }
 
 // checkPromotionTotal 从 last-session.json 读取 promotion_count 展示累计晋升次数。

@@ -131,7 +131,7 @@ func init() {
 	MustRegister(Entry{
 		Code:       MOUNT_PROMOTER_FAILED,
 		Severity:   SeverityWarn,
-		Message:    "cold-promoter 进程启动失败: %s，降级为无晋升模式（cold 分支仍可读）",
-		NextAction: "检查 /proc/sys/fs/inotify/max_user_watches 上限，或设 CLOUD_CLAUDE_NO_PROMOTION=1",
+		Message:    "远程 cold-promoter 启动失败: %s，降级为无晋升模式（cold 分支仍可读写）",
+		NextAction: "检查容器内 SSH session 是否可用，或设 CLOUD_CLAUDE_NO_PROMOTION=1 禁用晋升",
 	})
 }

@@ -1,10 +1,7 @@
 // Package cloudclaude — gitignore-style 忽略规则解析。
 //
-// 用于把用户工程根目录下的 .gitignore（以及可选的 .cloud-claude-ignore）喂给
-// 两个路径：
-//  1. 前置体积检查 localDuBytes —— 命中 ignore 的文件不计入 50MB 阈值
-//  2. mutagen-defaults.yml 生成 —— 命中 ignore 的 pattern 追加到 mutagen sync
-//     的 ignore 列表，mutagen 热同步不会把这些文件推到 /workspace-hot
+// 用于把用户工程根目录下的 .gitignore 喂给热同步引擎：
+// 命中 ignore 的文件/目录不走 hot 同步，留在 cold 层通过 sshfs 按需读取。
 //
 // 设计目标：覆盖 gitignore 常见 95% pattern，不引入新依赖，行为可被测试锁住。
 // 显式不支持的 gitignore 特性：
@@ -39,14 +36,13 @@ type IgnoreMatcher struct {
 // DefaultBinaryIgnorePatterns 是 cloud-claude 内置的"媒体/二进制"扩展名黑名单。
 //
 // 设计要点：
-//   - 按扩展名精确匹配（gitignore pattern），不做文件大小判定，契合 mutagen yaml
-//     ignore.paths 语法、不需要 per-file stat
+//   - 按扩展名精确匹配（gitignore pattern），不做文件大小判定，不需要 per-file stat
 //   - 命中文件走 sshfs 冷层按需拉取（Full 模式下 /workspace-cold 里仍可访问），
-//     不会进入 mutagen hot sync 的首次全量传输
+//     不会进入 hot sync 的首次全量传输
 //   - 歧义扩展名（`*.bin` / `*.obj` 等）刻意不入表，避免 C 工程 target object
 //     / 通用二进制 blob 被误伤；此类文件用户应在 .gitignore 自行处理
-//   - 用户在 .gitignore 或 .cloud-claude-ignore 用 `!foo.png` 之类 negation 能
-//     把具体文件救回到 mutagen hot 路径（gitignore 顺序覆盖语义）
+//   - 用户在 .gitignore 用 `!foo.png` 之类 negation 能把具体文件救回 hot 路径
+//     （gitignore 顺序覆盖语义）
 //
 // 如果整体禁用，设置环境变量 CLOUD_CLAUDE_NO_DEFAULT_IGNORE=1。
 var DefaultBinaryIgnorePatterns = []string{
@@ -79,39 +75,32 @@ var DefaultBinaryIgnorePatterns = []string{
 	"core", "core.*",
 }
 
-// LoadProjectIgnore 读 cwd 下的 .gitignore / .cloud-claude-ignore，
-// 合并成原始 pattern 列表（去除空行和 `#` 注释后的有效行）。
-// 两个文件都不存在时返回空列表（nil），不是错误。
-//
-// .cloud-claude-ignore 优先级在 .gitignore 之后读入，所以对同一目标的
-// negation（`!xxx`）能覆盖 .gitignore 的结论。
-func LoadProjectIgnore(cwd string) []string {
-	var out []string
-	for _, name := range []string{".gitignore", ".cloud-claude-ignore"} {
-		lines, err := readIgnoreFile(filepath.Join(cwd, name))
-		if err != nil {
-			continue
-		}
-		out = append(out, lines...)
+// LoadGitIgnorePatterns 读 cwd 下的 .gitignore，
+// 返回去除空行和 `#` 注释后的有效 pattern 列表。
+// 文件不存在时返回空列表（nil），不是错误。
+func LoadGitIgnorePatterns(cwd string) []string {
+	lines, err := readIgnoreFile(filepath.Join(cwd, ".gitignore"))
+	if err != nil {
+		return nil
 	}
-	return out
+	return lines
 }
 
-// LoadMountIgnorePatterns 返回 mutagen 挂载流程实际使用的合并 ignore 列表：
+// LoadMountIgnorePatterns 返回挂载流程实际使用的合并 ignore 列表：
 //
-//	[DefaultBinaryIgnorePatterns...] + [用户 .gitignore + .cloud-claude-ignore]
+//	[DefaultBinaryIgnorePatterns...] + [用户 .gitignore]
 //
-// 默认黑名单在前、用户规则在后，后出现规则覆盖语义使得用户写 `!specific.png`
-// 能够把被黑名单命中的具体文件救回 mutagen 热同步。
+// 默认二进制黑名单在前、.gitignore 规则在后，后出现规则覆盖语义使得用户写
+// `!specific.png` 能够把被黑名单命中的具体文件救回热同步。
 //
 // 环境变量 CLOUD_CLAUDE_NO_DEFAULT_IGNORE=1 时完全不启用默认黑名单，等价于
-// 旧行为（仅用户 .gitignore）。用于排查黑名单误伤或需要同步特殊二进制的场景。
+// 仅用户 .gitignore。用于排查黑名单误伤或需要同步特殊二进制的场景。
 func LoadMountIgnorePatterns(cwd string) []string {
 	var out []string
 	if os.Getenv("CLOUD_CLAUDE_NO_DEFAULT_IGNORE") != "1" {
 		out = append(out, DefaultBinaryIgnorePatterns...)
 	}
-	out = append(out, LoadProjectIgnore(cwd)...)
+	out = append(out, LoadGitIgnorePatterns(cwd)...)
 	return out
 }
 
