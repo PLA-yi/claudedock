@@ -2,6 +2,8 @@ package cloudclaude
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -204,7 +207,7 @@ func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(cfg.Password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: newHostKeyCallback(),
 		Timeout:         10 * time.Second,
 	}
 
@@ -227,6 +230,104 @@ func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
 		return nil, fmt.Errorf("SSH 握手失败: %w", err)
 	}
 	return ssh.NewClient(sshConn, chans, reqs), nil
+}
+
+// newHostKeyCallback 实现 TOFU (Trust On First Use) 主机密钥验证。
+//
+//   - 首次连接：将主机公钥 SHA256 指纹写入 ~/.cloud-claude/known_hosts
+//   - 后续连接：比对 known_hosts 中的指纹，不匹配则拒绝
+//   - CLOUD_CLAUDE_SKIP_HOST_KEY_CHECK=1 时完全跳过（仅限开发调试）
+//
+// known_hosts 格式：<host>:<port> <sha256:b64hash>
+func newHostKeyCallback() ssh.HostKeyCallback {
+	knownHostsPath := ""
+	if home, err := os.UserHomeDir(); err == nil {
+		knownHostsPath = filepath.Join(home, ".cloud-claude", "known_hosts")
+	}
+
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		if os.Getenv("CLOUD_CLAUDE_SKIP_HOST_KEY_CHECK") == "1" {
+			return nil
+		}
+		if knownHostsPath == "" {
+			fmt.Fprintln(os.Stderr, "[!] 无法确定 known_hosts 路径，跳过主机密钥验证")
+			return nil
+		}
+
+		fp := sha256.Sum256(key.Marshal())
+		fpStr := "SHA256:" + base64.StdEncoding.EncodeToString(fp[:])
+
+		// 使用 hostname 作为 known_hosts 索引键
+		entryKey := hostname
+		if remote != nil {
+			entryKey = remote.String()
+		}
+
+		saved, err := loadKnownHostKey(knownHostsPath, entryKey)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				// TOFU: 首次连接，保存密钥指纹
+				if saveErr := saveKnownHostKey(knownHostsPath, entryKey, fpStr); saveErr != nil {
+					fmt.Fprintf(os.Stderr, "[!] 无法保存主机密钥指纹: %v\n", saveErr)
+				}
+				return nil
+			}
+			return fmt.Errorf("读取 known_hosts 失败: %w", err)
+		}
+
+		if saved != fpStr {
+			return fmt.Errorf("主机密钥指纹不匹配！\n"+
+				"  期望: %s\n"+
+				"  实际: %s\n"+
+				"  这可能意味着有人正在执行中间人攻击，或者服务端 SSH 密钥已被更换。\n"+
+				"  如果确认安全，请删除 %s 后重试。\n"+
+				"  或设置 CLOUD_CLAUDE_SKIP_HOST_KEY_CHECK=1 跳过验证。",
+				saved, fpStr, knownHostsPath)
+		}
+		return nil
+	}
+}
+
+func knownHostsDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(home, ".cloud-claude")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func loadKnownHostKey(path, host string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	prefix := host + " "
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimPrefix(line, prefix), nil
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+func saveKnownHostKey(path, host, fingerprint string) error {
+	dir, err := knownHostsDir()
+	if err != nil {
+		return err
+	}
+	_ = dir
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = fmt.Fprintf(f, "%s %s\n", host, fingerprint)
+	return err
 }
 
 func runClaude(conn *ssh.Client, claudeArgs []string, remoteCwd string, hasProxy bool) (int, error) {
