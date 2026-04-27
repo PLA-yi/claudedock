@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestExtractProxyServer_IPv6(t *testing.T) {
+	// IPv6 addresses should be parsed without DNS resolution
+	cfg := json.RawMessage(`{"type":"socks","server":"::1","server_port":1080}`)
+	ip, port, err := extractProxyServer(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error for IPv6: %v", err)
+	}
+	// net.ParseIP("::1") returns the IPv6 loopback
+	if ip != "::1" {
+		t.Errorf("ip = %q, want %q", ip, "::1")
+	}
+	if port != 1080 {
+		t.Errorf("port = %d, want %d", port, 1080)
+	}
+}
+
+func TestExtractProxyServer_IPv6Full(t *testing.T) {
+	cfg := json.RawMessage(`{"type":"socks","server":"2001:db8::1","server_port":443}`)
+	ip, port, err := extractProxyServer(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error for IPv6: %v", err)
+	}
+	if ip != "2001:db8::1" {
+		t.Errorf("ip = %q, want %q", ip, "2001:db8::1")
+	}
+	if port != 443 {
+		t.Errorf("port = %d, want %d", port, 443)
+	}
+}
+
 func TestExtractProxyServer_ValidIP(t *testing.T) {
 	cfg := json.RawMessage(`{"type":"socks","server":"192.168.1.100","server_port":1080}`)
 	ip, port, err := extractProxyServer(cfg)

@@ -98,6 +98,71 @@ func TestFirstNetworkError_DNSLeak(t *testing.T) {
 	}
 }
 
+func TestFirstNetworkError_DNSLeak_NilProxy(t *testing.T) {
+	// DNS error with nil Proxy should not panic
+	cfg := EgressConfig{ExpectedIP: "1.2.3.4", Proxy: nil}
+	result := VerifyResult{EgressIPMatch: true, DNSCorrect: false, ActualDNS: "8.8.8.8", LeakBlocked: true}
+
+	err := firstNetworkError(cfg, result)
+	if err.Type != ErrDNSLeak {
+		t.Errorf("expected ErrDNSLeak, got %s", err.Type)
+	}
+	// expectedDNS should be empty since Proxy is nil
+	expectedDNS, _ := err.Metadata["expected_dns"].(string)
+	if expectedDNS != "" {
+		t.Errorf("expected_dns should be empty when Proxy is nil, got %q", expectedDNS)
+	}
+}
+
+func TestVerifyNetworkIntegrity_NoNsenter(t *testing.T) {
+	// On macOS (and any system without nsenter), the nsenter commands will fail.
+	// This tests the error paths without requiring real network or containers.
+	// The test verifies that VerifyNetworkIntegrity handles command failures gracefully.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // immediate cancellation
+
+	result, err := VerifyNetworkIntegrity(ctx, 1, EgressConfig{ExpectedIP: "1.2.3.4"})
+
+	// All checks should fail because nsenter doesn't exist on this platform.
+	// LeakBlocked = true because command failure means the direct outbound was "blocked".
+	t.Logf("verify result: EgressIPMatch=%v DNSCorrect=%v LeakBlocked=%v",
+		result.EgressIPMatch, result.DNSCorrect, result.LeakBlocked)
+	t.Logf("verify error: %v", err)
+
+	// With all checks failing, we expect a non-nil error.
+	if err == nil {
+		t.Error("expected error when nsenter is not available")
+	}
+	if result.LeakBlocked != true {
+		t.Errorf("expected LeakBlocked=true (command failure = blocked), got %v", result.LeakBlocked)
+	}
+}
+
+func TestVerifyNetworkIntegrity_BackgroundContext(t *testing.T) {
+	// Using background context (not cancelled). nsenter will still fail on macOS
+	// because the binary doesn't exist.
+	if testing.Short() {
+		// In short mode, we use a tight timeout to avoid the 15s egress check timeout.
+		// The verify functions create their own timeout contexts (15s, 5s, 5s).
+		// On macOS without nsenter, the commands fail instantly, so this is fast.
+	}
+
+	result, err := VerifyNetworkIntegrity(context.Background(), 99999, EgressConfig{
+		ExpectedIP: "1.2.3.4",
+		EgressIPID: "eip-test",
+		TunnelType: TunnelTypeProxy,
+		Proxy:      &ProxySpec{DNSServer: "10.0.0.1"},
+	})
+
+	// On macOS, nsenter doesn't exist, so all checks fail.
+	t.Logf("verify result: EgressIPMatch=%v ActualEgressIP=%q DNSCorrect=%v ActualDNS=%q LeakBlocked=%v LeakTarget=%q",
+		result.EgressIPMatch, result.ActualEgressIP, result.DNSCorrect, result.ActualDNS, result.LeakBlocked, result.LeakTarget)
+
+	if err == nil {
+		t.Error("expected error from VerifyNetworkIntegrity without nsenter")
+	}
+}
+
 func TestFirstNetworkError_LeakNotBlocked(t *testing.T) {
 	cfg := EgressConfig{ExpectedIP: "1.2.3.4"}
 	result := VerifyResult{EgressIPMatch: true, DNSCorrect: true, LeakBlocked: false, LeakTarget: "1.1.1.1:80"}
