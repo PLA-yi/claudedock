@@ -96,6 +96,79 @@ func TestValidateEgressBinding_ProxyMissingConfig(t *testing.T) {
 	}
 }
 
+func TestTruncateID(t *testing.T) {
+	tests := []struct {
+		name string
+		id   string
+		n    int
+		want string
+	}{
+		{name: "shorter than n", id: "abc", n: 10, want: "abc"},
+		{name: "equal to n", id: "abcdefghij", n: 10, want: "abcdefghij"},
+		{name: "longer than n", id: "abcdefghijklmno", n: 10, want: "abcdefghij"},
+		{name: "empty string", id: "", n: 5, want: ""},
+		{name: "n is zero", id: "hello", n: 0, want: ""},
+		{name: "single char truncate", id: "hello", n: 1, want: "h"},
+		{name: "large n", id: "short", n: 100, want: "short"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncateID(tt.id, tt.n)
+			if got != tt.want {
+				t.Errorf("truncateID(%q, %d) = %q, want %q", tt.id, tt.n, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateProxyBinding_DNSServerVariants(t *testing.T) {
+	tests := []struct {
+		name          string
+		proxyConfig   string
+		wantDNSServer string
+	}{
+		{
+			name:          "dns_server present",
+			proxyConfig:   `{"type":"socks","server":"1.2.3.4","server_port":1080,"dns_server":"10.0.0.1"}`,
+			wantDNSServer: "10.0.0.1",
+		},
+		{
+			name:          "dns_server missing",
+			proxyConfig:   `{"type":"socks","server":"1.2.3.4","server_port":1080}`,
+			wantDNSServer: "",
+		},
+		{
+			name:          "dns_server empty string",
+			proxyConfig:   `{"type":"socks","server":"1.2.3.4","server_port":1080,"dns_server":""}`,
+			wantDNSServer: "",
+		},
+		{
+			name:          "dns_server is number (type mismatch)",
+			proxyConfig:   `{"type":"socks","server":"1.2.3.4","server_port":1080,"dns_server":53}`,
+			wantDNSServer: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			record := EgressIPRecord{
+				ID:          "eip-1",
+				IPAddress:   "5.6.7.8",
+				TunnelType:  TunnelTypeProxy,
+				ProxyConfig: json.RawMessage(tt.proxyConfig),
+			}
+
+			cfg, err := validateProxyBinding(record, "host-1")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if cfg.Proxy.DNSServer != tt.wantDNSServer {
+				t.Errorf("DNSServer = %q, want %q", cfg.Proxy.DNSServer, tt.wantDNSServer)
+			}
+		})
+	}
+}
+
 func TestValidateEgressBinding_ProxyInvalidJSON(t *testing.T) {
 	v := &mockValidator{
 		egressIP: EgressIPRecord{
