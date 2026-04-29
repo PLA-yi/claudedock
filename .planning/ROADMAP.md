@@ -49,7 +49,7 @@
 <details>
 <summary>⏸️ v1.3 claude-shell 本地透明代理 (Phases 17-23) — PAUSED</summary>
 
-- [ ] Phase 17: 镜像与 Entrypoint 基线
+- [x] Phase 17: 镜像与 Entrypoint 基线 (17-01 + 17-02 gap closure 完成)
 - [ ] Phase 18: 网络隔离与分流
 - [ ] Phase 19: CLI 骨架与 Docker 编排
 - [ ] Phase 20: TTY 透传与交互体验
