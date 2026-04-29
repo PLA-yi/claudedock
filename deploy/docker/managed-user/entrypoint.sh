@@ -91,6 +91,36 @@ prepare_persistent_state() {
   echo "[entrypoint] v3: persistent state ready (volume=/var/lib/claude-persist)"
 }
 
+prepare_container_disguise() {
+  # Per-container unique machine-id（基于 hostname + uptime，保证唯一性）
+  local h; h="$(hostname)"
+  local t; t="$(cat /proc/uptime 2>/dev/null | tr -d ' .')"
+  local mid; mid="$(echo -n "${h}-${t}" | sha256sum | cut -c1-32)"
+  echo "$mid" > /etc/machine-id
+  echo "$mid" > /var/lib/dbus/machine-id 2>/dev/null || true
+  chmod 444 /etc/machine-id
+
+  # 删除容器检测标志
+  rm -f /.dockerenv
+
+  # 遥测阻断环境变量（写入 /etc/environment 供所有用户 session 继承）
+  cat >> /etc/environment <<'ENVTELEM'
+DISABLE_TELEMETRY=1
+CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=
+DO_NOT_TRACK=1
+OTEL_SDK_DISABLED=true
+OTEL_TRACES_EXPORTER=none
+OTEL_METRICS_EXPORTER=none
+OTEL_LOGS_EXPORTER=none
+SENTRY_DSN=
+DISABLE_ERROR_REPORTING=1
+TELEMETRY_DISABLED=1
+ENVTELEM
+
+  echo "[entrypoint] container disguise: machine-id generated, /.dockerenv removed, telemetry blocked"
+}
+
 prepare_mergerfs_check() {
   if ! command -v mergerfs >/dev/null 2>&1; then
     echo "[entrypoint] v3: FATAL mergerfs binary missing" >&2
@@ -262,6 +292,7 @@ su "${RUN_USER}" -c 'HOME=/workspace /usr/local/bin/launch-chromium.sh --version
 # ===== v3.0 stages (serialized fail-fast, D-09 order) =====
 prepare_v3_dirs
 prepare_persistent_state
+prepare_container_disguise
 prepare_mergerfs_check
 assert_tmux_version
 

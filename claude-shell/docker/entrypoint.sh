@@ -26,14 +26,32 @@ setup_network() {
   log "step=network status=placeholder"
 }
 
-# Phase 21 将实现: machine-id, /proc overrides
+# 生成 per-container unique machine-id
 setup_fingerprint() {
-  log "step=fingerprint status=placeholder"
+  local h; h="$(hostname)"
+  local t; t="$(cat /proc/uptime 2>/dev/null | tr -d ' .')"
+  local mid; mid="$(echo -n "${h}-${t}" | sha256sum | cut -c1-32)"
+  echo "$mid" > /etc/machine-id
+  echo "$mid" > /var/lib/dbus/machine-id 2>/dev/null || true
+  chmod 444 /etc/machine-id
+  log "step=fingerprint machine-id=$mid"
 }
 
-# Phase 21 将实现: /.dockerenv cleanup, cgroup mask
+# 容器检测绕过 + 遥测阻断环境变量
 setup_anti_detect() {
-  log "step=anti_detect status=placeholder"
+  rm -f /.dockerenv
+  export DISABLE_TELEMETRY=1
+  export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+  export CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=
+  export DO_NOT_TRACK=1
+  export OTEL_SDK_DISABLED=true
+  export OTEL_TRACES_EXPORTER=none
+  export OTEL_METRICS_EXPORTER=none
+  export OTEL_LOGS_EXPORTER=none
+  export SENTRY_DSN=
+  export DISABLE_ERROR_REPORTING=1
+  export TELEMETRY_DISABLED=1
+  log "step=anti_detect /.dockerenv removed, telemetry blocked"
 }
 
 # 查找 claude 二进制，exec 替换为 PID 1（D-10）
