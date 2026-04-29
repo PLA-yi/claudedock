@@ -28,8 +28,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         jq \
         procps \
         iproute2 \
-        nodejs \
-        npm \
         locales \
         fluxbox \
         pcmanfm \
@@ -61,7 +59,7 @@ RUN ARCH=$(dpkg --print-architecture) \
     && apt-get update \
     && apt-get install -y --no-install-recommends /tmp/kasmvnc.deb \
     && rm /tmp/kasmvnc.deb \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Chromium：Ubuntu 24.04 的 chromium-browser 是 snap 包装器，Docker 不支持 snap。
 # 从 Debian bookworm 仓库安装真正的 .deb（支持 amd64 + arm64）。
@@ -71,7 +69,7 @@ RUN echo "deb [trusted=yes arch=$(dpkg --print-architecture)] http://deb.debian.
     && apt-get install -y --no-install-recommends -t bookworm chromium \
     && rm /etc/apt/sources.list.d/debian-chromium.list \
     && apt-get update \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # mergerfs 2.41.1 — GitHub release static .deb（D-04 / M3 防御）
 ARG MERGERFS_VERSION=2.41.1
@@ -112,10 +110,44 @@ RUN userdel -f ubuntu 2>/dev/null || true \
 
 RUN adduser "${WORKSPACE_USER}" ssl-cert 2>/dev/null || true
 
-RUN npm install -g @anthropic-ai/claude-code \
-    && CLAUDE_BIN="$(command -v claude)" \
-    && mv "${CLAUDE_BIN}" /usr/local/bin/claude-real \
-    && chmod +x /usr/local/bin/claude-real
+# Claude Code 独立二进制安装（不依赖 Node.js）
+# 重试策略：官方脚本最多尝试 3 次，失败后从 GitHub release 下载 binary 回退
+RUN set -eux; \
+    INSTALL_MAX_RETRIES=3; \
+    installed=false; \
+    for attempt in $(seq 1 ${INSTALL_MAX_RETRIES}); do \
+      echo "Attempt ${attempt}/${INSTALL_MAX_RETRIES}: installing Claude Code via official script..."; \
+      if curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh && bash /tmp/claude-install.sh; then \
+        installed=true; \
+        break; \
+      fi; \
+      echo "Attempt ${attempt} failed, waiting before retry..."; \
+      sleep $((attempt * 2)); \
+    done; \
+    rm -f /tmp/claude-install.sh; \
+    if [ "$installed" != "true" ]; then \
+      echo "Official install failed after ${INSTALL_MAX_RETRIES} attempts, falling back to GitHub release binary..."; \
+      ARCH=$(dpkg --print-architecture); \
+      case "${ARCH}" in \
+        amd64) GOARCH="x86_64" ;; \
+        arm64) GOARCH="aarch64" ;; \
+        *) echo "unsupported arch: ${ARCH}" >&2; exit 1 ;; \
+      esac; \
+      LATEST=$(curl -fsSL https://api.github.com/repos/anthropics/claude-code/releases/latest | jq -r .tag_name); \
+      if [ -z "${LATEST}" ] || [ "${LATEST}" = "null" ]; then \
+        echo "Failed to get latest release version" >&2; exit 1; \
+      fi; \
+      BINARY_URL="https://github.com/anthropics/claude-code/releases/download/${LATEST}/claude-code-linux-${GOARCH}.tar.gz"; \
+      echo "Downloading ${BINARY_URL}..."; \
+      curl -fsSL -o /tmp/claude-binary.tar.gz "${BINARY_URL}"; \
+      tar -xzf /tmp/claude-binary.tar.gz -C /tmp; \
+      mv /tmp/claude /usr/local/bin/claude; \
+      rm -f /tmp/claude-binary.tar.gz; \
+    fi; \
+    CLAUDE_BIN="$(command -v claude)"; \
+    mv "${CLAUDE_BIN}" /usr/local/bin/claude-real; \
+    chmod +x /usr/local/bin/claude-real; \
+    claude-real --version
 
 RUN mkdir -p /workspace/.ssh /var/run/sshd \
     && chown -R "${WORKSPACE_UID}:${WORKSPACE_GID}" /workspace \

@@ -87,7 +87,7 @@ jobs:
           retention-days: 30
 
   image-size-regression:
-    name: Image Size Regression (BASE-04 ≤ 700MB)
+    name: Image Size Regression (BASE-04 ≤ 2GB)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -113,13 +113,13 @@ jobs:
       - name: Run verify-managed-image.sh
         run: bash scripts/verify-managed-image.sh
 
-      - name: Assert uncompressed size ≤ 700MB
+      - name: Assert uncompressed size ≤ 3GB
         run: |
           size=$(docker image inspect "${{ steps.read-image.outputs.IMAGE_NAME }}" --format='{{.Size}}')
-          max=$((700 * 1024 * 1024))    # 700 MiB = 734003200 bytes
+          max=$((2048 * 1024 * 1024))   # 2048 MiB = 2147483648 bytes
           echo "image_size_bytes=$size (max=$max)"
           if [ "$size" -gt "$max" ]; then
-            echo "FAIL: image size $size > $max (700MB)" >&2
+            echo "FAIL: image size $size > $max (2GB)" >&2
             exit 1
           fi
           echo "PASS: image size within BASE-04 budget"

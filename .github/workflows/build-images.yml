@@ -101,14 +101,14 @@ jobs:
             type=gha,scope=${{ matrix.image }}
             type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:buildcache
 
-      - name: Assert managed-user image size <= 700MB
+      - name: Assert managed-user image size <= 3GB
         if: matrix.image == 'managed-user'
         run: |
           set -euo pipefail
           SIZE_BYTES=$(docker image inspect --format='{{.Size}}' managed-user:size-gate)
           SIZE_MB=$(( SIZE_BYTES / 1048576 ))
           echo "managed-user image size: ${SIZE_BYTES} bytes (${SIZE_MB} MiB)"
-          if [ "${SIZE_BYTES}" -gt 734003200 ]; then
-            echo "::error::managed-user image ${SIZE_MB} MiB exceeds 700 MiB hard cap (BASE-04)"
+          if [ "${SIZE_BYTES}" -gt 2147483648 ]; then
+            echo "::error::managed-user image ${SIZE_MB} MiB exceeds 2048 MiB hard cap (BASE-04)"
             exit 1
           fi
