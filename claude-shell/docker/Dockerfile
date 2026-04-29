@@ -42,9 +42,39 @@ RUN userdel -f ubuntu 2>/dev/null || true \
 
 # ---------------------------------------------------------------------------
 # 4. Claude Code 安装（D-04, D-05 — 必须在 USER claude 之后执行）
+#    重试策略：官方脚本最多尝试 3 次，失败后直接下载 binary 回退
 # ---------------------------------------------------------------------------
 USER ${CLAUDE_USER}
-RUN curl -fsSL https://claude.ai/install.sh | bash
+
+ARG CLAUDE_CODE_VERSION=latest
+ARG INSTALL_MAX_RETRIES=3
+
+RUN set -eux; \
+    installed=false; \
+    for attempt in $(seq 1 ${INSTALL_MAX_RETRIES}); do \
+      echo "Attempt ${attempt}/${INSTALL_MAX_RETRIES}: installing Claude Code via official script..."; \
+      if curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh && bash /tmp/claude-install.sh; then \
+        installed=true; \
+        break; \
+      fi; \
+      echo "Attempt ${attempt} failed, waiting before retry..."; \
+      sleep $((attempt * 2)); \
+    done; \
+    rm -f /tmp/claude-install.sh; \
+    if [ "$installed" != "true" ]; then \
+      echo "Official install script failed after ${INSTALL_MAX_RETRIES} attempts, falling back to GitHub release..."; \
+      ARCH="$(dpkg --print-architecture)"; \
+      if [ "${CLAUDE_CODE_VERSION}" = "latest" ]; then \
+        CLAUDE_CODE_VERSION="$(curl -fsSL https://api.github.com/repos/anthropics/claude-code/releases/latest | jq -r '.tag_name' | sed 's/^v//')"; \
+      fi; \
+      curl -fsSL -o /tmp/claude.tar.gz \
+        "https://github.com/anthropics/claude-code/releases/download/v${CLAUDE_CODE_VERSION}/claude-linux-${ARCH}.tar.gz"; \
+      mkdir -p "${HOME}/.local/bin"; \
+      tar -xzf /tmp/claude.tar.gz -C "${HOME}/.local/bin" claude; \
+      chmod 0755 "${HOME}/.local/bin/claude"; \
+      rm -f /tmp/claude.tar.gz; \
+    fi; \
+    "${HOME}/.local/bin/claude" --version
 
 # ---------------------------------------------------------------------------
 # 5. PATH 和环境变量（D-06）
