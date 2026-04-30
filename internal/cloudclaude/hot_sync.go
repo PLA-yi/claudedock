@@ -114,6 +114,10 @@ type HotSyncEngine struct {
 
 	// progress 提供极客风进度条 UI（可选）。
 	progress *ProgressUI
+
+	// [Root Emptied 保护] 当检测到远程根目录被大量清空时暂停同步，
+	// 防止 mergerfs 异常或 Claude Code 误操作导致本地文件被批量删除。
+	halted bool
 }
 
 // StartHotSync 基于现有 SSH 连接启动热同步。
@@ -316,9 +320,20 @@ func (e *HotSyncEngine) run() {
 		case <-e.stopCh:
 			return
 		case <-timer.C:
+			if e.halted {
+				// Root Emptied 触发后暂停轮询，等待会话退出。
+				timer.Reset(maxHotSyncInterval)
+				continue
+			}
 			hasChanges, err := e.syncOnceAdaptive(true)
-			if err != nil && e.logger != nil {
-				fmt.Fprintln(e.logger, "[!] 热同步轮询失败: "+err.Error())
+			if err != nil {
+				if e.logger != nil {
+					fmt.Fprintln(e.logger, "[!] 热同步轮询失败: "+err.Error())
+				}
+				// Root Emptied 类错误触发 halt，不再继续轮询。
+				if strings.Contains(err.Error(), "热同步已暂停") {
+					e.halted = true
+				}
 			}
 			interval = e.nextInterval(interval, hasChanges)
 			timer.Reset(interval)
@@ -362,6 +377,26 @@ func (e *HotSyncEngine) syncOnceAdaptive(logConflicts bool) (hasChanges bool, er
 	}
 	for rel := range oversizedSet {
 		delete(remoteFiles, rel)
+	}
+
+	// Root Emptied 保护：如果上一轮有大量文件在 remote 中同时消失，
+	// 暂停同步防止批量删除本地文件（mergerfs 异常卸载或 rm -rf 误操作）。
+	// 阈值：base >= 10 且删除比例 > 80% 时触发 halt。
+	const rootEmptiedMinBase = 10
+	const rootEmptiedRatio = 0.8
+	if len(e.last) >= rootEmptiedMinBase {
+		deletedCount := 0
+		for rel := range e.last {
+			if _, ok := remoteFiles[rel]; !ok {
+				deletedCount++
+			}
+		}
+		if float64(deletedCount)/float64(len(e.last)) > rootEmptiedRatio {
+			return false, fmt.Errorf(
+				"热同步已暂停：检测到远程 %d/%d 个文件同时消失（%.0f%%），可能为根目录异常清空。"+
+					"请检查远程挂载状态，或重启 cloud-claude 恢复同步。",
+				deletedCount, len(e.last), float64(deletedCount)/float64(len(e.last))*100)
+		}
 	}
 
 	// 快速路径：无任何文件变化时直接返回
@@ -581,13 +616,7 @@ func (e *HotSyncEngine) applyLocal(rel string, state syncFileState, exists bool)
 
 func (e *HotSyncEngine) applyRemote(rel string, state syncFileState, exists bool) error {
 	if !exists {
-		// 安全修复：远程文件不存在时，不再自动删除本地文件。
-		// 防止容器重启、mergerfs 异常卸载等场景导致远程目录暂时为空，
-		// 从而批量删除用户本地工作区。改为记录日志并保留本地。
-		if e.logger != nil {
-			fmt.Fprintf(e.logger, "[!] 热同步保留本地文件：%s（远程已不存在，跳过删除）\n", rel)
-		}
-		return nil
+		return e.deleteLocal(rel)
 	}
 	return e.copyRemoteToLocal(rel, state)
 }
@@ -744,11 +773,15 @@ func scanLocalSyncFiles(root string, matcher *IgnoreMatcher, onFile func(path st
 
 func scanRemoteSyncFiles(client *sftp.Client, root string, matcher *IgnoreMatcher) (map[string]syncFileState, error) {
 	files := make(map[string]syncFileState)
-	if _, err := client.Stat(root); err != nil {
+	info, err := client.Stat(root)
+	if err != nil {
 		if isSFTPNotExist(err) {
-			return files, nil
+			return nil, fmt.Errorf("远程目录不存在: %s", root)
 		}
 		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("远程路径不是目录: %s", root)
 	}
 
 	var walk func(dir, relBase string) error
