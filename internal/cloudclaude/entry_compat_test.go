@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestAuthResponse_V3Fields_RoundTrip 覆盖 Phase 30 Wave 2 D-03：
@@ -152,6 +153,64 @@ func TestAuthResponse_StatusComparison(t *testing.T) {
 	}
 	if resp.Status.String() != "ready" {
 		t.Errorf("Status.String() != \"ready\"")
+	}
+}
+
+// TestAuthenticate_NumberStatus 覆盖端到端：gateway 返回数字 status 时，
+// Authenticate() 不报错且能正确读取 SSH 字段。
+func TestAuthenticate_NumberStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":1,"ssh_user":"u","ssh_pass":"p","ssh_host":"h","ssh_port":2222}`))
+	}))
+	defer srv.Close()
+
+	client := NewEntryClient(srv.URL)
+	resp, err := client.Authenticate(context.Background(), "short", "pwd")
+	if err != nil {
+		t.Fatalf("Authenticate with number status: %v", err)
+	}
+	if resp.Status.String() != "1" {
+		t.Errorf("Status = %q, want 1", resp.Status.String())
+	}
+	if resp.SSHUser != "u" || resp.SSHPass != "p" || resp.SSHHost != "h" || resp.SSHPort != 2222 {
+		t.Errorf("SSH fields lost: %+v", resp)
+	}
+}
+
+// TestAuthenticateAndWait_NumberStatusPolling 验证数字 status 轮询逻辑：
+// 第一次返回 status:0（未就绪），第二次返回 status:1（就绪，带 SSH 四元组）。
+// 注意：AuthenticateAndWait 中判断 resp.Status == "ready"，数字 "1" 不等于 "ready"，
+// 因此本测试模拟的是一个"数字形态的非 ready 状态"轮询到"字符串形态的 ready"。
+// 若未来 gateway 用数字 1 表示 ready，应在文档中说明映射关系。
+func TestAuthenticateAndWait_NumberStatusPolling(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if callCount == 1 {
+			_, _ = w.Write([]byte(`{"status":0,"message":"容器启动中"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"ready","ssh_user":"u","ssh_pass":"p","ssh_host":"h","ssh_port":2222}`))
+	}))
+	defer srv.Close()
+
+	client := NewEntryClient(srv.URL)
+	client.pollInterval = 50 * time.Millisecond
+	client.pollTimeout = 2 * time.Second
+
+	resp, err := client.AuthenticateAndWait(context.Background(), "short", "pwd", nil)
+	if err != nil {
+		t.Fatalf("AuthenticateAndWait: %v", err)
+	}
+	if resp.Status.String() != "ready" {
+		t.Errorf("final Status = %q, want ready", resp.Status.String())
+	}
+	if callCount < 2 {
+		t.Errorf("expected at least 2 poll iterations, got %d", callCount)
 	}
 }
 
