@@ -98,6 +98,9 @@ type MountConfig struct {
 	// last-session.json 的 ClientRole 写为 "secondary"（默认 "primary"）。
 	IsSecondaryClient bool
 
+	// Username 是 cloud-claude 配置中的用户名（供 dashboard 展示）。
+	Username string
+
 	// [Phase 36 D-04] 单文件热同步大小上限（MB）。
 	// 由调用方从 cfg.EffectiveHotSyncMaxFileMB() 注入；零值/负值时
 	// effectiveHotSyncMaxFileMB() 兜底为 mountDefaultHotSyncMaxFileMB=50，

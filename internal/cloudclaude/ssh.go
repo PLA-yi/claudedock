@@ -119,6 +119,16 @@ func ConnectAndRunClaudeV3(cfg SSHConfig, claudeArgs []string, cwd string,
 	}
 	defer cleanupMount()
 
+	// 挂载成功后输出会话信息面板
+	var snap *LastSessionSnapshot
+	if mountCfg.LastSessionPath != "" {
+		if loaded, err := LoadLastSession(); err == nil {
+			snap = loaded
+		}
+	}
+	dash := CollectDashboard(connA, mountCfg, snap)
+	dash.Print(os.Stderr, mountCfg.NoColor)
+
 	var proxy *ExecProxy
 	if len(proxyCommands) > 0 {
 		proxy = NewExecProxy(cwd)

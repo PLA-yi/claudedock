@@ -371,6 +371,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		// 用户写的 hot_sync_max_file_mb 不生效，与 MOUNT_OVERSIZED_FILE_SKIPPED 长说明
 		// 「编辑 ~/.cloud-claude/config.yaml 调高 hot_sync_max_file_mb」承诺直接矛盾。
 		HotSyncMaxFileMB: cfg.EffectiveHotSyncMaxFileMB(),
+		Username:         cfg.Username,
 	}
 
 	// [Phase 32 D-29] 注入 cobra flag 透传 + 本机 hostname。
