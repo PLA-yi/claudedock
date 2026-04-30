@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v3.2.3 - 2026-04-30
+## What's Changed
+
+### Backend (Go / API)
+- feat(ui): 紧凑现代 CLI 输出 + 连接阶段状态刷新 (01b1a57)
+- feat(ui): 极客风进度条 + hot-sync 安全修复 (ed8d93e)
+
+### Runtime & Deployment
+- feat(security): 容器反检测 + per-container machine-id + 遥测环境变量 (08f0a02)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v3.2.2...v3.2.3
+
+
 ## v3.2.2 - 2026-04-29
 ## What's Changed
 
