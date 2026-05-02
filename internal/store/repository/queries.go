@@ -348,7 +348,7 @@ func (r *Repository) ListPendingTasks(ctx context.Context) ([]Task, error) {
 
 func (r *Repository) ListTasksWithLastErrorSummary(ctx context.Context) ([]Task, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text, host_id::text, kind, status, requested_by, COALESCE(error_code, ''), COALESCE(error_message, ''), COALESCE(last_error_summary, ''), created_at, updated_at
+		SELECT id::text, host_id::text, kind, status, requested_by, COALESCE(error_code, ''), COALESCE(error_message, ''), COALESCE(last_error_summary, ''), progress_percent, progress_message, created_at, updated_at
 		FROM tasks
 		ORDER BY updated_at DESC
 	`)
@@ -379,12 +379,17 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 	if err != nil {
 		return Host{}, fmt.Errorf("marshal host mounts: %w", err)
 	}
+	portsJSON, err := json.Marshal(params.HostPorts)
+	if err != nil {
+		return Host{}, fmt.Errorf("marshal host ports: %w", err)
+	}
 
 	var item Host
 	var rawMounts json.RawMessage
+	var rawPorts json.RawMessage
 	if err := r.db.QueryRow(ctx, `
-		INSERT INTO hosts (user_id, status, short_id, entry_password, template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO hosts (user_id, status, short_id, entry_password, template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, host_ports)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (user_id, slot_key)
 		DO UPDATE SET
 			status = EXCLUDED.status,
@@ -396,10 +401,11 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 			cpu_limit = EXCLUDED.cpu_limit,
 			disk_limit_gb = EXCLUDED.disk_limit_gb,
 			host_mounts = EXCLUDED.host_mounts,
+			host_ports = EXCLUDED.host_ports,
 			updated_at = NOW()
 		RETURNING id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''),
 		          template_image_ref, home_volume_name, slot_key, timezone, hostname,
-		          memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+		          memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, host_ports, created_at, updated_at
 	`,
 		params.UserID,
 		params.Status,
@@ -414,6 +420,7 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 		cpuLimit,
 		diskLimitGB,
 		mountsJSON,
+		portsJSON,
 	).Scan(
 		&item.ID,
 		&item.UserID,
@@ -429,6 +436,7 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 		&item.CPULimit,
 		&item.DiskLimitGB,
 		&rawMounts,
+		&rawPorts,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -436,6 +444,9 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 	}
 	if len(rawMounts) > 0 {
 		_ = json.Unmarshal(rawMounts, &item.HostMounts)
+	}
+	if len(rawPorts) > 0 {
+		_ = json.Unmarshal(rawPorts, &item.HostPorts)
 	}
 
 	return item, nil
@@ -733,7 +744,7 @@ func (r *Repository) GetEgressIPByHost(ctx context.Context, hostID string) (Egre
 // 必含 entry_password 列（Phase 29.1 根因修复，避免 host.EntryPassword 退化为空串
 // 进而导致 worker fallback 把容器密码写成 "workspace"）。
 const getHostSQL = `
-	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), COALESCE(entry_password, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, host_ports, created_at, updated_at
 	FROM hosts
 	WHERE id = $1
 `
@@ -741,6 +752,7 @@ const getHostSQL = `
 func (r *Repository) GetHost(ctx context.Context, hostID string) (Host, error) {
 	var item Host
 	var rawMounts json.RawMessage
+	var rawPorts json.RawMessage
 	if err := r.db.QueryRow(ctx, getHostSQL, hostID).Scan(
 		&item.ID,
 		&item.UserID,
@@ -756,6 +768,7 @@ func (r *Repository) GetHost(ctx context.Context, hostID string) (Host, error) {
 		&item.CPULimit,
 		&item.DiskLimitGB,
 		&rawMounts,
+		&rawPorts,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -763,6 +776,9 @@ func (r *Repository) GetHost(ctx context.Context, hostID string) (Host, error) {
 	}
 	if len(rawMounts) > 0 {
 		_ = json.Unmarshal(rawMounts, &item.HostMounts)
+	}
+	if len(rawPorts) > 0 {
+		_ = json.Unmarshal(rawPorts, &item.HostPorts)
 	}
 
 	return item, nil
@@ -778,7 +794,7 @@ func (r *Repository) UpdateTaskStatus(ctx context.Context, taskID, status, error
 			last_error_summary = $5,
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id::text, host_id::text, kind, status, requested_by, COALESCE(error_code, ''), COALESCE(error_message, ''), COALESCE(last_error_summary, ''), created_at, updated_at
+		RETURNING id::text, host_id::text, kind, status, requested_by, COALESCE(error_code, ''), COALESCE(error_message, ''), COALESCE(last_error_summary, ''), progress_percent, progress_message, created_at, updated_at
 	`, taskID, status, nullIfEmpty(errorCode), nullIfEmpty(errorMessage), nullIfEmpty(lastErrorSummary)).Scan(
 		&item.ID,
 		&item.HostID,
@@ -788,6 +804,8 @@ func (r *Repository) UpdateTaskStatus(ctx context.Context, taskID, status, error
 		&item.ErrorCode,
 		&item.ErrorMessage,
 		&item.LastErrorSummary,
+		&item.ProgressPercent,
+		&item.ProgressMessage,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -795,6 +813,17 @@ func (r *Repository) UpdateTaskStatus(ctx context.Context, taskID, status, error
 	}
 
 	return item, nil
+}
+
+func (r *Repository) ReportTaskProgress(ctx context.Context, taskID string, percent int, message string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE tasks
+		SET progress_percent = $2,
+			progress_message = $3,
+			updated_at = NOW()
+		WHERE id = $1
+	`, taskID, percent, message)
+	return err
 }
 
 func (r *Repository) RecordEvent(ctx context.Context, params RecordEventParams) (Event, error) {
@@ -1398,6 +1427,8 @@ func scanTasks(rows pgx.Rows) ([]Task, error) {
 			&item.ErrorCode,
 			&item.ErrorMessage,
 			&item.LastErrorSummary,
+			&item.ProgressPercent,
+			&item.ProgressMessage,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
@@ -1504,6 +1535,15 @@ func (r *Repository) UpdateHostMounts(ctx context.Context, hostID string, mounts
 		return fmt.Errorf("marshal host mounts: %w", err)
 	}
 	_, err = r.db.Exec(ctx, `UPDATE hosts SET host_mounts = $1, updated_at = NOW() WHERE id = $2`, data, hostID)
+	return err
+}
+
+func (r *Repository) UpdateHostPorts(ctx context.Context, hostID string, ports HostPorts) error {
+	data, err := json.Marshal(ports)
+	if err != nil {
+		return fmt.Errorf("marshal host ports: %w", err)
+	}
+	_, err = r.db.Exec(ctx, `UPDATE hosts SET host_ports = $1, updated_at = NOW() WHERE id = $2`, data, hostID)
 	return err
 }
 

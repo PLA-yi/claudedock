@@ -35,17 +35,19 @@ type AdminHostStore interface {
 	ListRunningHosts(ctx context.Context) ([]repository.Host, error)
 	GetHostWithClaudeAccount(ctx context.Context, hostID string) (repository.HostWithClaudeAccount, error) // Phase 33 D-22
 	UpdateHostMounts(ctx context.Context, hostID string, mounts repository.HostMounts) error
+	UpdateHostPorts(ctx context.Context, hostID string, ports repository.HostPorts) error
 }
 
 type AdminHostsHandler struct {
-	logger *slog.Logger
-	store  AdminHostStore
-	queue  HostActionQueuer
-	events EventRecorder
+	logger        *slog.Logger
+	store         AdminHostStore
+	queue         HostActionQueuer
+	events        EventRecorder
+	imageLockPath string
 }
 
-func NewAdminHostsHandler(logger *slog.Logger, store AdminHostStore, queue HostActionQueuer, events EventRecorder) *AdminHostsHandler {
-	return &AdminHostsHandler{logger: logger, store: store, queue: queue, events: events}
+func NewAdminHostsHandler(logger *slog.Logger, store AdminHostStore, queue HostActionQueuer, events EventRecorder, imageLockPath string) *AdminHostsHandler {
+	return &AdminHostsHandler{logger: logger, store: store, queue: queue, events: events, imageLockPath: imageLockPath}
 }
 
 func (h *AdminHostsHandler) List() nethttp.Handler {
@@ -153,13 +155,14 @@ func (h *AdminHostsHandler) Get() nethttp.Handler {
 func (h *AdminHostsHandler) Create() nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		var body struct {
-			UserID        string               `json:"user_id"`
-			EgressIPID    string               `json:"egress_ip_id"`
-			Timezone      string               `json:"timezone"`
-			MemoryLimitMB int                  `json:"memory_limit_mb"`
-			CPULimit      float64              `json:"cpu_limit"`
-			DiskLimitGB   int                  `json:"disk_limit_gb"`
+			UserID        string                `json:"user_id"`
+			EgressIPID    string                `json:"egress_ip_id"`
+			Timezone      string                `json:"timezone"`
+			MemoryLimitMB int                   `json:"memory_limit_mb"`
+			CPULimit      float64               `json:"cpu_limit"`
+			DiskLimitGB   int                   `json:"disk_limit_gb"`
 			HostMounts    repository.HostMounts `json:"host_mounts"`
+			HostPorts     repository.HostPorts  `json:"host_ports"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == "" {
 			writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "user_id is required"})
@@ -177,6 +180,22 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 		hostname := generateHostname()
 		hostShortID := generateShortID()
 		hostEntryPassword := generateEntryPassword()
+
+		imageLockPath := h.imageLockPath
+		if imageLockPath == "" {
+			imageLockPath = runtime.DefaultImageLockPath
+		}
+		runtimeSpec, specErr := runtime.LoadRuntimeSpec(imageLockPath)
+		if specErr != nil {
+			h.logger.Error("load image.lock failed", "error", specErr)
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "image.lock load failed"})
+			return
+		}
+		if runtimeSpec.ImageName == "" {
+			h.logger.Error("image.lock missing image_name")
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "image.lock missing image_name"})
+			return
+		}
 
 		if _, err := h.store.GetUser(r.Context(), body.UserID); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -197,7 +216,7 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 				Status:           "pending",
 				ShortID:          hostShortID,
 				EntryPassword:    hostEntryPassword,
-				TemplateImageRef: "ghcr.io/zanel1u/cloud-cli-proxy/managed-user:v3.0.0",
+				TemplateImageRef: runtimeSpec.ImageName,
 				HomeVolumeName:   "",
 				SlotKey:          "primary",
 				Timezone:         timezone,
@@ -206,6 +225,7 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 				CPULimit:         body.CPULimit,
 				DiskLimitGB:      body.DiskLimitGB,
 				HostMounts:       body.HostMounts,
+				HostPorts:        body.HostPorts,
 			})
 			if err == nil {
 				break
@@ -1053,7 +1073,7 @@ func (h *AdminHostsHandler) GetClaudeStatus() nethttp.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
-		script := `ps -eo pid=,etimes=,args= 2>/dev/null | grep '[c]laude-real' | while read -r pid etime rest; do
+		script := `ps -eo pid=,etimes=,args= 2>/dev/null | grep '[c]laude ' | while read -r pid etime rest; do
   cwd=$(readlink /proc/$pid/cwd 2>/dev/null || echo "unknown")
   printf '%s|%s|%s\n' "$pid" "$etime" "$cwd"
 done`
@@ -1082,7 +1102,7 @@ done`
 		}
 
 		versionCmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName,
-			"bash", "-c", "claude-real --version 2>/dev/null || echo unknown")
+			"bash", "-c", "claude --version 2>/dev/null || echo unknown")
 		versionOut, _ := versionCmd.CombinedOutput()
 		version := strings.TrimSpace(string(versionOut))
 		if version == "" {
@@ -1120,9 +1140,7 @@ func (h *AdminHostsHandler) UpdateClaude() nethttp.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 		defer cancel()
 
-		updateScript := `npm install -g @anthropic-ai/claude-code@latest 2>&1 && ` +
-			`CLAUDE_NEW=$(npm root -g)/@anthropic-ai/claude-code/cli.js && ` +
-			`if [ -f "$CLAUDE_NEW" ]; then cp "$CLAUDE_NEW" /usr/local/bin/claude-real && chmod +x /usr/local/bin/claude-real; fi`
+		updateScript := `npm install -g @anthropic-ai/claude-code@latest 2>&1`
 		cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "bash", "-c", updateScript)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -1132,7 +1150,7 @@ func (h *AdminHostsHandler) UpdateClaude() nethttp.Handler {
 		}
 
 		versionCmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName,
-			"bash", "-c", "claude-real --version 2>/dev/null || echo unknown")
+			"bash", "-c", "claude --version 2>/dev/null || echo unknown")
 		versionOut, _ := versionCmd.CombinedOutput()
 		version := strings.TrimSpace(string(versionOut))
 		if version == "" {
@@ -1188,6 +1206,49 @@ func (h *AdminHostsHandler) UpdateMounts() nethttp.Handler {
 				Metadata: map[string]any{"operator": "admin", "mount_count": len(body.Mounts)},
 			}); err != nil {
 				h.logger.Error("record event failed", "type", "admin.host.update_mounts", "error", err)
+			}
+		}
+		writeJSON(w, nethttp.StatusOK, map[string]string{"status": "ok"})
+	})
+}
+
+func (h *AdminHostsHandler) UpdatePorts() nethttp.Handler {
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		hostID := r.PathValue("hostID")
+		var body struct {
+			Ports repository.HostPorts `json:"ports"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			return
+		}
+		for _, p := range body.Ports {
+			if p.HostPort <= 0 || p.HostPort > 65535 {
+				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": fmt.Sprintf("invalid host port: %d", p.HostPort)})
+				return
+			}
+			if p.ContainerPort <= 0 || p.ContainerPort > 65535 {
+				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": fmt.Sprintf("invalid container port: %d", p.ContainerPort)})
+				return
+			}
+			if p.Protocol != "" && p.Protocol != "tcp" && p.Protocol != "udp" {
+				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": fmt.Sprintf("invalid protocol: %s (must be tcp or udp)", p.Protocol)})
+				return
+			}
+		}
+		if err := h.store.UpdateHostPorts(r.Context(), hostID, body.Ports); err != nil {
+			h.logger.Error("update host ports failed", "host_id", hostID, "error", err)
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "update ports failed"})
+			return
+		}
+		if h.events != nil {
+			hid := hostID
+			if _, err := h.events.RecordEvent(r.Context(), repository.RecordEventParams{
+				HostID: &hid, Level: "info", Type: "admin.host.update_ports",
+				Message: "管理员更新主机端口映射配置",
+				Metadata: map[string]any{"operator": "admin", "port_count": len(body.Ports)},
+			}); err != nil {
+				h.logger.Error("record event failed", "type", "admin.host.update_ports", "error", err)
 			}
 		}
 		writeJSON(w, nethttp.StatusOK, map[string]string{"status": "ok"})

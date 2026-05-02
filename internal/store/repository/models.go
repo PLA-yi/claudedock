@@ -46,6 +46,7 @@ type Host struct {
 	CPULimit         float64   `json:"cpu_limit"`
 	DiskLimitGB      int       `json:"disk_limit_gb"`
 	HostMounts       HostMounts `json:"host_mounts"`
+	HostPorts        HostPorts  `json:"host_ports"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -57,6 +58,16 @@ type HostMount struct {
 }
 
 type HostMounts []HostMount
+
+// HostPort 描述宿主机端口到容器端口的映射，通过 docker create -p 生效。
+// 仅在重建（create/rebuild）时生效，运行时修改需重建主机。
+type HostPort struct {
+	HostPort      int    `json:"host_port"`
+	ContainerPort int    `json:"container_port"`
+	Protocol      string `json:"protocol,omitempty"`
+}
+
+type HostPorts []HostPort
 
 // HostSSHAuth holds the data needed by the SSH proxy resolver.
 type HostSSHAuth struct {
@@ -94,6 +105,8 @@ type Task struct {
 	ErrorCode        string     `json:"error_code,omitempty"`
 	ErrorMessage     string     `json:"error_message,omitempty"`
 	LastErrorSummary string     `json:"last_error_summary,omitempty"`
+	ProgressPercent  int        `json:"progress_percent"`
+	ProgressMessage  string     `json:"progress_message"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -278,6 +291,7 @@ type UpsertHostParams struct {
 	CPULimit         float64
 	DiskLimitGB      int
 	HostMounts       HostMounts
+	HostPorts        HostPorts
 }
 
 type RecordEventParams struct {

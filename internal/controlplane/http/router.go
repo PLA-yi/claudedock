@@ -233,7 +233,7 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 		}
 
 		if deps.AdminHosts != nil {
-			hostsHandler := NewAdminHostsHandler(deps.Logger, deps.AdminHosts, deps.HostActions, deps.EventRecorder)
+			hostsHandler := NewAdminHostsHandler(deps.Logger, deps.AdminHosts, deps.HostActions, deps.EventRecorder, deps.ImageLockPath)
 			mux.Handle("GET /v1/admin/hosts", adminGuard(hostsHandler.List()))
 			mux.Handle("POST /v1/admin/hosts", adminGuard(hostsHandler.Create()))
 			mux.Handle("POST /v1/admin/hosts/resync-passwords", adminGuard(hostsHandler.ResyncPasswords()))
@@ -254,6 +254,7 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 			mux.Handle("GET /v1/admin/hosts/{hostID}/image-info", adminGuard(hostsHandler.GetImageInfo()))
 			mux.Handle("DELETE /v1/admin/hosts/{hostID}", adminGuard(hostsHandler.Delete()))
 			mux.Handle("PUT /v1/admin/hosts/{hostID}/mounts", adminGuard(hostsHandler.UpdateMounts()))
+			mux.Handle("PUT /v1/admin/hosts/{hostID}/ports", adminGuard(hostsHandler.UpdatePorts()))
 
 			vncProxy := NewAdminVNCProxyHandler(deps.Logger, deps.AdminHosts)
 			// VNC 入口页 (vnc.html) 带 ?token= 认证；子资源（CSS/JS/图片）

@@ -43,15 +43,17 @@ func (h tasksHandler) ServeHTTP(w nethttp.ResponseWriter, r *nethttp.Request) {
 	for _, item := range items {
 		entry := map[string]any{
 			"task_id":            item.ID,
-			"host_id":           item.HostID,
-			"kind":              item.Kind,
-			"status":            item.Status,
-			"requested_by":      item.RequestedBy,
-			"error_code":        item.ErrorCode,
-			"error_message":     item.ErrorMessage,
+			"host_id":            item.HostID,
+			"kind":               item.Kind,
+			"status":             item.Status,
+			"requested_by":       item.RequestedBy,
+			"error_code":         item.ErrorCode,
+			"error_message":      item.ErrorMessage,
 			"last_error_summary": item.LastErrorSummary,
-			"created_at":        item.CreatedAt,
-			"updated_at":        item.UpdatedAt,
+			"progress_percent":   item.ProgressPercent,
+			"progress_message":   item.ProgressMessage,
+			"created_at":         item.CreatedAt,
+			"updated_at":         item.UpdatedAt,
 		}
 		response = append(response, entry)
 	}

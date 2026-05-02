@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -41,6 +42,7 @@ type WorkerRepo interface {
 	GetEgressIPByHost(ctx context.Context, hostID string) (repository.EgressIP, error)
 	RecordEvent(ctx context.Context, params repository.RecordEventParams) (repository.Event, error)
 	UpsertClaudeAccountPersistentVolumeName(ctx context.Context, accountID, volumeName string) error // Phase 33 D-06
+	ReportTaskProgress(ctx context.Context, taskID string, percent int, message string) error
 }
 
 type Worker struct {
@@ -157,6 +159,12 @@ func (w *Worker) UpdateTaskStatus(ctx context.Context, update agentapi.TaskStatu
 	return err
 }
 
+func (w *Worker) ReportTaskProgress(ctx context.Context, taskID string, percent int, message string) {
+	if err := w.repo.ReportTaskProgress(ctx, taskID, percent, message); err != nil {
+		slog.Warn("report task progress failed", "task_id", taskID, "error", err)
+	}
+}
+
 func actionToHostStatus(action agentapi.HostAction) string {
 	switch action {
 	case agentapi.ActionCreateHost:
@@ -246,6 +254,17 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 		args = append(args, "--mount", opts)
 	}
 
+	for _, pm := range request.PortMappings {
+		if pm.HostPort <= 0 || pm.HostPort > 65535 || pm.ContainerPort <= 0 || pm.ContainerPort > 65535 {
+			return nil, fmt.Errorf("invalid port mapping: host=%d container=%d", pm.HostPort, pm.ContainerPort)
+		}
+		portSpec := fmt.Sprintf("%d:%d", pm.HostPort, pm.ContainerPort)
+		if pm.Protocol != "" {
+			portSpec += "/" + pm.Protocol
+		}
+		args = append(args, "-p", portSpec)
+	}
+
 	for key, value := range request.Labels {
 		args = append(args, "--label", fmt.Sprintf("%s=%s", key, value))
 	}
@@ -261,7 +280,7 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 		return fmt.Errorf("prepare host home dir %s: %w", homeDir, err)
 	}
 
-	w.pullImage(ctx, request.ImageName)
+	w.pullImage(ctx, request.TaskID, request.ImageName)
 
 	if exists, err := w.containerExists(ctx, containerName); err != nil {
 		return err
@@ -923,22 +942,142 @@ func loadProxyPublicKey() string {
 	return strings.TrimSpace(string(data))
 }
 
-func (w *Worker) pullImage(ctx context.Context, imageName string) {
+func (w *Worker) pullImage(ctx context.Context, taskID, imageName string) {
 	pullCtx, cancel := context.WithTimeout(ctx, pullImageTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(pullCtx, "docker", "pull", imageName)
-	output, err := cmd.CombinedOutput()
+
+	cmd := exec.CommandContext(pullCtx, "docker", "pull", "--progress=plain", imageName)
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		slog.Warn("docker pull stderr pipe failed, falling back to sync pull",
+			"image", imageName, "error", err)
+		w.fallbackPullImage(pullCtx, imageName)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		slog.Warn("docker pull start failed, falling back to sync pull",
+			"image", imageName, "error", err)
+		return
+	}
+
+	tracker := newPullProgressTracker(taskID, w)
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		line := scanner.Text()
+		tracker.feed(line)
+	}
+
+	if err := cmd.Wait(); err != nil {
 		timedOut := errors.Is(pullCtx.Err(), context.DeadlineExceeded)
 		slog.Warn("docker pull failed, will use local image if available",
 			"image", imageName,
 			"error", err,
 			"timed_out", timedOut,
-			"timeout", pullImageTimeout,
+			"timeout", pullImageTimeout)
+		return
+	}
+	slog.Info("pulled latest image", "image", imageName)
+}
+
+func (w *Worker) fallbackPullImage(ctx context.Context, imageName string) {
+	cmd := exec.CommandContext(ctx, "docker", "pull", imageName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Warn("docker pull failed, will use local image if available",
+			"image", imageName, "error", err,
 			"output", strings.TrimSpace(string(output)))
 		return
 	}
 	slog.Info("pulled latest image", "image", imageName)
+}
+
+type pullProgressTracker struct {
+	taskID     string
+	worker     *Worker
+	layers     map[string]string // layerID -> status
+	completed  int
+	lastReport time.Time
+}
+
+func newPullProgressTracker(taskID string, worker *Worker) *pullProgressTracker {
+	return &pullProgressTracker{
+		taskID:     taskID,
+		worker:     worker,
+		layers:     make(map[string]string),
+		lastReport: time.Now().Add(-time.Second),
+	}
+}
+
+func (t *pullProgressTracker) feed(line string) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return
+	}
+
+	// docker pull --progress=plain 每行格式: "layerID: status"
+	parts := strings.SplitN(line, ": ", 2)
+	if len(parts) != 2 {
+		return
+	}
+
+	layerID := strings.TrimSpace(parts[0])
+	status := strings.TrimSpace(parts[1])
+
+	// 过滤掉非层ID的行（如 "latest: Pulling from ..."）
+	// 层ID通常是12位以上的十六进制字符串
+	if len(layerID) < 12 {
+		return
+	}
+	isHex := true
+	for _, c := range layerID {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			isHex = false
+			break
+		}
+	}
+	if !isHex {
+		return
+	}
+
+	wasComplete := t.isComplete(t.layers[layerID])
+	t.layers[layerID] = status
+	isComplete := t.isComplete(status)
+
+	if !wasComplete && isComplete {
+		t.completed++
+	}
+
+	t.maybeReport()
+}
+
+func (t *pullProgressTracker) isComplete(status string) bool {
+	return strings.Contains(status, "complete") ||
+		strings.Contains(status, "Already exists") ||
+		strings.Contains(status, "Pull complete")
+}
+
+func (t *pullProgressTracker) maybeReport() {
+	total := len(t.layers)
+	if total == 0 {
+		return
+	}
+
+	now := time.Now()
+	// 限制上报频率，避免频繁写库
+	if now.Sub(t.lastReport) < 500*time.Millisecond {
+		return
+	}
+	t.lastReport = now
+
+	percent := t.completed * 100 / total
+	message := fmt.Sprintf("拉取镜像中 (%d/%d 层)", t.completed, total)
+	if percent >= 100 {
+		message = "镜像拉取完成"
+		percent = 100
+	}
+
+	t.worker.ReportTaskProgress(context.Background(), t.taskID, percent, message)
 }
 
 func (w *Worker) containerExists(ctx context.Context, name string) (bool, error) {

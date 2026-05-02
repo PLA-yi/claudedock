@@ -64,7 +64,7 @@ func RunEnvCheck(cfg SSHConfig) (*EnvCheckResult, error) {
 		Uptime:   run("uptime -p 2>/dev/null || uptime"),
 		Memory:   run("free 2>/dev/null | awk '/Mem:/{pct=int($3/$2*100); printf \"%.1fG / %.1fG (%d%%)\", $3/1048576, $2/1048576, pct}'"),
 		Disk:     run("df -h / 2>/dev/null | awk 'NR==2{printf \"%s / %s (%s)\", $3, $2, $5}'"),
-		Claude:   run("claude --version 2>/dev/null || claude-real --version 2>/dev/null || echo not found"),
+		Claude:   run("claude --version 2>/dev/null || echo not found"),
 		Fuse:     run("test -c /dev/fuse && echo OK || echo MISSING"),
 		SSHFS:    run("sshfs --version 2>&1 | head -1"),
 		Jq:       run("jq --version 2>/dev/null || echo not found"),

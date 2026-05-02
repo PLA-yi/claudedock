@@ -10,6 +10,8 @@ export interface Task {
   error_code?: string;
   error_message?: string;
   last_error_summary?: string;
+  progress_percent?: number;
+  progress_message?: string;
   created_at?: string;
   updated_at: string;
 }

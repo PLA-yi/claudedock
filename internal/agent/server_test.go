@@ -45,6 +45,10 @@ func (r *mockWorkerRepo) UpsertClaudeAccountPersistentVolumeName(_ context.Conte
 	return nil
 }
 
+func (r *mockWorkerRepo) ReportTaskProgress(_ context.Context, _ string, _ int, _ string) error {
+	return nil
+}
+
 func TestServer_POSTHandler_PanicRecovered(t *testing.T) {
 	// 注入 testPanicTrigger，让 worker.Execute panic
 	origTrigger := runtimetasks.TestPanicTrigger

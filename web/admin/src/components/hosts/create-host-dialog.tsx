@@ -330,6 +330,25 @@ export function CreateHostDialog({
               </div>
             </div>
 
+            {taskStatus === "running" && (task?.progress_percent ?? 0) > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {task?.progress_message || "处理中…"}
+                  </span>
+                  <span className="font-mono text-muted-foreground">
+                    {task?.progress_percent}%
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                    style={{ width: `${task?.progress_percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {hostAccess && (
               <div className="rounded-md border bg-muted/50 p-3 text-sm">
                 <p className="font-medium">主机 SSH 凭据（仅展示一次）</p>

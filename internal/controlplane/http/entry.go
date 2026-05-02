@@ -26,19 +26,15 @@ type EntryStore interface {
 	ResolveClaudeAccountIDForEntry(ctx context.Context, userID, hostID string) (string, bool, error)
 }
 
-// v3CapBaseline 是 Phase 30 受管镜像的 v3 基线 tag：当 image_version 与它字符串相等时
-// supports_mergerfs 为 true（D-07）。本阶段不引入多 tag 对照表。
-const v3CapBaseline = "v3.0.0"
-
 // deriveEntryCapabilities 按 D-06/D-07 从 template_image_ref 推导 Entry API 能力字段。
 // 规则：
 //  1. 整体 trim 空白；
 //  2. 取最后一个 ":" 之后的 tag；若不存在 ":"，整串视为 tag；
 //  3. 再对 tag trim 空白（兼容异常配置）；
-//  4. supports_mergerfs = imageLockSupportsMergerfs || (tag == v3CapBaseline)。
+//  4. supports_mergerfs = imageLockSupportsMergerfs || (tag == imageLockVersion)。
 //     imageLockSupportsMergerfs 来自 image.lock 的显式声明，优先于 tag 推导，
-//     用于解决重建主机后数据库 template_image_ref 未同步更新的问题。
-func deriveEntryCapabilities(templateImageRef string, imageLockSupportsMergerfs bool) (imageVersion string, supportsMergerfs bool) {
+//     imageLockVersion 来自 image.lock 的 image_version 字段，用于替代硬编码基线。
+func deriveEntryCapabilities(templateImageRef string, imageLockSupportsMergerfs bool, imageLockVersion string) (imageVersion string, supportsMergerfs bool) {
 	if imageLockSupportsMergerfs {
 		tag := strings.TrimSpace(templateImageRef)
 		if idx := strings.LastIndex(tag, ":"); idx != -1 {
@@ -52,7 +48,7 @@ func deriveEntryCapabilities(templateImageRef string, imageLockSupportsMergerfs 
 		tag = tag[idx+1:]
 	}
 	tag = strings.TrimSpace(tag)
-	supports := tag == v3CapBaseline
+	supports := tag == imageLockVersion
 	return tag, supports
 }
 
@@ -211,11 +207,13 @@ func (h *EntryHandler) Auth() nethttp.Handler {
 
 		// Phase 30 D-06/D-07：依据 template_image_ref + image.lock 显式声明推导能力字段。
 		// image.lock 的 supports_mergerfs 优先，解决重建主机后 DB 字段未同步问题。
-		var imageLockSupportsMergerfs bool
-		if spec, specErr := runtime.LoadRuntimeSpec(h.imageLockPath); specErr == nil {
-			imageLockSupportsMergerfs = spec.SupportsMergerfs
+		spec, specErr := runtime.LoadRuntimeSpec(h.imageLockPath)
+		if specErr != nil {
+			h.logger.Error("load image.lock failed", "error", specErr)
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "image.lock load failed"})
+			return
 		}
-		imageVersion, supportsMergerfs := deriveEntryCapabilities(templateImageRef, imageLockSupportsMergerfs)
+		imageVersion, supportsMergerfs := deriveEntryCapabilities(templateImageRef, spec.SupportsMergerfs, spec.ImageVersion)
 
 		resp := map[string]any{
 			"ssh_user":          user.Username,

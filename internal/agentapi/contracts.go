@@ -62,6 +62,15 @@ type HostActionRequest struct {
 	ClaudeAccountID string `json:"claude_account_id,omitempty"`
 	// BindMounts 携带宿主机目录 bind mount 配置，由 Runtime Service 从 repository.HostMounts 映射而来。
 	BindMounts []BindMount `json:"bind_mounts,omitempty"`
+	// PortMappings 携带宿主机到容器的端口映射配置，由 Runtime Service 从 repository.HostPorts 映射而来。
+	PortMappings []PortMapping `json:"port_mappings,omitempty"`
+}
+
+// PortMapping 描述 docker create -p 的端口映射契约。
+type PortMapping struct {
+	HostPort      int    `json:"host_port"`
+	ContainerPort int    `json:"container_port"`
+	Protocol      string `json:"protocol,omitempty"`
 }
 
 type TaskStatusUpdate struct {
@@ -70,6 +79,8 @@ type TaskStatusUpdate struct {
 	ErrorCode        string `json:"error_code,omitempty"`
 	ErrorMessage     string `json:"error_message,omitempty"`
 	LastErrorSummary string `json:"last_error_summary,omitempty"`
+	ProgressPercent  int    `json:"progress_percent,omitempty"`
+	ProgressMessage  string `json:"progress_message,omitempty"`
 }
 
 type HostActionResponse struct {

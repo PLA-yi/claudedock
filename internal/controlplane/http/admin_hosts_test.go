@@ -75,6 +75,10 @@ func (s *stubHostStore) UpdateHostMounts(_ context.Context, _ string, _ reposito
 	return nil
 }
 
+func (s *stubHostStore) UpdateHostPorts(_ context.Context, _ string, _ repository.HostPorts) error {
+	return nil
+}
+
 func TestAdminHostsHandler(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	sampleHost := repository.HostWithUsername{
@@ -238,7 +242,7 @@ func TestAdminHostsHandler(t *testing.T) {
 
 func newTestAdminHostsHandler(t *testing.T, store AdminHostStore, events EventRecorder, queue HostActionQueuer) *AdminHostsHandler {
 	t.Helper()
-	return NewAdminHostsHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), store, queue, events)
+	return NewAdminHostsHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), store, queue, events, "")
 }
 
 func TestResyncPasswords_NoRunningHosts(t *testing.T) {

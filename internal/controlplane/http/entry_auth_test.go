@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -71,7 +73,16 @@ func mustBcrypt(t *testing.T, password string) string {
 
 func doAuth(t *testing.T, store EntryStore, username, password string) (*httptest.ResponseRecorder, map[string]any) {
 	t.Helper()
-	handler := NewEntryHandler(slog.Default(), store, "", "").Auth()
+
+	// 创建临时 image.lock，默认 image_version 与测试常用 v3 tag 对齐
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "image.lock")
+	lockContent := "image_name: ghcr.io/example/cloud-claude:v3.0.0\nimage_version: v3.0.0\nhome_mount: /workspace\ndefault_user: workspace\n"
+	if err := os.WriteFile(lockPath, []byte(lockContent), 0644); err != nil {
+		t.Fatalf("write test image.lock: %v", err)
+	}
+
+	handler := NewEntryHandler(slog.Default(), store, "", lockPath).Auth()
 	body, _ := json.Marshal(map[string]string{"password": password})
 	req := httptest.NewRequest(nethttp.MethodPost, "/v1/entry/"+username+"/auth", bytes.NewReader(body))
 	req.Host = "gateway.example.com"
