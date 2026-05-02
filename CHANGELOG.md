@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v3.2.5 - 2026-05-02
+## What's Changed
+
+### Backend (Go / API)
+- feat: 镜像缓存状态检测与手动刷新 (2acb198)
+
+### Frontend (Admin Web)
+- feat: 镜像缓存状态检测与手动刷新 (2acb198)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v3.2.4...v3.2.5
+
+
 ## v3.1 - 2026-04-30
 ## What's Changed
 
