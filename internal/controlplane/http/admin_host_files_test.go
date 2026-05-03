@@ -86,8 +86,11 @@ func TestAdminHostFiles_NotFound(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.List().ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"entries"`) {
+		t.Errorf("expected empty entries array, got %s", rr.Body.String())
 	}
 }
 
@@ -98,8 +101,11 @@ func TestAdminHostFiles_NotADirectory(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.List().ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"entries"`) {
+		t.Errorf("expected empty entries array, got %s", rr.Body.String())
 	}
 }
 

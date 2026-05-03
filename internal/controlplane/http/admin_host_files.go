@@ -47,7 +47,7 @@ func (h *AdminHostFilesHandler) List() nethttp.Handler {
 		info, err := os.Stat(cleaned)
 		if err != nil {
 			if os.IsNotExist(err) {
-				writeJSON(w, nethttp.StatusNotFound, map[string]string{"error": "path not found"})
+				writeJSON(w, nethttp.StatusOK, map[string]any{"entries": []string{}})
 				return
 			}
 			h.logger.Error("stat path failed", "path", cleaned, "error", err)
@@ -55,7 +55,7 @@ func (h *AdminHostFilesHandler) List() nethttp.Handler {
 			return
 		}
 		if !info.IsDir() {
-			writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "path is not a directory"})
+			writeJSON(w, nethttp.StatusOK, map[string]any{"entries": []string{}})
 			return
 		}
 

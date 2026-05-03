@@ -11,6 +11,18 @@ interface PathAutocompleteProps {
   className?: string;
 }
 
+function getQueryAndFilter(value: string): { queryPath: string; filter: string } {
+  if (value.endsWith("/")) {
+    return { queryPath: value.slice(0, -1) || "/", filter: "" };
+  }
+  const lastSlash = value.lastIndexOf("/");
+  if (lastSlash === -1) return { queryPath: "/", filter: value };
+  return {
+    queryPath: value.slice(0, lastSlash) || "/",
+    filter: value.slice(lastSlash + 1),
+  };
+}
+
 export function PathAutocomplete({
   value,
   onChange,
@@ -23,8 +35,14 @@ export function PathAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data, isLoading } = useHostFiles(value);
-  const entries = data?.entries ?? [];
+  const { queryPath, filter } = getQueryAndFilter(value);
+  const { data, isLoading } = useHostFiles(queryPath);
+  const allEntries = data?.entries ?? [];
+  const entries = filter
+    ? allEntries.filter((e) =>
+        e.toLowerCase().startsWith(filter.toLowerCase()),
+      )
+    : allEntries;
 
   const showDropdown = open && value.startsWith("/");
 
@@ -42,8 +60,8 @@ export function PathAutocomplete({
 
   const handleSelect = useCallback(
     (entry: string) => {
-      const prefix = value.endsWith("/") ? value : value + "/";
-      onChange(prefix + entry);
+      const { queryPath: qp } = getQueryAndFilter(value);
+      onChange(qp === "/" ? "/" + entry : qp + "/" + entry);
       setOpen(false);
     },
     [value, onChange],
