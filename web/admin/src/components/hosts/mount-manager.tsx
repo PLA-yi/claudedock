@@ -71,11 +71,11 @@ export function MountManager({ hostId, hostStatus, mounts }: MountManagerProps) 
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3.5 shadow-sm"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm leading-tight">
+                  <p className="truncate font-mono text-sm leading-tight" title={m.source}>
                     {m.source}
                   </p>
                   {m.source !== m.target && (
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={m.target}>
                       → {m.target}
                     </p>
                   )}
