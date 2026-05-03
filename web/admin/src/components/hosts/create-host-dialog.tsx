@@ -6,6 +6,7 @@ import { useUsers } from "@/hooks/use-users";
 import { useCreateHost } from "@/hooks/use-hosts";
 import { useEgressIPs } from "@/hooks/use-egress-ips";
 import { useTaskPolling } from "@/hooks/use-tasks";
+import { PathAutocomplete } from "@/components/hosts/path-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -260,15 +261,15 @@ export function CreateHostDialog({
                 ))}
                 <div className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
-                    <Input
+                    <PathAutocomplete
                       placeholder="宿主机路径 (例: /data/shared)"
                       value={newMountSource}
-                      onChange={(e) => {
-                        setNewMountSource(e.target.value);
+                      onChange={(v) => {
+                        setNewMountSource(v);
                         if (!newMountTarget || newMountTarget === prevMountSource) {
-                          setNewMountTarget(e.target.value);
+                          setNewMountTarget(v);
                         }
-                        setPrevMountSource(e.target.value);
+                        setPrevMountSource(v);
                       }}
                     />
                   </div>

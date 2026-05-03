@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Plus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useUpdateHostMounts, type HostMount } from "@/hooks/use-hosts";
+import { PathAutocomplete } from "@/components/hosts/path-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,15 +117,15 @@ export function MountManager({ hostId, hostStatus, mounts }: MountManagerProps) 
           </Label>
           <div className="mt-3 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input
+              <PathAutocomplete
                 placeholder="宿主机路径 (例: /data/shared)"
                 value={newSource}
-                onChange={(e) => {
-                  setNewSource(e.target.value);
+                onChange={(v) => {
+                  setNewSource(v);
                   if (!newTarget || newTarget === prevSource) {
-                    setNewTarget(e.target.value);
+                    setNewTarget(v);
                   }
-                  setPrevSource(e.target.value);
+                  setPrevSource(v);
                 }}
               />
               <Input
