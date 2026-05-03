@@ -144,16 +144,18 @@ RUN set -eux; \
       mv /tmp/claude /usr/local/bin/claude; \
       rm -f /tmp/claude-binary.tar.gz; \
     fi; \
-    CLAUDE_BIN="${HOME}/.local/bin/claude"; \
-    if [ ! -x "${CLAUDE_BIN}" ]; then \
-      CLAUDE_BIN="/root/.local/bin/claude"; \
+    CLAUDE_BIN=""; \
+    for candidate in /usr/local/bin/claude "${HOME}/.local/bin/claude" /root/.local/bin/claude; do \
+      if [ -x "${candidate}" ]; then CLAUDE_BIN="${candidate}"; break; fi; \
+    done; \
+    if [ -z "${CLAUDE_BIN}" ]; then \
+      echo "Claude binary not found in /usr/local/bin, ${HOME}/.local/bin, or /root/.local/bin" >&2; exit 1; \
     fi; \
-    if [ ! -x "${CLAUDE_BIN}" ]; then \
-      echo "Claude binary not found at ${HOME}/.local/bin/claude or /root/.local/bin/claude" >&2; exit 1; \
+    if [ "${CLAUDE_BIN}" != "/usr/local/bin/claude" ]; then \
+      mv "${CLAUDE_BIN}" /usr/local/bin/claude; \
     fi; \
-    mv "${CLAUDE_BIN}" /usr/local/bin/claude-real; \
-    chmod +x /usr/local/bin/claude-real; \
-    claude-real --version
+    chmod +x /usr/local/bin/claude; \
+    claude --version
 
 RUN mkdir -p /workspace/.ssh /var/run/sshd \
     && chown -R "${WORKSPACE_UID}:${WORKSPACE_GID}" /workspace \
@@ -181,10 +183,9 @@ COPY deploy/docker/managed-user/profile.d-cloud-claude.sh /etc/profile.d/cloud-c
 COPY deploy/docker/managed-user/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY deploy/docker/managed-user/launch-chromium.sh /usr/local/bin/launch-chromium.sh
 COPY deploy/docker/managed-user/restart-vnc.sh /usr/local/bin/restart-vnc
-COPY deploy/docker/managed-user/claude-wrapper.sh /usr/local/bin/claude
 
 RUN chmod 0644 /etc/tmux.conf /etc/profile.d/cloud-claude.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/launch-chromium.sh /usr/local/bin/restart-vnc /usr/local/bin/claude
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/launch-chromium.sh /usr/local/bin/restart-vnc
 
 WORKDIR /workspace
 

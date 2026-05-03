@@ -15,4 +15,4 @@ Phase 2 只允许在这个模板旁边新增网络准备钩子接口，不在本
 ## 容器内运维脚本
 
 - `restart-vnc`：重启 KasmVNC + 桌面进程（不重建容器）。
-- `claude`：直接启动 `claude-real`，不额外包 `tmux` 或其他中转层，优先保证 SSH + 输入法场景下的交互兼容性。
+- `claude`：受管 `claude code` 二进制，直接安装在 `/usr/local/bin/claude`，不再额外包装中转层。
