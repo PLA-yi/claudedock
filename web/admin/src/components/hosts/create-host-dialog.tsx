@@ -30,6 +30,37 @@ interface CreateHostDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function getUTCOffset(tz: string): string {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "shortOffset",
+    });
+    const parts = formatter.formatToParts(now);
+    const offset = parts.find((p) => p.type === "timeZoneName")?.value || "";
+    return offset.replace("GMT", "UTC");
+  } catch {
+    return "";
+  }
+}
+
+const TIMEZONE_OPTIONS = [
+  { value: "America/Los_Angeles", label: "美西 / 洛杉矶" },
+  { value: "America/New_York", label: "美东 / 纽约" },
+  { value: "America/Chicago", label: "美中 / 芝加哥" },
+  { value: "America/Denver", label: "山区 / 丹佛" },
+  { value: "Europe/London", label: "伦敦" },
+  { value: "Europe/Paris", label: "巴黎" },
+  { value: "Europe/Berlin", label: "柏林" },
+  { value: "Asia/Tokyo", label: "东京" },
+  { value: "Asia/Shanghai", label: "上海" },
+  { value: "Asia/Singapore", label: "新加坡" },
+  { value: "Asia/Seoul", label: "首尔" },
+  { value: "Australia/Sydney", label: "悉尼" },
+  { value: "Pacific/Honolulu", label: "夏威夷" },
+];
+
 const statusDisplay: Record<
   string,
   { icon: React.ReactNode; label: string; color: string }
@@ -77,6 +108,7 @@ export function CreateHostDialog({
   const [newContainerPort, setNewContainerPort] = useState("");
   const [newProtocol, setNewProtocol] = useState("tcp");
   const [taskId, setTaskId] = useState<string | null>(null);
+  const containerPortRef = useRef<HTMLInputElement>(null);
   const { data: usersData, isLoading: loadingUsers } = useUsers();
   const { data: egressData, isLoading: loadingEgress } = useEgressIPs();
   const createMutation = useCreateHost();
@@ -149,7 +181,7 @@ export function CreateHostDialog({
       open={open}
       onOpenChange={isTracking && !isDone ? undefined : handleClose}
     >
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>新建主机</DialogTitle>
         </DialogHeader>
@@ -224,19 +256,14 @@ export function CreateHostDialog({
                     <SelectValue placeholder="选择时区" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="America/Los_Angeles">美西 / 洛杉矶</SelectItem>
-                    <SelectItem value="America/New_York">美东 / 纽约</SelectItem>
-                    <SelectItem value="America/Chicago">美中 / 芝加哥</SelectItem>
-                    <SelectItem value="America/Denver">山区 / 丹佛</SelectItem>
-                    <SelectItem value="Europe/London">伦敦</SelectItem>
-                    <SelectItem value="Europe/Paris">巴黎</SelectItem>
-                    <SelectItem value="Europe/Berlin">柏林</SelectItem>
-                    <SelectItem value="Asia/Tokyo">东京</SelectItem>
-                    <SelectItem value="Asia/Shanghai">上海</SelectItem>
-                    <SelectItem value="Asia/Singapore">新加坡</SelectItem>
-                    <SelectItem value="Asia/Seoul">首尔</SelectItem>
-                    <SelectItem value="Australia/Sydney">悉尼</SelectItem>
-                    <SelectItem value="Pacific/Honolulu">夏威夷</SelectItem>
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                        <span className="ml-1.5 text-muted-foreground">
+                          ({getUTCOffset(tz.value)})
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -259,7 +286,17 @@ export function CreateHostDialog({
                     </Button>
                   </div>
                 ))}
-                <div className="flex items-end gap-2">
+                <form
+                  className="flex items-end gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newMountSource.startsWith("/") || !newMountTarget.startsWith("/")) return;
+                    setHostMounts([...hostMounts, { source: newMountSource, target: newMountTarget }]);
+                    setNewMountSource("");
+                    setNewMountTarget("");
+                    setPrevMountSource("");
+                  }}
+                >
                   <div className="flex-1 space-y-1">
                     <PathAutocomplete
                       placeholder="宿主机路径 (例: /data/shared)"
@@ -282,20 +319,14 @@ export function CreateHostDialog({
                     />
                   </div>
                   <Button
-                    type="button"
+                    type="submit"
                     variant="outline"
                     className="h-9"
                     disabled={!newMountSource.startsWith("/") || !newMountTarget.startsWith("/")}
-                    onClick={() => {
-                      setHostMounts([...hostMounts, { source: newMountSource, target: newMountTarget }]);
-                      setNewMountSource("");
-                      setNewMountTarget("");
-                      setPrevMountSource("");
-                    }}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
-                </div>
+                </form>
                 {newMountSource && !newMountSource.startsWith("/") && (
                   <p className="text-xs text-destructive">宿主机路径必须以 / 开头</p>
                 )}
@@ -320,7 +351,25 @@ export function CreateHostDialog({
                     </Button>
                   </div>
                 ))}
-                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+                <form
+                  className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (
+                      !newHostPort || !newContainerPort ||
+                      parseInt(newHostPort) <= 0 || parseInt(newHostPort) > 65535 ||
+                      parseInt(newContainerPort) <= 0 || parseInt(newContainerPort) > 65535
+                    ) return;
+                    setHostPorts([...hostPorts, {
+                      host_port: parseInt(newHostPort),
+                      container_port: parseInt(newContainerPort),
+                      protocol: newProtocol,
+                    }]);
+                    setNewHostPort("");
+                    setNewContainerPort("");
+                    setNewProtocol("tcp");
+                  }}
+                >
                   <Input
                     type="number"
                     min={1}
@@ -328,8 +377,15 @@ export function CreateHostDialog({
                     placeholder="宿主机端口"
                     value={newHostPort}
                     onChange={(e) => setNewHostPort(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        containerPortRef.current?.focus();
+                      }
+                    }}
                   />
                   <Input
+                    ref={containerPortRef}
                     type="number"
                     min={1}
                     max={65535}
@@ -347,7 +403,7 @@ export function CreateHostDialog({
                     </SelectContent>
                   </Select>
                   <Button
-                    type="button"
+                    type="submit"
                     variant="outline"
                     className="h-9"
                     disabled={
@@ -355,20 +411,10 @@ export function CreateHostDialog({
                       parseInt(newHostPort) <= 0 || parseInt(newHostPort) > 65535 ||
                       parseInt(newContainerPort) <= 0 || parseInt(newContainerPort) > 65535
                     }
-                    onClick={() => {
-                      setHostPorts([...hostPorts, {
-                        host_port: parseInt(newHostPort),
-                        container_port: parseInt(newContainerPort),
-                        protocol: newProtocol,
-                      }]);
-                      setNewHostPort("");
-                      setNewContainerPort("");
-                      setNewProtocol("tcp");
-                    }}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
-                </div>
+                </form>
               </div>
             </div>
 

@@ -116,7 +116,13 @@ export function MountManager({ hostId, hostStatus, mounts }: MountManagerProps) 
             添加挂载
           </Label>
           <div className="mt-3 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <form
+              className="grid gap-3 sm:grid-cols-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAdd();
+              }}
+            >
               <PathAutocomplete
                 placeholder="宿主机路径 (例: /data/shared)"
                 value={newSource}
@@ -133,7 +139,7 @@ export function MountManager({ hostId, hostStatus, mounts }: MountManagerProps) 
                 value={newTarget}
                 onChange={(e) => setNewTarget(e.target.value)}
               />
-            </div>
+            </form>
             {newSource && !newSource.startsWith("/") && (
               <p className="text-xs text-destructive">宿主机路径必须以 / 开头</p>
             )}
