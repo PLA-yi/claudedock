@@ -57,8 +57,8 @@ services:
   sing-box-gateway:
     image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
     pull_policy: always
-    profiles:
-      - build-only
+    restart: "no"
+    command: ["true"]
 
 volumes:
   cloudproxy-postgres:
