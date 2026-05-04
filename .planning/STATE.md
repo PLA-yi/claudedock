@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: "映射语义补齐与懒加载"
 status: complete
-last_updated: "2026-05-03T17:59:30.000Z"
-last_activity: 2026-05-03
+last_updated: "2026-05-04T01:56:51.000Z"
+last_activity: 2026-05-04
 progress:
   total_phases: 5
   completed_phases: 5
@@ -118,6 +118,7 @@ v3.1 milestone 已启动；等待 ROADMAP.md 写入后进入 Phase 36 执行：
 | 260502-ni0 | 用户中心化凭据重构（DB/后端/前端）+ 容器自启动 + 删除 claude wrapper + 修复 IP 探测镜像 | 2026-05-02 | 6ed9cdc, 9a5db98, b0e6791, f24e3d1, 1b23a18, f744ec0 | [260502-ni0-user-centric-creds](./quick/260502-ni0-user-centric-creds/) |
 | 260504-2n4 | 修复挂载路径在长路径下撑爆创建主机对话框与挂载管理卡片 | 2026-05-03 | e208501, bf1c526 | [260504-2n4-fix-mount-path-overflow](./quick/260504-2n4-fix-mount-path-overflow/) |
 | 260504-414 | 为新建主机对话框的挂载路径添加宿主机目录联想功能 | 2026-05-03 | 9754c3e, da36a2b, 4c482a1 | [260504-414-1-get-v1-admin-host-files-path-xxx-api-2](./quick/260504-414-1-get-v1-admin-host-files-path-xxx-api-2/) |
+| 260504-dtd | 修复 IP 测试 macOS 报 No such container + 让 docker compose pull 默认拉 sing-box-gateway | 2026-05-04 | a309ab5 | [260504-dtd-ip-macos-no-such-container-docker-compos](./quick/260504-dtd-ip-macos-no-such-container-docker-compos/) |
 
 ### Roadmap Evolution
 
@@ -130,7 +131,7 @@ v3.1 milestone 已启动；等待 ROADMAP.md 写入后进入 Phase 36 执行：
 
 ## Session Continuity
 
-Last session: 2026-05-03T17:59:30.000Z
+Last session: 2026-05-04T01:56:51.000Z
 
 ## Deferred Items
 
