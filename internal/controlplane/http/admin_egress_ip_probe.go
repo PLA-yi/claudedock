@@ -575,7 +575,8 @@ func runProbeStream(ctx context.Context, h *AdminEgressIPsHandler, ipID string, 
 // 仅用于 SSE 长连接场景，不应被缓存或重复调用。
 func (h *AdminEgressIPsHandler) TestProxyStream() nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		// docker pull 可能耗时较长（网络慢时可达数分钟），给 5 分钟超时
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 		defer cancel()
 
 		ipID := r.PathValue("ipID")
@@ -595,6 +596,10 @@ func (h *AdminEgressIPsHandler) TestProxyStream() nethttp.Handler {
 		ch := make(chan ProbeStreamEvent, 8)
 		go runProbeStream(ctx, h, ipID, ch)
 
+		// 心跳 ticker：每 5 秒发送一个 SSE comment，防止前端/代理认为连接已断开
+		heartbeat := time.NewTicker(5 * time.Second)
+		defer heartbeat.Stop()
+
 		for {
 			select {
 			case <-r.Context().Done():
@@ -604,6 +609,10 @@ func (h *AdminEgressIPsHandler) TestProxyStream() nethttp.Handler {
 				fmt.Fprintf(w, "data: %s\n\n", data)
 				flusher.Flush()
 				return
+			case <-heartbeat.C:
+				// SSE comment（以冒号开头），前端会忽略但能保持连接活跃
+				fmt.Fprintf(w, ":keepalive\n\n")
+				flusher.Flush()
 			case ev, ok := <-ch:
 				if !ok {
 					return
