@@ -23,6 +23,10 @@ import (
 	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
 )
 
+func expandHostMountSources(mounts repository.HostMounts) repository.HostMounts {
+	return mounts
+}
+
 type AdminHostStore interface {
 	ListHostsWithUsername(context.Context) ([]repository.HostWithUsername, error)
 	GetHostDetail(context.Context, string) (repository.HostDetail, error)
@@ -234,7 +238,7 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 				MemoryLimitMB:    body.MemoryLimitMB,
 				CPULimit:         body.CPULimit,
 				DiskLimitGB:      body.DiskLimitGB,
-				HostMounts:       body.HostMounts,
+				HostMounts:       expandHostMountSources(body.HostMounts),
 				HostPorts:        body.HostPorts,
 			})
 			if err == nil {
@@ -1048,11 +1052,12 @@ func (h *AdminHostsHandler) UpdateMounts() nethttp.Handler {
 				return
 			}
 			if !strings.HasPrefix(m.Source, "/") || !strings.HasPrefix(m.Target, "/") {
-				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "paths must be absolute (start with /)"})
+				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "paths must be absolute"})
 				return
 			}
 		}
-		if err := h.store.UpdateHostMounts(r.Context(), hostID, body.Mounts); err != nil {
+		expandedMounts := expandHostMountSources(body.Mounts)
+		if err := h.store.UpdateHostMounts(r.Context(), hostID, expandedMounts); err != nil {
 			h.logger.Error("update host mounts failed", "host_id", hostID, "error", err)
 			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "update mounts failed"})
 			return

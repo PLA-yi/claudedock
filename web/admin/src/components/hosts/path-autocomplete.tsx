@@ -61,7 +61,13 @@ export function PathAutocomplete({
   const handleSelect = useCallback(
     (entry: string) => {
       const { queryPath: qp } = getQueryAndFilter(value);
-      onChange(qp === "/" ? "/" + entry : qp + "/" + entry);
+      if (qp === "/") {
+        onChange("/" + entry);
+      } else if (qp.endsWith("/")) {
+        onChange(qp + entry);
+      } else {
+        onChange(qp + "/" + entry);
+      }
       setOpen(false);
     },
     [value, onChange],
@@ -83,6 +89,12 @@ export function PathAutocomplete({
         e.preventDefault();
         if (entries[highlightedIndex]) {
           handleSelect(entries[highlightedIndex]);
+        }
+        break;
+      case "Tab":
+        if (entries.length === 1) {
+          e.preventDefault();
+          handleSelect(entries[0]);
         }
         break;
       case "Escape":
@@ -148,7 +160,7 @@ export function PathAutocomplete({
                   }}
                   onMouseEnter={() => setHighlightedIndex(i)}
                 >
-                  {entry}
+                  <span className="font-medium">{entry}</span>
                 </li>
               ))}
             </ul>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, XCircle, AlertCircle, X, Plus } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertCircle, X } from "lucide-react";
 import { useUsers } from "@/hooks/use-users";
 import { useCreateHost } from "@/hooks/use-hosts";
 import { useEgressIPs } from "@/hooks/use-egress-ips";
@@ -84,16 +84,13 @@ export function CreateHostDialog({
   const [userId, setUserId] = useState("");
   const [egressIpId, setEgressIpId] = useState("");
   const [timezone, setTimezone] = useState("America/Los_Angeles");
-  const [hostMounts, setHostMounts] = useState<Array<{ source: string; target: string }>>([]);
-  const [newMountSource, setNewMountSource] = useState("");
-  const [newMountTarget, setNewMountTarget] = useState("");
-  const [prevMountSource, setPrevMountSource] = useState("");
-  const [hostPorts, setHostPorts] = useState<Array<{ host_port: number; container_port: number; protocol: string }>>([]);
-  const [newHostPort, setNewHostPort] = useState("");
-  const [newContainerPort, setNewContainerPort] = useState("");
-  const [newProtocol, setNewProtocol] = useState("tcp");
+  const [hostMounts, setHostMounts] = useState<Array<{ source: string; target: string }>>([
+    { source: "", target: "" },
+  ]);
+  const [hostPorts, setHostPorts] = useState<Array<{ host_port: string; container_port: string }>>([
+    { host_port: "", container_port: "" },
+  ]);
   const [taskId, setTaskId] = useState<string | null>(null);
-  const containerPortRef = useRef<HTMLInputElement>(null);
   const { data: usersData, isLoading: loadingUsers } = useUsers();
   const { data: egressData, isLoading: loadingEgress } = useEgressIPs();
   const createMutation = useCreateHost();
@@ -134,8 +131,21 @@ export function CreateHostDialog({
       toast.error("请选择出口 IP");
       return;
     }
+    const mounts = hostMounts
+      .filter((m) => m.source && m.target && m.source.startsWith("/") && m.target.startsWith("/"));
+    const ports = hostPorts
+      .filter((p) => {
+        const hp = parseInt(p.host_port, 10);
+        const cp = parseInt(p.container_port, 10);
+        return !isNaN(hp) && hp > 0 && hp <= 65535 && !isNaN(cp) && cp > 0 && cp <= 65535;
+      })
+      .map((p) => ({
+        host_port: parseInt(p.host_port, 10),
+        container_port: parseInt(p.container_port, 10),
+        protocol: "tcp",
+      }));
     createMutation.mutate(
-      { user_id: userId, egress_ip_id: egressIpId, timezone, host_mounts: hostMounts.length > 0 ? hostMounts : undefined, host_ports: hostPorts.length > 0 ? hostPorts : undefined },
+      { user_id: userId, egress_ip_id: egressIpId, timezone, host_mounts: mounts.length > 0 ? mounts : undefined, host_ports: ports.length > 0 ? ports : undefined },
       {
         onSuccess: (data) => {
           setTaskId(data.task_id);
@@ -149,14 +159,8 @@ export function CreateHostDialog({
     setUserId("");
     setEgressIpId("");
     setTimezone("America/Los_Angeles");
-    setHostMounts([]);
-    setNewMountSource("");
-    setNewMountTarget("");
-    setPrevMountSource("");
-    setHostPorts([]);
-    setNewHostPort("");
-    setNewContainerPort("");
-    setNewProtocol("tcp");
+    setHostMounts([{ source: "", target: "" }]);
+    setHostPorts([{ host_port: "", container_port: "" }]);
     setTaskId(null);
     onOpenChange(false);
   }
@@ -175,7 +179,7 @@ export function CreateHostDialog({
           <>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>所属用户 *</Label>
+                <Label>所属用户 <span className="text-destructive">*</span></Label>
                 {loadingUsers ? (
                   <div className="h-9 animate-pulse rounded-md bg-muted" />
                 ) : (
@@ -200,7 +204,7 @@ export function CreateHostDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>出口 IP *</Label>
+                <Label>出口 IP <span className="text-destructive">*</span></Label>
                 {loadingEgress ? (
                   <div className="h-9 animate-pulse rounded-md bg-muted" />
                 ) : (
@@ -255,151 +259,119 @@ export function CreateHostDialog({
 
               <div className="space-y-2">
                 <Label>挂载路径（可选）</Label>
-                {hostMounts.map((m, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className="flex-1 min-w-0 truncate font-mono" title={m.source}>{m.source}</span>
-                    <span className="text-muted-foreground">-&gt;</span>
-                    <span className="flex-1 min-w-0 truncate font-mono" title={m.target}>{m.target}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto h-6 w-6 p-0"
-                      onClick={() => setHostMounts(hostMounts.filter((_, j) => j !== i))}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                <form
-                  className="flex items-end gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!newMountSource.startsWith("/") || !newMountTarget.startsWith("/")) return;
-                    setHostMounts([...hostMounts, { source: newMountSource, target: newMountTarget }]);
-                    setNewMountSource("");
-                    setNewMountTarget("");
-                    setPrevMountSource("");
-                  }}
+                <p className="text-xs text-muted-foreground">
+                  将宿主机目录挂载到容器内部。左侧为宿主机绝对路径，右侧为容器内挂载点，挂载后容器内可直接读写宿主机对应目录。
+                </p>
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 space-y-3">
+                  {hostMounts.map((m, i) => (
+                    <div key={i} className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs text-muted-foreground">宿主机路径</span>
+                        <PathAutocomplete
+                          placeholder="例: /data/shared"
+                          value={m.source}
+                          onChange={(v) => {
+                            const next = [...hostMounts];
+                            next[i] = { ...next[i], source: v };
+                            if (!next[i].target) next[i].target = v;
+                            setHostMounts(next);
+                          }}
+                        />
+                      </div>
+                      <span className="pb-2 text-muted-foreground">-&gt;</span>
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs text-muted-foreground">容器路径</span>
+                        <Input
+                          placeholder="例: /data/shared"
+                          value={m.target}
+                          onChange={(e) => {
+                            const next = [...hostMounts];
+                            next[i] = { ...next[i], target: e.target.value };
+                            setHostMounts(next);
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 shrink-0"
+                        onClick={() => setHostMounts(hostMounts.filter((_, j) => j !== i))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setHostMounts([...hostMounts, { source: "", target: "" }])}
                 >
-                  <div className="flex-1 space-y-1">
-                    <PathAutocomplete
-                      placeholder="宿主机路径 (例: /data/shared)"
-                      value={newMountSource}
-                      onChange={(v) => {
-                        setNewMountSource(v);
-                        if (!newMountTarget || newMountTarget === prevMountSource) {
-                          setNewMountTarget(v);
-                        }
-                        setPrevMountSource(v);
-                      }}
-                    />
-                  </div>
-                  <span className="pb-2 text-muted-foreground">-&gt;</span>
-                  <div className="flex-1 space-y-1">
-                    <Input
-                      placeholder="容器路径 (默认同宿主机路径)"
-                      value={newMountTarget}
-                      onChange={(e) => setNewMountTarget(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="h-9"
-                    disabled={!newMountSource.startsWith("/") || !newMountTarget.startsWith("/")}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </form>
-                {newMountSource && !newMountSource.startsWith("/") && (
-                  <p className="text-xs text-destructive">宿主机路径必须以 / 开头</p>
-                )}
+                  增加映射
+                </Button>
               </div>
 
               <div className="space-y-2">
                 <Label>端口映射（可选）</Label>
-                {hostPorts.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className="font-mono">{p.host_port}:{p.container_port}</span>
-                    {p.protocol !== "tcp" && (
-                      <span className="text-muted-foreground">/{p.protocol}</span>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto h-6 w-6 p-0"
-                      onClick={() => setHostPorts(hostPorts.filter((_, j) => j !== i))}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                <form
-                  className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (
-                      !newHostPort || !newContainerPort ||
-                      parseInt(newHostPort) <= 0 || parseInt(newHostPort) > 65535 ||
-                      parseInt(newContainerPort) <= 0 || parseInt(newContainerPort) > 65535
-                    ) return;
-                    setHostPorts([...hostPorts, {
-                      host_port: parseInt(newHostPort),
-                      container_port: parseInt(newContainerPort),
-                      protocol: newProtocol,
-                    }]);
-                    setNewHostPort("");
-                    setNewContainerPort("");
-                    setNewProtocol("tcp");
-                  }}
+                <p className="text-xs text-muted-foreground">
+                  将宿主机端口转发到容器内部端口。外部通过"宿主机端口"访问，请求会被自动转发到容器内对应服务。
+                </p>
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 space-y-3">
+                  {hostPorts.map((p, i) => (
+                    <div key={i} className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs text-muted-foreground">宿主机端口</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={65535}
+                          placeholder="如 8080"
+                          value={p.host_port}
+                          onChange={(e) => {
+                            const next = [...hostPorts];
+                            next[i] = { ...next[i], host_port: e.target.value };
+                            setHostPorts(next);
+                          }}
+                        />
+                      </div>
+                      <span className="pb-2 text-muted-foreground">:</span>
+                      <div className="flex-1 space-y-1">
+                        <span className="text-xs text-muted-foreground">容器端口</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={65535}
+                          placeholder="如 80"
+                          value={p.container_port}
+                          onChange={(e) => {
+                            const next = [...hostPorts];
+                            next[i] = { ...next[i], container_port: e.target.value };
+                            setHostPorts(next);
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 shrink-0"
+                        onClick={() => setHostPorts(hostPorts.filter((_, j) => j !== i))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setHostPorts([...hostPorts, { host_port: "", container_port: "" }])}
                 >
-                  <Input
-                    type="number"
-                    min={1}
-                    max={65535}
-                    placeholder="宿主机端口"
-                    value={newHostPort}
-                    onChange={(e) => setNewHostPort(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        containerPortRef.current?.focus();
-                      }
-                    }}
-                  />
-                  <Input
-                    ref={containerPortRef}
-                    type="number"
-                    min={1}
-                    max={65535}
-                    placeholder="容器端口"
-                    value={newContainerPort}
-                    onChange={(e) => setNewContainerPort(e.target.value)}
-                  />
-                  <Select value={newProtocol} onValueChange={setNewProtocol}>
-                    <SelectTrigger className="w-[80px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tcp">TCP</SelectItem>
-                      <SelectItem value="udp">UDP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="h-9"
-                    disabled={
-                      !newHostPort || !newContainerPort ||
-                      parseInt(newHostPort) <= 0 || parseInt(newHostPort) > 65535 ||
-                      parseInt(newContainerPort) <= 0 || parseInt(newContainerPort) > 65535
-                    }
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </form>
+                  增加端口映射
+                </Button>
               </div>
             </div>
 

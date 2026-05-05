@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,20 @@ import (
 	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
 	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
 )
+
+func expandBindMountSource(src string) string {
+	if !strings.HasPrefix(src, "~/") && src != "~" {
+		return src
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return src
+	}
+	if src == "~" {
+		return home
+	}
+	return filepath.Join(home, src[2:])
+}
 
 const (
 	DefaultImageLockPath      = "deploy/docker/managed-user/image.lock"
@@ -168,7 +183,7 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		request.BindMounts = make([]agentapi.BindMount, 0, len(host.HostMounts))
 		for _, hm := range host.HostMounts {
 			request.BindMounts = append(request.BindMounts, agentapi.BindMount{
-				Source:   hm.Source,
+				Source:   expandBindMountSource(hm.Source),
 				Target:   hm.Target,
 				ReadOnly: hm.ReadOnly,
 			})

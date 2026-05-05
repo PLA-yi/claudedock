@@ -122,7 +122,7 @@ func TestAdminHostFiles_EmptyPath(t *testing.T) {
 
 func TestAdminHostFiles_RelativePath(t *testing.T) {
 	h := NewAdminHostFilesHandler(slog.Default())
-	for _, path := range []string{"foo/bar", "tmp", "./etc"} {
+	for _, path := range []string{"foo/bar", "tmp", "./etc", "~", "~/foo"} {
 		req := httptest.NewRequest(http.MethodGet, "/v1/admin/host-files?path="+path, nil)
 		rr := httptest.NewRecorder()
 		h.List().ServeHTTP(rr, req)
