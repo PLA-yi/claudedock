@@ -315,7 +315,7 @@ echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 
 func verifyWorkerEgress(ctx context.Context, workerName, expectedIP string) error {
 	cmd := exec.CommandContext(ctx, "docker", "exec", workerName, "sh", "-c",
-		fmt.Sprintf("curl -s --max-time 5 https://api.ipify.org || echo ''"))
+		fmt.Sprintf("curl -s --max-time 5 https://ip.me || echo ''"))
 	out, err := cmd.Output()
 	if err != nil {
 		return &NetworkError{Type: ErrEgressIPMismatch, Message: "curl failed: " + err.Error(), HostID: workerName}

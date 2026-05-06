@@ -1154,3 +1154,52 @@ func dockerNetworkRm(networkName string) error {
 	}
 	return err
 }
+
+func (h *AdminHostsHandler) GetLogs() nethttp.Handler {
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		hostID := r.PathValue("hostID")
+
+		_, err := h.store.GetHost(r.Context(), hostID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeJSON(w, nethttp.StatusNotFound, map[string]string{"error": "host not found"})
+				return
+			}
+			h.logger.Error("get host for logs failed", "host_id", hostID, "error", err)
+			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "get host failed"})
+			return
+		}
+
+		tail := r.URL.Query().Get("tail")
+		if tail == "" {
+			tail = "100"
+		}
+		tailN, err := strconv.Atoi(tail)
+		if err != nil || tailN < 1 {
+			tailN = 100
+		}
+		if tailN > 500 {
+			tailN = 500
+		}
+
+		containerName := "cloudproxy-" + hostID
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "docker", "logs", "--tail", strconv.Itoa(tailN), containerName)
+		output, err := cmd.CombinedOutput()
+
+		result := map[string]any{
+			"host_id":        hostID,
+			"container_name": containerName,
+			"tail":           tailN,
+			"logs":           string(output),
+		}
+		if err != nil {
+			result["error"] = err.Error()
+			result["logs"] = string(output)
+		}
+
+		writeJSON(w, nethttp.StatusOK, result)
+	})
+}

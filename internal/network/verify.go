@@ -63,7 +63,7 @@ func verifyEgressIP(ctx context.Context, prefix []string, expectedIP string, res
 	checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	args := append(append([]string{}, prefix...), "curl", "-4", "--max-time", "10", "-s", "https://api.ipify.org")
+	args := append(append([]string{}, prefix...), "curl", "-4", "--max-time", "10", "-s", "https://ip.me")
 	out, err := exec.CommandContext(checkCtx, args[0], args[1:]...).Output()
 	if err != nil {
 		result.EgressIPMatch = false

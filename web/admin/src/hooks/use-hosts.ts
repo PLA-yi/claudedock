@@ -150,7 +150,8 @@ export function useHostAction() {
         method: "POST",
         ...(body ? { body: JSON.stringify(body) } : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, { hostId }) => {
+      qc.invalidateQueries({ queryKey: ["hosts", hostId] });
       qc.invalidateQueries({ queryKey: ["hosts"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
@@ -332,6 +333,18 @@ export function useUnbindEgressIP() {
       qc.invalidateQueries({ queryKey: ["hosts"] });
       qc.invalidateQueries({ queryKey: ["egress-ips"] });
     },
+  });
+}
+
+export function useHostLogs(hostId: string, refetchInterval: number | false = 5000) {
+  return useQuery({
+    queryKey: ["hosts", hostId, "logs"],
+    queryFn: () =>
+      apiFetch<{ host_id: string; container_name: string; tail: number; logs: string; error?: string }>(
+        `/hosts/${hostId}/logs?tail=200`,
+      ),
+    enabled: !!hostId,
+    refetchInterval,
   });
 }
 

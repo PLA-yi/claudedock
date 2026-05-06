@@ -4,8 +4,12 @@ import {
   Check,
   Copy,
   Download,
+  FileText,
   KeyRound,
   Monitor,
+  Pause,
+  Play,
+  RefreshCw,
   Settings,
   Terminal,
   Upload,
@@ -18,6 +22,7 @@ import {
   useRestartHostVNC,
   useExportHostConfig,
   useImportHostConfig,
+  useHostLogs,
 } from "@/hooks/use-hosts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -517,6 +522,8 @@ function HostDetailPage() {
         open={claudeSettingsOpen}
         onOpenChange={setClaudeSettingsOpen}
       />
+
+      <HostLogsBlock hostId={host.id} />
     </div>
   );
 }
@@ -567,4 +574,64 @@ function ConnectionBlock({
 
   if (inline) return content;
   return <div className="p-6">{content}</div>;
+}
+
+function HostLogsBlock({ hostId }: { hostId: string }) {
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const { data, isLoading, refetch, isRefetching } = useHostLogs(hostId, autoRefresh ? 5000 : false);
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-muted/30">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          <h2 className="text-sm font-semibold">容器日志</h2>
+          {data?.container_name && (
+            <span className="text-xs text-muted-foreground">
+              {data.container_name}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {data?.error && (
+            <span className="text-xs text-destructive">
+              错误: {data.error}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+            刷新
+          </Button>
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            className="h-8 gap-1"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {autoRefresh ? "暂停刷新" : "自动刷新"}
+          </Button>
+        </div>
+      </div>
+      <div className="relative">
+        {isLoading ? (
+          <div className="h-80 flex items-center justify-center bg-black">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+          </div>
+        ) : (
+          <pre className="h-80 overflow-auto bg-black text-green-400 font-mono text-[11px] leading-relaxed p-4 whitespace-pre-wrap break-all">
+            {data?.logs || (
+              <span className="text-muted-foreground">暂无日志</span>
+            )}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
 }

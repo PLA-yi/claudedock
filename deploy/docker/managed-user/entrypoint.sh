@@ -259,6 +259,9 @@ chown "${RUN_USER}:${RUN_USER}" /workspace/.vnc/passwd
 mkdir -p /tmp/.X11-unix
 chmod 1777 /tmp/.X11-unix
 
+# 清理可能残留的 X11 lock 文件（容器 restart 后 /tmp 可能仍保留上次运行的 lock）
+rm -f /tmp/.X99-lock /tmp/.X11-unix/X99
+
 # 启动 KasmVNC（Xvnc 直接启动，跳过 vncserver perl 脚本的交互提示）
 export DISPLAY=:99
 su "${RUN_USER}" -c 'Xvnc :99 \

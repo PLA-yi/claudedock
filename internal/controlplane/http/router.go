@@ -253,6 +253,7 @@ func NewRouter(deps Dependencies) nethttp.Handler {
 			mux.Handle("GET /v1/admin/hosts/{hostID}/config/export", adminGuard(hostsHandler.ExportConfig()))
 			mux.Handle("POST /v1/admin/hosts/{hostID}/config/import", adminGuard(hostsHandler.ImportConfig()))
 			mux.Handle("GET /v1/admin/hosts/{hostID}/image-info", adminGuard(hostsHandler.GetImageInfo()))
+			mux.Handle("GET /v1/admin/hosts/{hostID}/logs", adminGuard(hostsHandler.GetLogs()))
 			mux.Handle("DELETE /v1/admin/hosts/{hostID}", adminGuard(hostsHandler.Delete()))
 			mux.Handle("PUT /v1/admin/hosts/{hostID}/mounts", adminGuard(hostsHandler.UpdateMounts()))
 			mux.Handle("PUT /v1/admin/hosts/{hostID}/ports", adminGuard(hostsHandler.UpdatePorts()))
