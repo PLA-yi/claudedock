@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v3.3.4 - 2026-05-06
+## What's Changed
+
+### Backend (Go / API)
+- fix(network): 移除创建主机时的 egress IP smoke check (dc61287)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v3.3.3...v3.3.4
+
+
 ## v3.3.3 - 2026-05-06
 ## What's Changed
 
