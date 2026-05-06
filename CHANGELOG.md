@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v3.3.5 - 2026-05-06
+## What's Changed
+
+### Backend (Go / API)
+- fix(runtime): 镜像刷新时从 label 读取实际版本号 (c22d3bc)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v3.3.4...v3.3.5
+
+
 ## v3.3.4 - 2026-05-06
 ## What's Changed
 
