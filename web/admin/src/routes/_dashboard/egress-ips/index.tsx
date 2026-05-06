@@ -122,16 +122,19 @@ function EgressIPsPage() {
 
   const egressIPs = data?.egress_ips ?? [];
 
-  // 当 SSE 流完成时，保存结果到 localStorage
+  // 当任意 SSE 流完成时，保存结果到 localStorage
   useEffect(() => {
-    if (sseTest.result && sseTest.stage === "done" && testDialogIpId) {
-      setTestResults((prev) => {
-        const next = new Map(prev).set(testDialogIpId, sseTest.result!);
-        saveTestResults(next);
-        return next;
-      });
+    for (const [ipId, state] of sseTest.states) {
+      if (state.stage === "done" && state.result) {
+        setTestResults((prev) => {
+          if (prev.has(ipId)) return prev;
+          const next = new Map(prev).set(ipId, state.result!);
+          saveTestResults(next);
+          return next;
+        });
+      }
     }
-  }, [sseTest.result, sseTest.stage, testDialogIpId]);
+  }, [sseTest.states]);
 
   function handleTest(ip: EgressIP) {
     setTestDialogIpId(ip.id);
@@ -156,10 +159,14 @@ function EgressIPsPage() {
     });
   }
 
+  const dialogState = testDialogIpId
+    ? sseTest.states.get(testDialogIpId)
+    : undefined;
+
   // 弹窗只在点击已有结果时打开，检测过程中不自动弹窗
   const dialogOpen =
     testDialogIpId !== null &&
-    !sseTest.isRunning &&
+    !(dialogState?.isRunning ?? false) &&
     testResults.get(testDialogIpId) != null;
 
   return (
@@ -226,8 +233,9 @@ function EgressIPsPage() {
               egressIPs.map((ip) => {
                 const result = testResults.get(ip.id);
                 const actualIP = getActualIP(result);
-                const isTestingThis =
-                  sseTest.isRunning && testDialogIpId === ip.id;
+                const testState = sseTest.states.get(ip.id);
+                const isTestingThis = testState?.isRunning ?? false;
+                const stage = testState?.stage ?? null;
                 return (
                   <TableRow key={ip.id}>
                     <TableCell className="font-medium">{ip.label}</TableCell>
@@ -265,7 +273,7 @@ function EgressIPsPage() {
                         ip={ip}
                         result={result}
                         isTesting={isTestingThis}
-                        stage={sseTest.stage}
+                        stage={stage}
                         onClickResult={() => {
                           if (result) {
                             setTestDialogIpId(ip.id);
@@ -375,18 +383,18 @@ function EgressIPsPage() {
 
       <TestResultDialog
         result={
-          sseTest.stage === "done" || sseTest.stage === "error"
-            ? sseTest.result
+          dialogState?.stage === "done" || dialogState?.stage === "error"
+            ? (dialogState?.result ?? null)
             : testDialogIpId
               ? testResults.get(testDialogIpId) ?? null
               : null
         }
-        stage={sseTest.stage}
-        message={sseTest.message}
+        stage={dialogState?.stage ?? null}
+        message={dialogState?.message ?? ""}
         open={dialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            sseTest.stop();
+            if (testDialogIpId) sseTest.stop(testDialogIpId);
             setTestDialogIpId(null);
           }
         }}

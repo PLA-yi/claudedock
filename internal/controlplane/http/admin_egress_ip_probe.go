@@ -300,6 +300,39 @@ func resolveProbeNetworking(ctx context.Context, port int) []string {
 	return []string{"--network", "bridge", "-p", fmt.Sprintf("127.0.0.1:%d:%d", port, port)}
 }
 
+// verifySingBoxProxy 通过 SOCKS5 端口发送一个实际的 HTTP 请求，验证 sing-box
+// 不只是监听了端口，而是能真正转发流量。这可以捕获 musl/glibc 差异、
+// TLS 握手失败、配置不兼容等 sing-box 内部错误。
+func verifySingBoxProxy(port int) error {
+	d, err := proxy.SOCKS5("tcp", fmt.Sprintf("127.0.0.1:%d", port), nil, proxy.Direct)
+	if err != nil {
+		return fmt.Errorf("create SOCKS5 dialer: %w", err)
+	}
+	cd, ok := d.(contextDialer)
+	if !ok {
+		return fmt.Errorf("SOCKS5 dialer does not support DialContext")
+	}
+
+	client := &nethttp.Client{
+		Transport: &nethttp.Transport{
+			DialContext:       cd.DialContext,
+			DisableKeepAlives: true,
+		},
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := nethttp.NewRequest("GET", "http://connectivitycheck.gstatic.com/generate_204", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("SOCKS5 request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port int) (int, func(), error) {
 	configJSON, err := buildSingBoxConfig(proxyConfig, "0.0.0.0", port)
 	if err != nil {
@@ -365,7 +398,10 @@ func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port i
 		conn, dialErr := net.DialTimeout("tcp", addr, 300*time.Millisecond)
 		if dialErr == nil {
 			conn.Close()
-			return port, cleanupFn, nil
+			// 端口通了，再验证 SOCKS5 是否真的能转发 HTTP 请求（可捕获 musl 等导致的内部错误）
+			if err := verifySingBoxProxy(port); err == nil {
+				return port, cleanupFn, nil
+			}
 		}
 		time.Sleep(300 * time.Millisecond)
 	}
@@ -373,7 +409,7 @@ func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port i
 	logsCmd := exec.Command("docker", "logs", containerName)
 	logsOut, _ := logsCmd.CombinedOutput()
 	cleanupFn()
-	return 0, nil, fmt.Errorf("sing-box 启动超时（端口 %d）: %s", port, strings.TrimSpace(string(logsOut)))
+	return 0, nil, fmt.Errorf("sing-box 启动后代理请求失败（端口 %d），容器日志:\n%s", port, strings.TrimSpace(string(logsOut)))
 }
 
 func startSingBoxNative(ctx context.Context, proxyConfig json.RawMessage, port int) (int, func(), error) {

@@ -113,37 +113,42 @@ export interface ProbeStreamEvent {
   result?: TestResult;
 }
 
-export function useTestEgressIPSSE() {
-  const [state, setState] = useState<{
-    stage: ProbeStage | null;
-    message: string;
-    result: TestResult | null;
-    error: string | null;
-    isRunning: boolean;
-  }>({
-    stage: null,
-    message: "",
-    result: null,
-    error: null,
-    isRunning: false,
-  });
+export interface SingleTestState {
+  stage: ProbeStage | null;
+  message: string;
+  result: TestResult | null;
+  error: string | null;
+  isRunning: boolean;
+}
 
-  const abortRef = useRef<(() => void) | null>(null);
+export function useTestEgressIPSSE() {
+  const [states, setStates] = useState<Map<string, SingleTestState>>(
+    new Map(),
+  );
+  const abortRefs = useRef<Map<string, AbortController>>(new Map());
 
   const start = useCallback((ipId: string) => {
-    setState({
-      stage: "pulling",
-      message: "拉取探针镜像中...",
-      result: null,
-      error: null,
-      isRunning: true,
+    // 如果该 IP 已有正在运行的测试，先取消
+    const existing = abortRefs.current.get(ipId);
+    if (existing) existing.abort();
+
+    setStates((prev) => {
+      const next = new Map(prev);
+      next.set(ipId, {
+        stage: "pulling",
+        message: "拉取探针镜像中...",
+        result: null,
+        error: null,
+        isRunning: true,
+      });
+      return next;
     });
 
     const token = localStorage.getItem("admin_token");
     const url = `${window.location.origin}/v1/admin/egress-ips/${ipId}/test/stream`;
 
     const controller = new AbortController();
-    abortRef.current = () => controller.abort();
+    abortRefs.current.set(ipId, controller);
 
     fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -174,14 +179,19 @@ export function useTestEgressIPSSE() {
             const data = line.slice(6);
             try {
               const event: ProbeStreamEvent = JSON.parse(data);
-              setState((prev) => ({
-                ...prev,
-                stage: event.stage,
-                message: event.message,
-                result: event.result ?? prev.result,
-              }));
+              setStates((prev) => {
+                const next = new Map(prev);
+                const cur = next.get(ipId);
+                next.set(ipId, {
+                  stage: event.stage,
+                  message: event.message,
+                  result: event.result ?? cur?.result ?? null,
+                  error: cur?.error ?? null,
+                  isRunning: event.stage !== "done" && event.stage !== "error",
+                });
+                return next;
+              });
               if (event.stage === "done" || event.stage === "error") {
-                setState((prev) => ({ ...prev, isRunning: false }));
                 reader.cancel();
                 return;
               }
@@ -193,18 +203,30 @@ export function useTestEgressIPSSE() {
       })
       .catch((err) => {
         if (err.name === "AbortError") return;
-        setState((prev) => ({
-          ...prev,
-          error: err.message,
-          isRunning: false,
-        }));
+        setStates((prev) => {
+          const next = new Map(prev);
+          const cur = next.get(ipId);
+          next.set(ipId, {
+            stage: "error",
+            message: err.message,
+            result: cur?.result ?? null,
+            error: err.message,
+            isRunning: false,
+          });
+          return next;
+        });
       });
   }, []);
 
-  const stop = useCallback(() => {
-    abortRef.current?.();
-    setState((prev) => ({ ...prev, isRunning: false }));
+  const stop = useCallback((ipId: string) => {
+    abortRefs.current.get(ipId)?.abort();
+    setStates((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(ipId);
+      if (cur) next.set(ipId, { ...cur, isRunning: false });
+      return next;
+    });
   }, []);
 
-  return { ...state, start, stop };
+  return { states, start, stop };
 }
