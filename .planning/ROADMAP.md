@@ -5,7 +5,7 @@
 - ✅ **v1.0 MVP** — Phases 1-6 (shipped 2026-03-28) — [Archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 支持代理协议出网** — Phases 7-10 (shipped 2026-03-28) — [Archive](milestones/v1.1-ROADMAP.md)
 - ⏸️ **v1.2 用户自助面板与 Bootstrap 重设计** — Phases 11-16 (partially shipped, remaining deferred)
-- ⏸️ **v1.3 claude-shell 本地透明代理** — Phases 17-23 (paused)
+- 🗃️ **v1.3 claude-shell 本地透明代理** — Phases 17-23 (archived, capabilities merged into v3.2)
 - ✅ **v2.0 cloud-claude 透明远程 CLI** — Phases 24-28 (shipped 2026-04-15) — [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v3.0 远端开发体验升级** — Phases 29-35 (shipped 2026-04-23) — [Archive](milestones/v3.0-ROADMAP.md)
 - ✅ **v3.1 映射语义补齐与懒加载** — Phases 36-37 (shipped 2026-04-24) — [Archive](milestones/v3.1-ROADMAP.md)
@@ -48,15 +48,24 @@
 </details>
 
 <details>
-<summary>⏸️ v1.3 claude-shell 本地透明代理 (Phases 17-23) — PAUSED</summary>
+<summary>🗃️ v1.3 claude-shell 本地透明代理 (Phases 17-23) — ARCHIVED, capabilities merged into v3.2</summary>
 
-- [x] Phase 17: 镜像与 Entrypoint 基线 (17-01 + 17-02 gap closure 完成)
-- [ ] Phase 18: 网络隔离与分流
-- [ ] Phase 19: CLI 骨架与 Docker 编排
-- [ ] Phase 20: TTY 透传与交互体验
-- [ ] Phase 21: 指纹伪造与反检测
-- [ ] Phase 22: 验证与自检
-- [ ] Phase 23: 混淆构建与交付
+**Archive reason:** v1.3 的"本地容器"和"指纹伪装"能力与 v3.2 的 `cloud-claude local` 目标重叠。为避免维护两套本地 Docker 编排逻辑，v1.3 能力拆分并入 v3.2：
+- Phase 17 镜像基线 → 已并入 managed-user 镜像（v3.0+）
+- Phase 18 网络隔离 → 并入 v3.2 Phase 39（本地版 sing-box sidecar + veth 注入）
+- Phase 19 CLI 骨架 → 并入 v3.2 Phase 39（`cloud-claude local` 子命令）
+- Phase 20 TTY 透传 → 不再需要（本地 publish 端口，SSH 用系统 OpenSSH）
+- Phase 21 指纹伪造 → entrypoint `MODE=local` 深度伪装分支（快速任务级别）
+- Phase 22 验证自检 → `cloud-claude local verify` / `doctor --local`
+- Phase 23 混淆构建 → Makefile 构建脚本，不单独成里程碑
+
+- [x] Phase 17: 镜像与 Entrypoint 基线 (17-01 + 17-02 gap closure 完成，已并入 v3.0+ 镜像)
+- [ ] Phase 18: 网络隔离与分流 → **merged into v3.2 Phase 39**
+- [ ] Phase 19: CLI 骨架与 Docker 编排 → **merged into v3.2 Phase 39**
+- [ ] Phase 20: TTY 透传与交互体验 → **obsolete**（本地直连端口，无需 TTY 透传）
+- [ ] Phase 21: 指纹伪造与反检测 → **merged into v3.2 entrypoint `MODE=local` 分支**
+- [ ] Phase 22: 验证与自检 → **merged into v3.2 doctor 扩展**
+- [ ] Phase 23: 混淆构建与交付 → **deferred to build script**
 
 </details>
 
