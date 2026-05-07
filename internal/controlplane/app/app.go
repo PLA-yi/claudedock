@@ -133,6 +133,9 @@ func New(ctx context.Context, cfg Config) (*App, error) {
 			socketPath = p
 		}
 		reconciler = scheduler.NewReconciler(logger, repo, agentapi.NewClient(socketPath), runtimeService, 0)
+	} else {
+		// embedded 模式下没有 host-agent socket，inspector 直接调用 docker
+		reconciler = scheduler.NewReconciler(logger, repo, &dockerInspector{}, runtimeService, 0)
 	}
 
 	router := cphttp.NewRouter(cphttp.Dependencies{
@@ -337,4 +340,28 @@ func (a *App) rejoinHostNetworks() {
 	if joined > 0 {
 		a.logger.Info("rejoin-networks: connected to host networks", "count", joined, "total", len(networks))
 	}
+}
+
+// dockerInspector 在 embedded 模式下直接调用 docker container inspect，
+// 替代通过 host-agent socket 通信的 agentapi.Client。
+type dockerInspector struct{}
+
+func (d *dockerInspector) InspectContainer(ctx context.Context, containerName string) (agentapi.ContainerStatusResponse, error) {
+	cmd := exec.CommandContext(ctx, "docker", "container", "inspect",
+		"-f", "{{.State.Running}}", containerName)
+	out, err := cmd.Output()
+	if err != nil {
+		return agentapi.ContainerStatusResponse{
+			Name:    containerName,
+			Exists:  false,
+			Running: false,
+		}, nil
+	}
+
+	running := strings.TrimSpace(string(out)) == "true"
+	return agentapi.ContainerStatusResponse{
+		Name:    containerName,
+		Exists:  true,
+		Running: running,
+	}, nil
 }
