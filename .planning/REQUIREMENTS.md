@@ -13,7 +13,7 @@
   - 双向并发拷贝数据
   - 同一 SSH 连接支持多个 forwarding channel
 
-- [ ] **SSH-02**: SSH Proxy 支持 `tcpip-forward` 全局请求和 `forwarded-tcpip` channel
+- [x] **SSH-02**: SSH Proxy 支持 `tcpip-forward` 全局请求和 `forwarded-tcpip` channel — completed 2026-05-07 (038-02)
   - 处理客户端的 `tcpip-forward` 请求（远程端口转发）
   - 当远程端口有连接时，打开 `forwarded-tcpip` channel 回传客户端
 
