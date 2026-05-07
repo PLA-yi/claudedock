@@ -150,3 +150,91 @@ func (s *Server) handleDirectTCPIP(newChan ssh.NewChannel, targetAddr, targetUse
 
 	s.logger.Debug("direct-tcpip channel closed", "target", targetAddr, "raddr", msg.Raddr, "rport", msg.Rport)
 }
+
+// forwardedTCPPayload is the SSH wire format for forwarded-tcpip channel data.
+type forwardedTCPPayload struct {
+	Addr       string
+	Port       uint32
+	OriginAddr string
+	OriginPort uint32
+}
+
+// handleGlobalRequests consumes global requests from the client and forwards
+// tcpip-forward / cancel-tcpip-forward to the target container. Unknown
+// requests are rejected with Reply(false, nil). This goroutine runs for the
+// lifetime of the SSH connection and ensures globalReqs is continuously
+// consumed so the connection does not hang.
+func (s *Server) handleGlobalRequests(reqs <-chan *ssh.Request, targetClient ssh.Conn) {
+	for req := range reqs {
+		switch req.Type {
+		case "tcpip-forward", "cancel-tcpip-forward":
+			ok, resp, err := targetClient.SendRequest(req.Type, req.WantReply, req.Payload)
+			if err != nil {
+				s.logger.Warn("forward global request to target failed", "type", req.Type, "error", err)
+				if req.WantReply {
+					req.Reply(false, nil)
+				}
+				continue
+			}
+			if req.WantReply {
+				req.Reply(ok, resp)
+			}
+		default:
+			s.logger.Debug("unsupported global request", "type", req.Type)
+			if req.WantReply {
+				req.Reply(false, nil)
+			}
+		}
+	}
+}
+
+// proxyForwardedChannels receives forwarded-tcpip channel opens from the target
+// container and relays them to the SSH client. For each incoming channel, it
+// opens a corresponding forwarded-tcpip channel on the client side and copies
+// data bidirectionally.
+func (s *Server) proxyForwardedChannels(incoming <-chan ssh.NewChannel, clientConn ssh.Conn, targetAddr string) {
+	for newChan := range incoming {
+		var payload forwardedTCPPayload
+		if err := ssh.Unmarshal(newChan.ExtraData(), &payload); err != nil {
+			s.logger.Warn("forwarded-tcpip payload unmarshal failed", "error", err)
+			newChan.Reject(ssh.ConnectionFailed, "invalid payload")
+			continue
+		}
+
+		s.logger.Debug("forwarded-tcpip channel received", "target", targetAddr, "addr", payload.Addr, "port", payload.Port)
+
+		// Open forwarded-tcpip channel on the client side.
+		clientCh, clientReqs, err := clientConn.OpenChannel("forwarded-tcpip", newChan.ExtraData())
+		if err != nil {
+			s.logger.Warn("open forwarded-tcpip on client failed", "error", err)
+			newChan.Reject(ssh.ConnectionFailed, "failed to open client channel")
+			continue
+		}
+		go ssh.DiscardRequests(clientReqs)
+
+		targetCh, targetReqs, err := newChan.Accept()
+		if err != nil {
+			s.logger.Error("accept forwarded-tcpip channel failed", "error", err)
+			clientCh.Close()
+			continue
+		}
+		go ssh.DiscardRequests(targetReqs)
+
+		// Bidirectional concurrent copy.
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			io.Copy(clientCh, targetCh)
+			clientCh.CloseWrite()
+		}()
+		go func() {
+			defer wg.Done()
+			io.Copy(targetCh, clientCh)
+			targetCh.CloseWrite()
+		}()
+		wg.Wait()
+
+		s.logger.Debug("forwarded-tcpip channel closed", "target", targetAddr, "addr", payload.Addr, "port", payload.Port)
+	}
+}
