@@ -201,35 +201,45 @@ func (s *Server) handleConnection(netConn net.Conn, config *ssh.ServerConfig) {
 	targetPrivateKey := ext["target_private_key"]
 	s.logger.Info("SSH proxy session", "user", sshConn.User(), "target", targetAddr, "container_user", targetUser, "remote", netConn.RemoteAddr())
 
-	go ssh.DiscardRequests(globalReqs)
+	// Pre-dial the container to establish a shared SSH connection (SSH-02).
+	// All channels on this client connection share this single target connection,
+	// avoiding per-channel dial overhead and enabling forwarded-tcpip relay.
+	targetClient, err := s.dialContainer(targetAddr, targetUser, targetPassword, targetPrivateKey)
+	if err != nil {
+		s.logger.Error("dial container failed", "target", targetAddr, "error", err)
+		return
+	}
+	defer targetClient.Close()
+
+	// Replace go ssh.DiscardRequests(globalReqs) with handleGlobalRequests
+	// to forward tcpip-forward / cancel-tcpip-forward to the container (SSH-02).
+	go s.handleGlobalRequests(globalReqs, targetClient)
+
+	// Register forwarded-tcpip handler so channels opened by the container
+	// are relayed back to the SSH client (SSH-02).
+	if forwardedCh := targetClient.HandleChannelOpen("forwarded-tcpip"); forwardedCh != nil {
+		go s.proxyForwardedChannels(forwardedCh, sshConn, targetAddr)
+	}
 
 	for newChan := range chans {
 		switch newChan.ChannelType() {
 		case "session":
-			go s.handleChannel(newChan, targetAddr, targetUser, targetPassword, targetPrivateKey)
+			go s.handleChannel(newChan, targetClient, targetAddr)
 		case "direct-tcpip":
-			go s.handleDirectTCPIP(newChan, targetAddr, targetUser, targetPassword, targetPrivateKey)
+			go s.handleDirectTCPIP(newChan, targetClient, targetAddr)
 		default:
 			newChan.Reject(ssh.UnknownChannelType, fmt.Sprintf("channel type %s not supported", newChan.ChannelType()))
 		}
 	}
 }
 
-func (s *Server) handleChannel(newChan ssh.NewChannel, targetAddr, targetUser, targetPassword, targetPrivateKey string) {
+func (s *Server) handleChannel(newChan ssh.NewChannel, targetClient *ssh.Client, targetAddr string) {
 	clientChan, clientReqs, err := newChan.Accept()
 	if err != nil {
 		s.logger.Error("accept channel failed", "error", err)
 		return
 	}
 	defer clientChan.Close()
-
-	targetClient, err := s.dialContainer(targetAddr, targetUser, targetPassword, targetPrivateKey)
-	if err != nil {
-		s.logger.Error("dial container SSH failed", "addr", targetAddr, "user", targetUser, "error", err)
-		fmt.Fprintf(clientChan.Stderr(), "Failed to connect to container: %s\r\n", err.Error())
-		return
-	}
-	defer targetClient.Close()
 
 	targetChan, targetReqs, err := targetClient.OpenChannel("session", nil)
 	if err != nil {

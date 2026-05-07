@@ -93,7 +93,7 @@ func (s *Server) dialContainer(targetAddr, targetUser, targetPassword, targetPri
 // handleDirectTCPIP proxies a direct-tcpip channel request from the client
 // to the target container. It validates the target against the security
 // blocklist before forwarding.
-func (s *Server) handleDirectTCPIP(newChan ssh.NewChannel, targetAddr, targetUser, targetPassword, targetPrivateKey string) {
+func (s *Server) handleDirectTCPIP(newChan ssh.NewChannel, targetClient *ssh.Client, targetAddr string) {
 	var msg channelOpenDirectMsg
 	if err := ssh.Unmarshal(newChan.ExtraData(), &msg); err != nil {
 		s.logger.Warn("direct-tcpip payload unmarshal failed", "error", err)
@@ -115,14 +115,6 @@ func (s *Server) handleDirectTCPIP(newChan ssh.NewChannel, targetAddr, targetUse
 	}
 	defer clientChan.Close()
 	go ssh.DiscardRequests(clientReqs)
-
-	targetClient, err := s.dialContainer(targetAddr, targetUser, targetPassword, targetPrivateKey)
-	if err != nil {
-		s.logger.Error("dial container for direct-tcpip failed", "target", targetAddr, "error", err)
-		fmt.Fprintf(clientChan.Stderr(), "forwarding failed: %v\r\n", err)
-		return
-	}
-	defer targetClient.Close()
 
 	targetChan, targetReqs, err := targetClient.OpenChannel("direct-tcpip", ssh.Marshal(&msg))
 	if err != nil {
