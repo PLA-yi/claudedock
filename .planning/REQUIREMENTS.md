@@ -7,7 +7,7 @@
 
 ### Remote SSH 支持（SSH-REMOTE）
 
-- [ ] **SSH-01**: SSH Proxy 支持 `direct-tcpip` channel 转发
+- [x] **SSH-01**: SSH Proxy 支持 `direct-tcpip` channel 转发 — completed 2026-05-07 (038-01)
   - 解析 `direct-tcpip` payload（目标 host:port）
   - 通过已有 SSH 连接向容器侧请求 `direct-tcpip`
   - 双向并发拷贝数据
@@ -22,7 +22,7 @@
   - `AllowStreamLocalForwarding yes`
   - `GatewayPorts no`（安全：只允许本地转发）
 
-- [ ] **SSH-04**: SSH Proxy 对 forwarding 目标做安全校验
+- [x] **SSH-04**: SSH Proxy 对 forwarding 目标做安全校验 — completed 2026-05-07 (038-01)
   - 拒绝转发到管理网段（10.99.x.x）
   - 拒绝转发到 Docker socket、metadata 端点
   - 只允许转发到容器 netns 内地址或用户显式白名单
@@ -111,10 +111,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SSH-01 | Phase 38 | Pending |
+| SSH-01 | Phase 38 | Complete (038-01) |
 | SSH-02 | Phase 38 | Pending |
 | SSH-03 | Phase 38 | Pending |
-| SSH-04 | Phase 38 | Pending |
+| SSH-04 | Phase 38 | Complete (038-01) |
 | SSH-05 | Phase 40 | Pending |
 | LOCAL-01 | Phase 39 | Pending |
 | LOCAL-02 | Phase 39 | Pending |

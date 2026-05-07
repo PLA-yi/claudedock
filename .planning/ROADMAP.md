@@ -110,7 +110,7 @@
 
 **Milestone Goal:** 扩展容器接入方式，让 Cloud 版支持 VS Code Remote SSH，让本地版支持 VS Code Dev Containers，同时研究两套产品形态的最佳拆分/复用边界。
 
-- [ ] **Phase 38: SSH Proxy 端口转发支持** — direct-tcpip/tcpip-forward channel 转发 + sshd_config + 安全校验
+- [ ] **Phase 38: SSH Proxy 端口转发支持** — 1/3 plans complete: direct-tcpip channel 转发 + 安全校验
 - [ ] **Phase 39: 本地 Dev Containers 支持** — cloud-claude local 子命令 + devcontainer.json + entrypoint MODE 分支 + local down/status
 - [ ] **Phase 40: VS Code Remote-SSH E2E 验证** — VS Code 端到端连接验证 + 安全流量校验
 - [ ] **Phase 41: Doctor 扩展与收尾** — doctor remote-ssh 诊断维度 + 里程碑收尾
@@ -128,7 +128,7 @@
   4. 转发到管理网段 (10.99.x.x)、Docker socket、metadata 端点的请求被明确拒绝并记录
   5. 同一 SSH 连接支持多个并发 forwarding channel 而不互相干扰
 **Plans**: 3 plans
-- [ ] 038-01-PLAN.md — direct-tcpip channel 转发 + 安全校验（SSH-01, SSH-04）
+- [x] 038-01-PLAN.md — direct-tcpip channel 转发 + 安全校验（SSH-01, SSH-04） — completed 2026-05-07
 - [ ] 038-02-PLAN.md — tcpip-forward 全局请求透传 + forwarded-tcpip 回传（SSH-02）
 - [ ] 038-03-PLAN.md — sshd_config 验证 + forwarding 集成测试补充（SSH-03）
 
@@ -181,7 +181,7 @@ Phases execute in numeric order: 38 → 39 → 40 → 41
 | 24-28. v2.0 cloud-claude | v2.0 | 7/7 | Complete | 2026-04-15 |
 | 29-35. v3.0 远端开发体验升级 | v3.0 | 30/30 | Complete | 2026-04-23 |
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
-| 38. SSH Proxy 端口转发支持 | v3.2 | 0/TBD | Not started | — |
+| 38. SSH Proxy 端口转发支持 | v3.2 | 1/3 | In progress | — |
 | 39. 本地 Dev Containers 支持 | v3.2 | 0/TBD | Not started | — |
 | 40. VS Code Remote-SSH E2E 验证 | v3.2 | 0/TBD | Not started | — |
 | 41. Doctor 扩展与收尾 | v3.2 | 0/TBD | Not started | — |
