@@ -27,7 +27,7 @@
   - 拒绝转发到 Docker socket、metadata 端点
   - 只允许转发到容器 netns 内地址或用户显式白名单
 
-- [ ] **SSH-05**: VS Code Remote-SSH 端到端验证
+- [ ] **SSH-05**: VS Code Remote-SSH 端到端验证 → **Phase 43** gap closure (partial: SSH 连接通过，端口转发未验证)
   - VS Code 能连接 SSH Proxy 2222 端口
   - VS Code Server 能在容器内自动下载并启动
   - 端口转发（语言服务器、调试器）正常工作
@@ -35,35 +35,35 @@
 
 ### 本地 Dev Containers 支持（LOCAL）
 
-- [ ] **LOCAL-01**: `cloud-claude local` 子命令支持一键启动本地容器
+- [ ] **LOCAL-01**: `cloud-claude local` 子命令支持一键启动本地容器 → **Phase 42** gap closure
   - 不连接 control-plane/Entry API，直接调用本地 Docker
   - 自动拉取/构建 managed-user 镜像
   - 创建容器并 publish SSH 端口到宿主机
   - 输出连接信息（host, port, user, password）
 
-- [ ] **LOCAL-02**: 本地容器支持 Dev Containers 配置
+- [ ] **LOCAL-02**: 本地容器支持 Dev Containers 配置 → **Phase 42** gap closure
   - 项目根目录 `.devcontainer/devcontainer.json` 模板
   - 引用 managed-user 镜像
   - `workspaceMount` bind mount 当前目录到 `/workspace`
   - `runArgs` 包含 `--cap-add SYS_ADMIN --device /dev/fuse`
 
-- [ ] **LOCAL-03**: 本地容器支持 sing-box 全隧道（可选配置）
+- [ ] **LOCAL-03**: 本地容器支持 sing-box 全隧道（可选配置） → **Phase 42** gap closure
   - 通过 `cloud-claude local --egress-config <file>` 注入 sing-box outbound JSON
   - 容器内 sing-box 自动启动 tun 模式
   - 本地宿主机 macOS 上支持 SOCKS/HTTP 代理模式兜底
 
-- [ ] **LOCAL-04**: entrypoint 支持 `MODE=local` 分支
+- [ ] **LOCAL-04**: entrypoint 支持 `MODE=local` 分支 → **Phase 42** gap closure
   - 本地模式跳过 KasmVNC 启动（节省资源）
   - 本地模式跳过 control-plane 心跳
   - 本地模式仍启动 sshd + sing-box
 
 ### 安全与验证（SEC）
 
-- [ ] **SEC-01**: 验证 `direct-tcpip` 转发流量走 sing-box tun
+- [ ] **SEC-01**: 验证 `direct-tcpip` 转发流量走 sing-box tun → **Phase 43** gap closure
   - 通过 VS Code 端口转发访问外部服务时，出口 IP 必须是绑定的 egress IP
   - 不能出现绕过 tun 直接走宿主机路由的情况
 
-- [ ] **SEC-02**: VS Code Server 下载/扩展安装流量也走受控出口
+- [ ] **SEC-02**: VS Code Server 下载/扩展安装流量也走受控出口 → **Phase 43** gap closure
   - `update.code.visualstudio.com` 等域名通过 sing-box 出站
   - 不因为 VS Code 的流量破坏出口 IP 强约束
 
@@ -74,7 +74,7 @@
   - 检测 `~/.vscode-server/` 磁盘占用
   - 检测 forwarding channel 是否被拦截
 
-- [ ] **UX-02**: `cloud-claude local` 支持 `down` / `status` 子命令
+- [ ] **UX-02**: `cloud-claude local` 支持 `down` / `status` 子命令 → **Phase 42** gap closure
   - `local down` 停止并清理本地容器
   - `local status` 显示本地容器运行状态、端口映射
 
@@ -115,21 +115,23 @@
 | SSH-02 | Phase 38 | Complete (038-02) |
 | SSH-03 | Phase 38 | Complete (038-03) |
 | SSH-04 | Phase 38 | Complete (038-01) |
-| SSH-05 | Phase 40 | Pending |
-| LOCAL-01 | Phase 39 | Pending |
-| LOCAL-02 | Phase 39 | Pending |
-| LOCAL-03 | Phase 39 | Pending |
-| LOCAL-04 | Phase 39 | Pending |
-| SEC-01 | Phase 40 | Pending |
-| SEC-02 | Phase 40 | Pending |
-| UX-01 | Phase 41 | Pending |
-| UX-02 | Phase 39 | Pending |
+| SSH-05 | Phase 43 (gap closure) | Pending |
+| LOCAL-01 | Phase 42 (gap closure) | Pending |
+| LOCAL-02 | Phase 42 (gap closure) | Pending |
+| LOCAL-03 | Phase 42 (gap closure) | Pending |
+| LOCAL-04 | Phase 42 (gap closure) | Pending |
+| SEC-01 | Phase 43 (gap closure) | Pending |
+| SEC-02 | Phase 43 (gap closure) | Pending |
+| UX-01 | Phase 41 | Complete (41-VERIFICATION) |
+| UX-02 | Phase 42 (gap closure) | Pending |
 
 **Coverage:**
 - v3.2 requirements: 13 total
+- Satisfied: 5 (SSH-01~04, UX-01)
+- Pending: 8 (gap closure: Phase 42 x5, Phase 43 x3)
 - Mapped to phases: 13
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-07 after roadmap creation*
+*Last updated: 2026-05-08 after v3.2 milestone audit*
