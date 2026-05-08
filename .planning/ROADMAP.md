@@ -112,7 +112,7 @@
 
 - [x] **Phase 38: SSH Proxy 端口转发支持** — 3/3 plans complete: direct-tcpip + 安全校验 + tcpip-forward/forwarded-tcpip 透传 + sshd_config 验证 — completed 2026-05-07
 - [x] **Phase 39: 本地 Dev Containers 支持** — cloud-claude local 子命令 + devcontainer.json + entrypoint MODE 分支 + local down/status (completed 2026-05-07)
-- [ ] **Phase 40: VS Code Remote-SSH E2E 验证** — VS Code 端到端连接验证 + 安全流量校验
+- [x] **Phase 40: VS Code Remote-SSH E2E 验证** — VS Code 端到端连接验证 + 安全流量校验 (completed 2026-05-08)
 - [ ] **Phase 41: Doctor 扩展与收尾** — doctor remote-ssh 诊断维度 + 里程碑收尾
 
 ## Phase Details
@@ -186,7 +186,7 @@ Phases execute in numeric order: 38 → 39 → 40 → 41
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
 | 38. SSH Proxy 端口转发支持 | v3.2 | 3/3 | Complete | 2026-05-07 |
 | 39. 本地 Dev Containers 支持 | v3.2 | Complete    | 2026-05-07 | — |
-| 40. VS Code Remote-SSH E2E 验证 | v3.2 | 0/TBD | Not started | — |
+| 40. VS Code Remote-SSH E2E 验证 | 2/2 | Complete   | 2026-05-08 | — |
 | 41. Doctor 扩展与收尾 | v3.2 | 0/TBD | Not started | — |
 
 ---
