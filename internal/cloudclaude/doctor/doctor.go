@@ -205,6 +205,8 @@ func RunDoctor(ctx context.Context, opts Options) (*Report, error) {
 		report.Checks = append(report.Checks, checkKeepaliveConfig(ctx, kaInterval))
 		report.Checks = append(report.Checks, runWithTimeout(ctx, "ssh", "sshd_keepalive_drift", timeout,
 			func(c context.Context) Check { return checkSSHDKeepaliveDrift(c, remoteRunner) }))
+		report.Checks = append(report.Checks, runWithTimeout(ctx, "ssh", "sshd_forwarding", timeout,
+			func(c context.Context) Check { return checkSSHDForwarding(c, remoteRunner) }))
 		khPath := defaultKnownHostsPath()
 		hostPort := ""
 		if authResp != nil {
