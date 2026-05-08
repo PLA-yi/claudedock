@@ -186,7 +186,8 @@
   3. entrypoint `MODE=local` 跳过 KasmVNC、保留 sshd + sing-box
   4. `--egress-config` 注入 tun 和 proxy 模式均工作正常
   5. 生成 Phase 39-VERIFICATION.md，所有 5 个需求标记 SATISFIED
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 42-01-PLAN.md — 运行自动化验证 + 生成 39-VERIFICATION.md + Docker 集成确认
 
 ### Phase 43: VS Code Remote-SSH 端口转发 E2E 补齐
 **Goal**: 完成 VS Code Remote-SSH 端口转发 + egress 流量的端到端验证，生成标准 VERIFICATION.md
@@ -230,7 +231,7 @@ Phases execute in numeric order: 38 → 39 → 40 → 41
 | 39. 本地 Dev Containers 支持 | v3.2 | Complete    | 2026-05-07 | — |
 | 40. VS Code Remote-SSH E2E 验证 | v3.2 | 2/2 | Complete | 2026-05-08 |
 | 41. Doctor 扩展与收尾 | v3.2 | 2/2 | Complete | 2026-05-08 |
-| 42. Phase 39 验证补齐 | v3.2 | 0/? | In Progress | — |
+| 42. Phase 39 验证补齐 | v3.2 | 0/1 | In Progress | — |
 | 43. VS Code 端口转发 E2E 补齐 | v3.2 | 0/? | In Progress | — |
 | 44. doctor sshd_config 验证 | v3.2 | 0/? | In Progress | — |
 
