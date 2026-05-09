@@ -534,6 +534,48 @@ curl -s "http://YOUR_HOST:8080/v1/admin/events?since=2026-03-01T00:00:00Z&until=
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## 实时推送（SSE）
+
+管理后台和用户面板可通过 SSE（Server-Sent Events）订阅实时事件，无需轮询。
+
+### 管理员 SSE
+
+```bash
+curl -N -H "Authorization: Bearer $TOKEN" \
+  "http://YOUR_HOST:8080/v1/admin/sse?topics=hosts,tasks,image-status"
+```
+
+### 用户 SSE
+
+```bash
+curl -N -H "Authorization: Bearer $TOKEN" \
+  "http://YOUR_HOST:8080/v1/user/sse?topics=hosts,tasks"
+```
+
+### 查询参数
+
+| 参数 | 说明 |
+|------|------|
+| `topics` | 逗号分隔的主题列表，可选值：`hosts`、`tasks`、`image-status` |
+
+### 事件格式
+
+每条事件为 JSON 行（newline-delimited JSON）：
+
+```json
+event: message
+data: {"topic":"tasks","action":"update","id":"task-uuid"}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `topic` | 事件主题：`hosts`、`tasks`、`image-status` |
+| `action` | 操作类型：`update`、`create`、`delete` |
+| `id` | 关联资源 ID（可选） |
+| `payload` | 额外载荷（可选） |
+
+前端收到事件后，建议使用 `queryClient.invalidateQueries()` 刷新对应缓存。
+
 ## 仪表盘
 
 ```bash

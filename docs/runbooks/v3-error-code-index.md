@@ -1,6 +1,6 @@
 # v3.0 错误码索引（v3.0+）
 
-> 适用版本：v3.0 起；对应阶段 Phase 31-34（errcodes 注册表 + cloud-claude explain）
+> 适用版本：v3.0 起；对应阶段 Phase 31-34（errcodes 注册表 + cloud-claude explain），v3.4 追加 Phase 38-44
 > 关联需求：M13（禁止静默降级 → 每次降级必带 reason_code） / M14（doctor 输出含错误码） / SC#9（运维手册收口）
 
 ---
@@ -41,7 +41,7 @@ v3.0 起，所有用户可见的异常都通过 `internal/cloudclaude/errcodes` 
 ```bash
 grep -hE 'Code\s*=\s*"[A-Z]+_[A-Z]+' internal/cloudclaude/errcodes/*.go \
   | awk -F'"' '{print $2}' | sort -u | wc -l
-# 期望 ≥ 42（v3.0 收尾时为 43）
+# 期望 ≥ 51（v3.4 收尾时为 51）
 ```
 
 反向一致性 diff（应输出空）：
@@ -73,7 +73,9 @@ comm -23 \
 |------|----------|-----------------|---------------------|----------|
 | DISK_LOCAL_LOW          | WARN | 本地 ~/.cloud-claude/ 可用空间 < 500MB              | 清理 ~/.cloud-claude/mutagen/ 或释放本地磁盘                       | ✅ |
 | DISK_CONTAINER_LOW      | WARN | 容器内 /workspace 可用空间 < 100MB                  | 清理容器内大文件，或联系管理员扩容 volume                          | ✅ |
-| DISK_MUTAGEN_DATA_BLOAT | WARN | Mutagen 数据目录 ~/.cloud-claude/mutagen/ > 1GB     | 运行 mutagen daemon stop && rm -rf ~/.cloud-claude/mutagen/sessions/ | ✅ |
+| DISK_HOTSYNC_DATA_BLOAT | WARN | 热同步数据目录 ~/.cloud-claude/mutagen/ > 1GB       | 运行 mutagen daemon stop && rm -rf ~/.cloud-claude/mutagen/sessions/ | ✅ |
+| DISK_VSCODE_SERVER_WARN | WARN | ~/.vscode-server/ 占用 %dMB，超过 500MB 警戒线     | 清理 ~/.vscode-server/extensions-cache/ 或删除不常用的扩展          | ✅ |
+| DISK_VSCODE_SERVER_BLOAT | ERROR | ~/.vscode-server/ 占用 %dMB，超过 2GB 严重警戒线   | 运行 rm -rf ~/.vscode-server/ 完全清理（VS Code 重连时会自动重建） | ✅ |
 
 ### 3.3 MOUNT_*（Mutagen / sshfs / mergerfs 三层）
 
@@ -92,6 +94,11 @@ comm -23 \
 | MOUNT_AUTO_DOWNGRADED            | WARN  | 文件映射已从 %s 降级到 %s（M13 留痕）                     | 运行 cloud-claude doctor mount 查看详细修复建议                    | ✅ |
 | MOUNT_FORCE_MODE_FAILED          | FATAL | --mount-mode=%s 强制模式下某层失败                        | 移除 --mount-mode flag 让自动降级生效                             | ✅ |
 | MOUNT_APFS_CASE_INSENSITIVE      | INFO  | 检测到 macOS APFS case-insensitive，已强制 two-way-resolved | 无需操作；如需 case-sensitive 请创建 case-sensitive APFS 卷       | — |
+| MOUNT_REQUIRE_GIT_REPO           | ERROR | 当前目录 %s 不在 git 仓库内，cloud-claude 拒绝挂载以避免误同步整个家目录 | cd 到 git 仓库根目录后重试，或在当前目录运行 git init 后再启动 cloud-claude       | ✅ |
+| MOUNT_OVERSIZED_FILE_SKIPPED     | WARN  | %s (%dMB) 超过 hot_sync_max_file_mb=%d 阈值，已跳过热同步，由 cold sshfs 兜底 | 编辑 ~/.cloud-claude/config.yaml 调整 hot_sync_max_file_mb，或在 .gitignore 加入该路径 | ✅ |
+| MOUNT_GIT_PROXY_DISABLED         | WARN  | proxy_commands 未包含 git，git 子命令不会走本地代理转发         | 编辑 ~/.cloud-claude/config.yaml 的 proxy_commands 字段加入 git 后重启 cloud-claude | ✅ |
+| MOUNT_DEFAULT_IGNORE_DISABLED    | WARN  | CLOUD_CLAUDE_NO_DEFAULT_IGNORE=1，默认二进制黑名单已禁用，大文件可能进入热同步 | 如非排查需要，请 unset CLOUD_CLAUDE_NO_DEFAULT_IGNORE 后重启 cloud-claude          | ✅ |
+| MOUNT_PROMOTER_FAILED            | WARN  | 远程 cold-promoter 启动失败: %s，降级为无晋升模式（cold 分支仍可读写） | 检查容器内 SSH session 是否可用，或设 CLOUD_CLAUDE_NO_PROMOTION=1 禁用晋升          | ✅ |
 
 ### 3.4 NET_*（OAuth / Reconnect / Egress IP）
 
@@ -121,8 +128,15 @@ comm -23 \
 
 | Code | Severity | Message（摘要） | NextAction（摘要） | Extended |
 |------|----------|-----------------|---------------------|----------|
-| SSH_KNOWN_HOSTS_CONFLICT | WARN | ~/.ssh/known_hosts 中 %s fingerprint 与本次握手不一致     | 运行 cloud-claude doctor ssh --fix 自动 ssh-keygen -R                              | ✅ |
-| SSH_SSHD_KEEPALIVE_DRIFT | WARN | 远端 sshd ClientAlive 配置与基线 (15/8) 不一致           | 重建容器以恢复基线（参考 deploy/docker/managed-user/sshd_config）                  | ✅ |
+| SSH_KNOWN_HOSTS_CONFLICT           | WARN | ~/.ssh/known_hosts 中 %s fingerprint 与本次握手不一致              | 运行 cloud-claude doctor ssh --fix 自动 ssh-keygen -R                              | ✅ |
+| SSH_SSHD_KEEPALIVE_DRIFT           | WARN | 远端 sshd ClientAlive 配置与基线 (15/8) 不一致                   | 重建容器以恢复基线（参考 deploy/docker/managed-user/sshd_config）                  | ✅ |
+| SSH_VSCODE_SERVER_NOT_RUNNING      | INFO | VS Code Server 进程未运行（用户可能未使用 VS Code Remote-SSH）   | 无需操作；如需使用 VS Code Remote-SSH，请通过 VS Code 连接容器                     | ✅ |
+| SSH_VSCODE_PORT_NOT_LISTENING      | WARN | VS Code Server 进程存在但未监听端口，服务可能未就绪               | 等待 VS Code Server 完成启动，或重启 VS Code Remote-SSH 连接                       | ✅ |
+| SSH_FORWARDING_SOCKET_MISSING      | INFO | SSH forwarding socket 不存在（可能未建立 VS Code forwarding）    | 无需操作；forwarding 会在 VS Code Remote-SSH 连接时自动建立                        | ✅ |
+| SSH_FORWARDING_BLOCKED             | WARN | 检测到 OUTPUT 链存在 DROP 规则，可能拦截 SSH forwarding 流量    | 检查容器内 iptables OUTPUT 链规则，确认 forwarding 流量未被拦截                    | ✅ |
+| SSH_SSHD_FORWARDING_DISABLED       | WARN | 远端 sshd AllowTcpForwarding 未开启（当前值: %s），端口转发不可用 | 检查 deploy/docker/managed-user/sshd_config 并重建容器恢复基线                      | ✅ |
+| SSH_SSHD_STREAM_FORWARDING_DISABLED | WARN | 远端 sshd AllowStreamLocalForwarding 未开启（当前值: %s）        | 检查 deploy/docker/managed-user/sshd_config 并重建容器恢复基线                      | ✅ |
+| SSH_SSHD_GATEWAY_PORTS_OPEN        | WARN | 远端 sshd GatewayPorts 非 no（当前值: %s），可能导致外部暴露    | 将 GatewayPorts 改为 no 并重启 sshd，或重建容器                                    | ✅ |
 
 ### 3.7 STATE_*（持久化 / volume / 容器状态）
 
@@ -160,7 +174,7 @@ cloud-claude explain MOUNT_MERGERFS_FAILED
 cloud-claude explain STATE_VOLUME_IN_USE_001
 ```
 
-豁免长说明的 4 条 informational：`MOUNT_APFS_CASE_INSENSITIVE` / `SESSION_TAKEOVER_NOTIFIED` / `NET_RECONNECT_BACKOFF` / `STATE_LAST_SESSION_MISSING`（登记在 `explanations.go::ExplainExempt`）。
+豁免长说明的 6 条 informational：`MOUNT_APFS_CASE_INSENSITIVE` / `SESSION_TAKEOVER_NOTIFIED` / `NET_RECONNECT_BACKOFF` / `STATE_LAST_SESSION_MISSING` / `SSH_VSCODE_SERVER_NOT_RUNNING` / `SSH_FORWARDING_SOCKET_MISSING`（登记在 `explanations.go::ExplainExempt`）。
 
 ### 4.3 新增错误码的 PR checklist
 
@@ -183,6 +197,10 @@ cloud-claude explain STATE_VOLUME_IN_USE_001
 - `NET_EGRESS_IP_DRIFT` — Warn 级，Phase 29 隧道强制层 + Phase 34 doctor network.egress_ip_visible；与项目核心价值「严格出网受控」直接关联
 - `MOUNT_APFS_CASE_INSENSITIVE` — Info 级，Phase 31 macOS APFS 检测；Phase 35 真机验收（M5）专项覆盖
 - `SESSION_SYNC_LOCKED` — Warn 级，Phase 32 D-17 sync_lock 互斥保护；secondary client 走 sshfs 只读视图
+- `SSH_VSCODE_SERVER_NOT_RUNNING` / `SSH_VSCODE_PORT_NOT_LISTENING` / `SSH_FORWARDING_SOCKET_MISSING` / `SSH_FORWARDING_BLOCKED` — Phase 41 remote-ssh doctor 维度；VS Code Remote-SSH 兼容性检测
+- `DISK_VSCODE_SERVER_WARN` / `DISK_VSCODE_SERVER_BLOAT` — Phase 41；~/.vscode-server/ 磁盘占用监控
+- `SSH_SSHD_FORWARDING_DISABLED` / `SSH_SSHD_STREAM_FORWARDING_DISABLED` / `SSH_SSHD_GATEWAY_PORTS_OPEN` — Phase 44；sshd_config 基线安全校验，与 Phase 38 SSH Proxy 端口转发直接关联
+- `MOUNT_REQUIRE_GIT_REPO` / `MOUNT_OVERSIZED_FILE_SKIPPED` / `MOUNT_GIT_PROXY_DISABLED` / `MOUNT_DEFAULT_IGNORE_DISABLED` / `MOUNT_PROMOTER_FAILED` — Phase 39 本地 Dev Containers + hot-sync 加固；WR-01 修复 AUTH_CONFIG_MISSING 误用
 
 ---
 
@@ -202,7 +220,7 @@ bash scripts/ci-doctor-grep.sh ./cloud-claude
 
 - `internal/cloudclaude/errcodes/codes.go::Registry` / `::Format` / `::MustRegister` — 注册表 API
 - `internal/cloudclaude/errcodes/explanations.go::ExtendedExplanations` / `::ExplainExempt` — 长说明 + 豁免登记
-- `internal/cloudclaude/errcodes/{auth,disk,mount,net,session,ssh,state,system}.go` — 各域 init 登记
+- `internal/cloudclaude/errcodes/{auth,disk,mount,net,session,ssh,state,system,remote_ssh}.go` — 各域 init 登记
 - `internal/cloudclaude/doctor/render.go` — 文本/JSON 双渲染含错误码
 - `cmd/cloud-claude/explain.go` — `cloud-claude explain <code>` 子命令实现
 - `scripts/ci-doctor-grep.sh` — M14 三段断言含错误码格式

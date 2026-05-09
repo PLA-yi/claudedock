@@ -15,7 +15,7 @@
        │                          │                                │
        │                   ┌──────┴───────┐               ┌───────┴─────────┐
        │                   │  Admin SPA   │               │  指定出口 IP     │
-       └──── SSH ────────> │  (:3000)     │               │  (受控路由)      │
+       └──── SSH ────────> │  (:80/nginx) │               │  (受控路由)      │
            代理 :2222      └──────────────┘               └─────────────────┘
 ```
 
@@ -209,12 +209,24 @@ cloud-cli-proxy/
 │   ├── controlplane/           # HTTP 路由、业务逻辑、到期扫描、状态协调
 │   │   ├── http/               # 路由注册和中间件
 │   │   ├── app/                # 应用生命周期和依赖组装
-│   │   └── admin/              # 管理员 API 处理器
+│   │   ├── admin/              # 管理员 API 处理器
+│   │   ├── scheduler/          # 到期扫描和定时任务调度
+│   │   └── credgen/            # 凭证生成（SSH 密码、JWT Secret）
 │   ├── agent/                  # host-agent 服务端
+│   ├── agentapi/               # host-agent API 客户端（控制面调用 agent）
+│   ├── broadcast/              # SSE 实时事件广播（topic-based pub/sub）
+│   ├── cloudclaude/            # cloud-claude CLI 内部库
+│   │   ├── doctor/             # 五维度自检排障 + --fix 自动修复
+│   │   └── errcodes/           # 错误码注册表（8 域 51 条）
+│   ├── local/                  # cloud-claude local Dev Containers 工作流
 │   ├── network/                # nftables / sing-box 网络配置
 │   ├── runtime/                # 任务运行时、Docker 容器生命周期
+│   │   └── tasks/              # 异步任务定义和执行器
 │   ├── sshproxy/               # SSH 代理（转发到容器 22 端口）
 │   └── store/                  # 数据库迁移和查询（pgx）
+│       ├── migrations/         # SQL 迁移文件
+│       ├── migrator/           # 迁移执行引擎
+│       └── repository/         # 数据访问层
 ├── web/admin/                  # React 管理后台（TanStack Router + Query）
 ├── deploy/
 │   ├── docker/                 # 4 个 Dockerfile
@@ -236,8 +248,8 @@ cloud-cli-proxy/
 
 | 层 | 技术 |
 |----|------|
-| 后端 | Go 1.25.7, net/http 标准库, pgx v5 |
-| 前端 | React 19, TypeScript, Vite, Tailwind CSS, TanStack Router/Query |
+| 后端 | Go 1.26.1, net/http 标准库, pgx v5 |
+| 前端 | React 19.2, TypeScript, Vite, Tailwind CSS, TanStack Router/Query |
 | 数据库 | PostgreSQL 18 |
 | 容器 | Docker Engine 28, Ubuntu 24.04 用户镜像 |
 | 网络 | sing-box tun + Linux netns, nftables |

@@ -48,7 +48,8 @@ Gap closure 链（Phase 42/43/44）
 ## Backlog（待后续里程碑收敛）
 
 - **ENH-NEXT-01** 容器预热与空闲回收策略（控制面资源调度）
-- **ENH-NEXT-02** 性能 metrics 实时上报到 admin 后台（首连耗时、mount 模式、抖动事件分布）
+- **✓ SSE 实时推送基础设施** — 控制面 topic-based pub/sub + `/v1/admin/sse` + `/v1/user/sse`，前端无需轮询（v3.4 已完成）
+- **ENH-NEXT-02** 性能 metrics 数据上报与可视化（首连耗时、mount 模式、抖动事件分布 → 接入 SSE 通道）
 - **ENH-NEXT-03** admin 后台 host 详情页展示 mount 模式 / session 数 / persistent volume 列表
 - **ENH-NEXT-04** 自研 hot-sync spec doc 修订（v3.0 隐式设计变更）
 - **ENH-NEXT-05** `~/.vscode-server` 持久化 volume（容器重建后保留扩展和设置）

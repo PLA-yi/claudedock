@@ -15,7 +15,7 @@
        │                          │                                │
        │                   ┌──────┴───────┐               ┌───────┴─────────┐
        │                   │  Admin SPA   │               │  Designated     │
-       └──── SSH ────────> │  (:3000)     │               │  Exit IP        │
+       └──── SSH ────────> │  (:80/nginx) │               │  Exit IP        │
            proxy :2222     └──────────────┘               └─────────────────┘
 ```
 
@@ -209,12 +209,24 @@ cloud-cli-proxy/
 │   ├── controlplane/           # HTTP routes, business logic, expiry scanner, reconciler
 │   │   ├── http/               # Route registration and middleware
 │   │   ├── app/                # App lifecycle and dependency assembly
-│   │   └── admin/              # Admin API handlers
+│   │   ├── admin/              # Admin API handlers
+│   │   ├── scheduler/          # Expiry scanner and scheduled task scheduler
+│   │   └── credgen/            # Credential generation (SSH passwords, JWT secrets)
 │   ├── agent/                  # Host-agent server
+│   ├── agentapi/               # Host-agent API client (control plane calls agent)
+│   ├── broadcast/              # SSE real-time event broadcast (topic-based pub/sub)
+│   ├── cloudclaude/            # cloud-claude CLI internal library
+│   │   ├── doctor/             # Five-domain self-check + --fix auto-repair
+│   │   └── errcodes/           # Error code registry (8 domains, 51 codes)
+│   ├── local/                  # cloud-claude local Dev Containers workflow
 │   ├── network/                # nftables / sing-box networking
 │   ├── runtime/                # Task runtime, Docker container lifecycle
+│   │   └── tasks/              # Async task definitions and executors
 │   ├── sshproxy/               # SSH proxy (forwards to container port 22)
 │   └── store/                  # Database migrations and queries (pgx)
+│       ├── migrations/         # SQL migration files
+│       ├── migrator/           # Migration execution engine
+│       └── repository/         # Data access layer
 ├── web/admin/                  # React admin dashboard (TanStack Router + Query)
 ├── deploy/
 │   ├── docker/                 # 4 Dockerfiles
@@ -236,8 +248,8 @@ cloud-cli-proxy/
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Go 1.25.7, net/http stdlib, pgx v5 |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS, TanStack Router/Query |
+| Backend | Go 1.26.1, net/http stdlib, pgx v5 |
+| Frontend | React 19.2, TypeScript, Vite, Tailwind CSS, TanStack Router/Query |
 | Database | PostgreSQL 18 |
 | Containers | Docker Engine 28, Ubuntu 24.04 user image |
 | Networking | sing-box tun + Linux netns, nftables |

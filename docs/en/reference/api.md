@@ -534,6 +534,48 @@ curl -s "http://YOUR_HOST:8080/v1/admin/events?since=2026-03-01T00:00:00Z&until=
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## Real-time Push (SSE)
+
+Admin dashboard and user portal can subscribe to real-time events via SSE (Server-Sent Events) without polling.
+
+### Admin SSE
+
+```bash
+curl -N -H "Authorization: Bearer $TOKEN" \
+  "http://YOUR_HOST:8080/v1/admin/sse?topics=hosts,tasks,image-status"
+```
+
+### User SSE
+
+```bash
+curl -N -H "Authorization: Bearer $TOKEN" \
+  "http://YOUR_HOST:8080/v1/user/sse?topics=hosts,tasks"
+```
+
+### Query Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `topics`  | Comma-separated topic list. Values: `hosts`, `tasks`, `image-status` |
+
+### Event Format
+
+Each event is a JSON line (newline-delimited JSON):
+
+```json
+event: message
+data: {"topic":"tasks","action":"update","id":"task-uuid"}
+```
+
+| Field     | Description                                          |
+|-----------|------------------------------------------------------|
+| `topic`   | Event topic: `hosts`, `tasks`, `image-status`        |
+| `action`  | Action type: `update`, `create`, `delete`            |
+| `id`      | Associated resource ID (optional)                    |
+| `payload` | Additional payload (optional)                        |
+
+After receiving an event, frontends should call `queryClient.invalidateQueries()` to refresh the corresponding cache.
+
 ## Dashboard
 
 ```bash
