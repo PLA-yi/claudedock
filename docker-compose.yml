@@ -60,5 +60,17 @@ services:
     restart: "no"
     command: ["true"]
 
+  managed-user:
+    image: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
+    pull_policy: always
+    restart: "no"
+    command: ["true"]
+
+  sing-box:
+    image: ghcr.io/sagernet/sing-box:v1.13.3
+    pull_policy: always
+    restart: "no"
+    command: ["true"]
+
 volumes:
   cloudproxy-postgres:

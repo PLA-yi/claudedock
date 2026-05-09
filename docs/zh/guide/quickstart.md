@@ -410,7 +410,7 @@ make dev
 
 启动后可访问：
 
-- Admin 前端：`http://localhost:5173`
+- Admin 前端：`http://localhost:2568`
 - Control Plane API：`http://127.0.0.1:8090`
 
 ### 6. 基础验证与测试

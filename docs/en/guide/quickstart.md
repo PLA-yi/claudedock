@@ -408,7 +408,7 @@ make dev
 
 After startup:
 
-- Admin frontend: `http://localhost:5173`
+- Admin frontend: `http://localhost:2568`
 - Control Plane API: `http://127.0.0.1:8090`
 
 ### 6. Verify and Run Tests
