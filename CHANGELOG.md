@@ -4,6 +4,37 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v3.4.1 - 2026-05-10
+## What's Changed
+
+### Backend (Go / API)
+- feat(sse): add server-sent events broadcast system for real-time updates (e32b004)
+- feat(network): Linux iptables 端口转发 + docker compose 预拉取镜像 + Admin 端口 2568 (195584d)
+- feat(cli): 认证失败时支持交互式重试用户名密码 (c50ab42)
+
+### Frontend (Admin Web)
+- chore: 全面迁移到 pnpm，修复 CI 构建失败 (5f54dd6)
+- feat(admin): integrate SSE live updates and overhaul host detail page (a5e56f1)
+- style(admin): unify list page status colors via tokens and StatusDot (900dae9)
+- style(admin): elevate empty state and use TableSkeleton across list pages (ac85d0b)
+- feat(admin): add TableSkeleton component for differentiated loading state (c68f1a5)
+- style(admin): emphasize table headers and relax row density (83f6cbb)
+- feat(admin): add StatusDot component using semantic tokens (6e3e0f0)
+- feat(admin): add success/warning/info semantic tokens (f0fa9ee)
+- feat(network): Linux iptables 端口转发 + docker compose 预拉取镜像 + Admin 端口 2568 (195584d)
+
+### Runtime & Deployment
+- chore: 全面迁移到 pnpm，修复 CI 构建失败 (5f54dd6)
+- feat(network): Linux iptables 端口转发 + docker compose 预拉取镜像 + Admin 端口 2568 (195584d)
+
+### Docs
+- chore: 全面迁移到 pnpm，修复 CI 构建失败 (5f54dd6)
+- docs: sync all docs for v3.4 — SSE, local Dev Containers, error codes, architecture (54c3e62)
+- feat(network): Linux iptables 端口转发 + docker compose 预拉取镜像 + Admin 端口 2568 (195584d)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v3.4.0...v3.4.1
+
+
 ## v3.4.0 - 2026-05-08
 ## What's Changed
 
