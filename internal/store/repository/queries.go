@@ -1020,6 +1020,14 @@ const listRunningHostsSQL = `
 	ORDER BY updated_at ASC
 `
 
+// listFailedHostsSQL 查询 status='failed' 的主机，供 reconciler 自动恢复。
+const listFailedHostsSQL = `
+	SELECT id::text, user_id::text, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	FROM hosts
+	WHERE status = 'failed'
+	ORDER BY updated_at ASC
+`
+
 func (r *Repository) ListRunningHosts(ctx context.Context) ([]Host, error) {
 	rows, err := r.db.Query(ctx, listRunningHostsSQL)
 	if err != nil {
@@ -1047,6 +1055,37 @@ func (r *Repository) ListRunningHosts(ctx context.Context) ([]Host, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate running hosts: %w", err)
+	}
+	return hosts, nil
+}
+
+func (r *Repository) ListFailedHosts(ctx context.Context) ([]Host, error) {
+	rows, err := r.db.Query(ctx, listFailedHostsSQL)
+	if err != nil {
+		return nil, fmt.Errorf("query failed hosts: %w", err)
+	}
+	defer rows.Close()
+
+	hosts := make([]Host, 0)
+	for rows.Next() {
+		var item Host
+		var rawMounts json.RawMessage
+		if err := rows.Scan(
+			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
+			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
+			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&rawMounts,
+			&item.CreatedAt, &item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan failed host: %w", err)
+		}
+		if len(rawMounts) > 0 {
+			_ = json.Unmarshal(rawMounts, &item.HostMounts)
+		}
+		hosts = append(hosts, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate failed hosts: %w", err)
 	}
 	return hosts, nil
 }

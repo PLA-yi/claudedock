@@ -13,6 +13,7 @@ import (
 
 type ReconcileStore interface {
 	ListRunningHosts(context.Context) ([]repository.Host, error)
+	ListFailedHosts(context.Context) ([]repository.Host, error)
 	UpdateHostStatus(context.Context, string, string) error
 	MarkStaleTasks(context.Context, time.Duration) ([]repository.Task, error)
 	RecordEvent(context.Context, repository.RecordEventParams) (repository.Event, error)
@@ -46,6 +47,10 @@ func NewReconciler(logger *slog.Logger, store ReconcileStore, inspector Containe
 func (r *Reconciler) Run(ctx context.Context) error {
 	if err := r.reconcileHosts(ctx); err != nil {
 		r.logger.Error("host reconciliation failed", "error", err)
+	}
+
+	if err := r.reconcileFailedHosts(ctx); err != nil {
+		r.logger.Error("failed host recovery failed", "error", err)
 	}
 
 	if err := r.reconcileStaleTasks(ctx); err != nil {
@@ -136,6 +141,44 @@ func (r *Reconciler) recordHostDrift(ctx context.Context, hostID, actualStatus s
 
 	r.logger.Info("reconciled drifted host",
 		"host_id", hostID, "db_status", "running", "actual_status", actualStatus)
+}
+
+// reconcileFailedHosts 尝试自动恢复 status='failed' 的主机。
+// 适用于系统重启后或之前任务失败的主机，由 reconciler 周期性重试。
+func (r *Reconciler) reconcileFailedHosts(ctx context.Context) error {
+	hosts, err := r.store.ListFailedHosts(ctx)
+	if err != nil {
+		return fmt.Errorf("list failed hosts: %w", err)
+	}
+
+	for _, host := range hosts {
+		if r.queuer == nil {
+			continue
+		}
+
+		if _, err := r.queuer.QueueHostAction(ctx, host.ID, agentapi.ActionStartHost, "system"); err != nil {
+			r.logger.Warn("auto-recover failed host skipped",
+				"host_id", host.ID, "error", err)
+			continue
+		}
+
+		r.store.RecordEvent(ctx, repository.RecordEventParams{
+			HostID:  &host.ID,
+			Level:   "info",
+			Type:    "reconcile.host.recover_from_failed",
+			Message: "对账自动恢复失败主机",
+			Metadata: map[string]any{
+				"operator":  "system",
+				"db_status": "failed",
+				"host_id":   host.ID,
+			},
+		})
+
+		r.logger.Info("reconciled failed host recovery queued",
+			"host_id", host.ID, "db_status", "failed")
+	}
+
+	return nil
 }
 
 func (r *Reconciler) reconcileStaleTasks(ctx context.Context) error {

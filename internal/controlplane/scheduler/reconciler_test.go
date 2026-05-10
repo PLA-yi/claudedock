@@ -24,6 +24,10 @@ func (m *mockReconcileStore) ListRunningHosts(_ context.Context) ([]repository.H
 	return m.runningHosts, m.runningHostErr
 }
 
+func (m *mockReconcileStore) ListFailedHosts(_ context.Context) ([]repository.Host, error) {
+	return nil, nil
+}
+
 func (m *mockReconcileStore) UpdateHostStatus(_ context.Context, id, status string) error {
 	m.updatedHosts = append(m.updatedHosts, struct{ ID, Status string }{id, status})
 	return nil
