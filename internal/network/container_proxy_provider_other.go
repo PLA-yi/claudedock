@@ -4,22 +4,16 @@ package network
 
 import (
 	"context"
-	"log/slog"
+
+	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
 )
 
-// ContainerProxyProvider is a no-op stub on non-Linux platforms.
-type ContainerProxyProvider struct {
-	logger *slog.Logger
-}
-
-func NewContainerProxyProvider(logger *slog.Logger) *ContainerProxyProvider {
-	return &ContainerProxyProvider{logger: logger}
-}
-
-func (p *ContainerProxyProvider) PrepareHost(_ context.Context, _ HostNetworkSpec) error {
+func applyWorkerFirewall(_ context.Context, _, _, _ string, _ []agentapi.PortMapping) error {
 	return nil
 }
 
-func (p *ContainerProxyProvider) CleanupHost(_ context.Context, _ HostNetworkSpec) error {
-	return nil
+func verifyWorkerNetwork(_ context.Context, _ string, _ EgressConfig) (VerifyResult, error) {
+	return VerifyResult{}, nil
 }
+
+func cleanupWorkerFirewall(_ context.Context, _ string) {}
