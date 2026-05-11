@@ -188,46 +188,6 @@ func TestApplyWorkerFirewallRules_Basic(t *testing.T) {
 	}
 }
 
-// TestApplyWorkerFirewallRules_WithAllowedPorts 验证额外端口映射规则。
-func TestApplyWorkerFirewallRules_WithAllowedPorts(t *testing.T) {
-	ns, origNS := newTestNetNS(t)
-	defer cleanupTestNetNS(t, ns, origNS)
-
-	gwIP := net.ParseIP("10.0.0.1")
-	bridgeGW := net.ParseIP("172.18.0.1")
-	allowedPorts := []uint16{8080, 8443}
-
-	err := ApplyWorkerFirewallRules(ns, gwIP, bridgeGW, 22, allowedPorts)
-	if err != nil {
-		t.Fatalf("ApplyWorkerFirewallRules failed: %v", err)
-	}
-
-	conn, err := nftables.New(nftables.WithNetNSFd(int(ns)))
-	if err != nil {
-		t.Fatalf("open nftables conn: %v", err)
-	}
-
-	tbl := getTableByName(t, conn, "cloudproxy")
-	if tbl == nil {
-		t.Fatal("cloudproxy table not found")
-	}
-
-	inputChain := getChainByName(t, conn, tbl, "input")
-	if inputChain == nil {
-		t.Fatal("input chain not found")
-	}
-
-	inputRules, err := conn.GetRules(tbl, inputChain)
-	if err != nil {
-		t.Fatalf("get input rules: %v", err)
-	}
-
-	// 基础规则 5 条 + 2 个额外端口 = 7 条
-	expectedMin := 5 + len(allowedPorts)
-	if len(inputRules) < expectedMin {
-		t.Fatalf("input rules = %d, want >= %d", len(inputRules), expectedMin)
-	}
-}
 
 // TestApplyWorkerFirewallRules_InvalidNetNS 验证无效 netns handle 返回错误。
 func TestApplyWorkerFirewallRules_InvalidNetNS(t *testing.T) {
@@ -439,60 +399,7 @@ func TestApplyWorkerFirewallRules_CustomSSHPort(t *testing.T) {
 	}
 }
 
-// TestApplyWorkerFirewallRules_NilAllowedPorts 验证 nil allowedPorts 不 panic。
-func TestApplyWorkerFirewallRules_NilAllowedPorts(t *testing.T) {
-	ns, origNS := newTestNetNS(t)
-	defer cleanupTestNetNS(t, ns, origNS)
 
-	gwIP := net.ParseIP("10.0.0.1")
-	bridgeGW := net.ParseIP("172.18.0.1")
-
-	// nil allowedPorts
-	err := ApplyWorkerFirewallRules(ns, gwIP, bridgeGW, 22, nil)
-	if err != nil {
-		t.Fatalf("ApplyWorkerFirewallRules with nil allowedPorts failed: %v", err)
-	}
-}
-
-// TestApplyWorkerFirewallRules_EmptyAllowedPorts 验证空 allowedPorts 切片。
-func TestApplyWorkerFirewallRules_EmptyAllowedPorts(t *testing.T) {
-	ns, origNS := newTestNetNS(t)
-	defer cleanupTestNetNS(t, ns, origNS)
-
-	gwIP := net.ParseIP("10.0.0.1")
-	bridgeGW := net.ParseIP("172.18.0.1")
-
-	// 空切片
-	err := ApplyWorkerFirewallRules(ns, gwIP, bridgeGW, 22, []uint16{})
-	if err != nil {
-		t.Fatalf("ApplyWorkerFirewallRules with empty allowedPorts failed: %v", err)
-	}
-
-	conn, err := nftables.New(nftables.WithNetNSFd(int(ns)))
-	if err != nil {
-		t.Fatalf("open nftables conn: %v", err)
-	}
-
-	tbl := getTableByName(t, conn, "cloudproxy")
-	if tbl == nil {
-		t.Fatal("cloudproxy table not found")
-	}
-
-	inputChain := getChainByName(t, conn, tbl, "input")
-	if inputChain == nil {
-		t.Fatal("input chain not found")
-	}
-
-	inputRules, err := conn.GetRules(tbl, inputChain)
-	if err != nil {
-		t.Fatalf("get input rules: %v", err)
-	}
-
-	// lo + ct_established + gwIP + bridgeGW + SSH = 5 条（无额外端口）
-	if len(inputRules) != 5 {
-		t.Fatalf("input rules = %d, want 5", len(inputRules))
-	}
-}
 
 // TestApplyThenCleanupThenApply 验证清理后可以重新应用规则。
 func TestApplyThenCleanupThenApply(t *testing.T) {

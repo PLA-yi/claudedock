@@ -590,7 +590,7 @@ scenario_direct_tcpip_forward() {
   local ssh_port
   ssh_port="$(detect_ssh_port "$container")"
   if [ -z "$ssh_port" ]; then
-    skip "direct_tcpip_forward" "无法确定 SSH 端口（设置 --ssh-port 或确保容器有端口映射）"
+    skip "direct_tcpip_forward" "无法确定 SSH 端口（设置 --ssh-port 或确保容器已启动）"
     write_json_report "direct_tcpip_forward" "skip"
     return 0
   fi

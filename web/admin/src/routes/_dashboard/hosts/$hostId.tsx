@@ -390,7 +390,7 @@ function HostDetailPage() {
             </div>
             <div>
               <span className="block text-sm font-semibold">配置详情</span>
-              <span className="text-xs text-muted-foreground">出口 IP 绑定、挂载路径、端口映射</span>
+              <span className="text-xs text-muted-foreground">出口 IP 绑定、挂载路径</span>
             </div>
           </div>
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${configOpen ? "" : "-rotate-90"}`} />
@@ -403,14 +403,10 @@ function HostDetailPage() {
                 <p className="mb-4 text-xs text-muted-foreground">每台主机必须绑定一个出口 IP</p>
                 <BindingManager hostId={hostId} hostStatus={host.status} bindings={bindings} />
               </div>
-              <div className="px-2 py-2 lg:border-r lg:border-border/40 lg:px-4">
+              <div className="px-2 py-2 lg:px-4">
                 <h3 className="mb-1 text-sm font-semibold">挂载路径</h3>
                 <p className="mb-4 text-xs text-muted-foreground">{isRunning ? "运行中不可编辑" : "停止中，可以编辑"}</p>
                 <MountManager hostId={hostId} hostStatus={host.status} mounts={host.host_mounts ?? []} />
-              </div>
-              <div className="px-2 py-2 lg:px-4">
-                <h3 className="mb-1 text-sm font-semibold">端口映射</h3>
-                <p className="mb-4 text-xs text-muted-foreground">{isRunning ? "运行中不可编辑" : "停止中，可以编辑"}</p>
               </div>
             </div>
           </div>
