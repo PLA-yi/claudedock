@@ -13,8 +13,8 @@ import (
 
 func ensurePortMapChain(_ context.Context) error { return nil }
 
-func setupPortForwarding(_ context.Context, _ string, _ []agentapi.PortMapping) error {
+func setupPortForwarding(_ context.Context, _, _, _ string, _ []agentapi.PortMapping) error {
 	return nil
 }
 
-func teardownPortForwarding(_ context.Context) {}
+func teardownPortForwarding(_ context.Context, _ string) {}
