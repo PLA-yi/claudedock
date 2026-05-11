@@ -106,15 +106,10 @@ func setupPortForwarding(ctx context.Context, hostID string, ports []agentapi.Po
 		return fmt.Errorf("iptables gateway forward: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
 
-	// MASQUERADE in POSTROUTING for tunnel traffic (worker → gateway).
-	// The existing ensureHostMasquerade rule (10.99.0.0/16 → MASQUERADE) covers this,
-	// but we add a per-host rule here for clarity and to ensure correct ordering.
-	masqArgs := []string{"-t", "nat", "-A", "CLOUDPROXY-PORTMAP",
-		"-s", "10.99.0.0/16",
-		"-j", "MASQUERADE"}
-	if out, err := exec.CommandContext(ctx, "iptables", masqArgs...).CombinedOutput(); err != nil {
-		return fmt.Errorf("iptables MASQUERADE: %w (%s)", err, strings.TrimSpace(string(out)))
-	}
+	// MASQUERADE for tunnel traffic (worker → gateway) is already covered by
+	// the global ensureHostMasquerade rule (10.99.0.0/16 → MASQUERADE in POSTROUTING).
+	// Do NOT add MASQUERADE in CLOUDPROXY-PORTMAP — that chain is hooked to PREROUTING,
+	// and MASQUERADE target is only valid in POSTROUTING.
 
 	return nil
 }
