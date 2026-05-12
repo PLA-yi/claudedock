@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.4
-milestone_name: 多形态容器接入
-status: shipped
-stopped_at: Milestone v3.4 shipped (tag v3.4.0)
-last_updated: "2026-05-08T17:00:00Z"
-last_activity: 2026-05-08
+milestone: v3.5
+milestone_name: 网络白名单与 DNS 拆分解析
+status: planning
+last_updated: "2026-05-12T04:31:18.496Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Milestone: v3.4 多形态容器接入 — SHIPPED (tag v3.4.0)
-Phases: 38-44 (7 phases, 14 plans) — ALL COMPLETE
-Next: `/gsd:new-milestone` to plan next milestone
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-12 — Milestone v3.5 started
 
 ## Accumulated Context
 
