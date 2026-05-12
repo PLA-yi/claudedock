@@ -29,9 +29,11 @@ export function createBypassRule(
   hostId: string,
   payload: BypassRuleCreatePayload,
 ) {
-  return apiFetch<{ rule: BypassRule }>(`/hosts/${hostId}/bypass/rules`, {
+  // 后端是 POST /v1/admin/bypass/rules，并强制要求 scope ∈ {global, host}。
+  // 这里固定 scope="host" 并把 hostId 注入 body.host_id（前端 UI 仅创建 host 维度规则）。
+  return apiFetch<{ rule: BypassRule }>(`/bypass/rules`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ scope: "host", host_id: hostId, ...payload }),
   });
 }
 
