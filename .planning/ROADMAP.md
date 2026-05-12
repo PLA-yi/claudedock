@@ -176,7 +176,7 @@
 - [x] 46-01-PLAN.md — 后端 Bypass preset/rule/binding CRUD + 护栏校验 + 审计日志 helper + 路由注册（Wave 1）
 - [x] 46-02-PLAN.md — 后端 preview/apply/rollback/effective + audit-log 端点 + ActionReloadHostBypass 占位 + 渲染层（Wave 2）
 - [x] 46-03-PLAN.md — 前端 BypassTab + 预设网格 + 自定义规则表 + Drawer + RiskyKeywordConfirm + i18n 错误码（Wave 2）
-- [ ] 46-04-PLAN.md — 前端 PreviewSheet（JSON/nft diff 双 Tab）+ ApplyProgressDialog 5 阶段 + RollbackConfirmDialog（Wave 3）
+- [x] 46-04-PLAN.md — 前端 PreviewSheet（JSON/nft diff 双 Tab）+ ApplyProgressDialog 5 阶段 + RollbackConfirmDialog（Wave 3）
 
 **UI hint**: yes
 
@@ -213,7 +213,7 @@
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
 | 38-44. v3.4 多形态容器接入 | v3.4 | 14/14 | Complete | 2026-05-08 |
 | 45. v3.5 网络配置基础与数据模型 | v3.5 | 3/3 | Complete    | 2026-05-12 |
-| 46. v3.5 控制面 API 与后台 UI | v3.5 | 3/4 | In Progress|  |
+| 46. v3.5 控制面 API 与后台 UI | v3.5 | 4/4 | Complete   | 2026-05-12 |
 | 47. v3.5 热更新链路与流量验证 | v3.5 | 0/0 | Planning | — |
 
 ---
