@@ -59,16 +59,19 @@ export function deleteBypassRule(_hostId: string, ruleId: string) {
   });
 }
 
-// host 与预设绑定
+// host 与预设绑定。后端路由（router.go:272-274）：
+//   - GET    /v1/admin/hosts/{hostID}/bypass     （不带 /bindings 后缀）
+//   - POST   /v1/admin/hosts/{hostID}/bypass
+//   - DELETE /v1/admin/bypass/bindings/{bindingID}  （删除不带 host 前缀）
 export function listBypassBindings(hostId: string) {
   return apiFetch<{ bindings: BypassBinding[] }>(
-    `/hosts/${hostId}/bypass/bindings`,
+    `/hosts/${hostId}/bypass`,
   );
 }
 
 export function createBypassBinding(hostId: string, presetId: string) {
   return apiFetch<{ binding: BypassBinding }>(
-    `/hosts/${hostId}/bypass/bindings`,
+    `/hosts/${hostId}/bypass`,
     {
       method: "POST",
       body: JSON.stringify({ preset_id: presetId }),
@@ -76,8 +79,8 @@ export function createBypassBinding(hostId: string, presetId: string) {
   );
 }
 
-export function deleteBypassBinding(hostId: string, bindingId: string) {
-  return apiFetch<void>(`/hosts/${hostId}/bypass/bindings/${bindingId}`, {
+export function deleteBypassBinding(_hostId: string, bindingId: string) {
+  return apiFetch<void>(`/bypass/bindings/${bindingId}`, {
     method: "DELETE",
   });
 }
