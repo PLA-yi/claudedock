@@ -38,21 +38,23 @@ export function createBypassRule(
 }
 
 export function updateBypassRule(
-  hostId: string,
+  _hostId: string,
   ruleId: string,
   payload: BypassRuleUpdatePayload,
 ) {
+  // 后端是 PATCH /v1/admin/bypass/rules/{ruleID}（没有 host 前缀，且仅接受 PATCH）。
   return apiFetch<{ rule: BypassRule }>(
-    `/hosts/${hostId}/bypass/rules/${ruleId}`,
+    `/bypass/rules/${ruleId}`,
     {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(payload),
     },
   );
 }
 
-export function deleteBypassRule(hostId: string, ruleId: string) {
-  return apiFetch<void>(`/hosts/${hostId}/bypass/rules/${ruleId}`, {
+export function deleteBypassRule(_hostId: string, ruleId: string) {
+  // 后端是 DELETE /v1/admin/bypass/rules/{ruleID}（同上，没有 host 前缀）。
+  return apiFetch<void>(`/bypass/rules/${ruleId}`, {
     method: "DELETE",
   });
 }
