@@ -348,6 +348,25 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 		hostname = containerName
 	}
 
+	// Phase 45 Plan 02：在 docker create 之前先起 sing-box gateway 并写好 DNS
+	// 源文件，保证 worker 容器一旦 docker start，ro bind mount 接管的
+	// /etc/resolv.conf 已指向监听的 tun0 (172.19.0.1)。调用顺序硬约束：
+	//   PrepareGateway → buildCreateArgs → docker create → docker start → PrepareHost
+	egressCfg, err := w.buildEgressConfig(ctx, request.HostID)
+	if err != nil {
+		return err
+	}
+	if egressCfg != nil {
+		spec := network.HostNetworkSpec{
+			HostID: request.HostID,
+			Egress: egressCfg,
+		}
+		if err := w.provider.PrepareGateway(ctx, spec); err != nil {
+			w.recordNetworkError(ctx, request.HostID, err)
+			return fmt.Errorf("prepare gateway before create: %w", err)
+		}
+	}
+
 	args, err := w.buildCreateArgs(request, containerName, hostname)
 	if err != nil {
 		return err
@@ -361,14 +380,10 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 		return fmt.Errorf("start container after create: %w", err)
 	}
 
-	egressCfg, err := w.buildEgressConfig(ctx, request.HostID)
-	if err != nil {
-		return err
-	}
 	if egressCfg != nil {
 		spec := network.HostNetworkSpec{
-			HostID:       request.HostID,
-			Egress:       egressCfg,
+			HostID: request.HostID,
+			Egress: egressCfg,
 		}
 		if err := w.provider.PrepareHost(ctx, spec); err != nil {
 			w.recordNetworkError(ctx, request.HostID, err)
@@ -397,10 +412,10 @@ func (w *Worker) startHost(ctx context.Context, request agentapi.HostActionReque
 		}
 	}
 
-	if err := w.runDocker(ctx, "start", containerName); err != nil {
-		return err
-	}
-
+	// Phase 45 Plan 02：在 docker start 之前先起 gateway + 写 DNS 源文件，
+	// 保证 worker 容器一旦运行，ro bind mount 引用的 /etc/resolv.conf 指向已
+	// 监听的 tun0 (172.19.0.1)。PrepareGateway 内部含 teardownGateway → 幂等
+	// 重起，重复调用安全。
 	egressCfg, err := w.buildEgressConfig(ctx, request.HostID)
 	if err != nil {
 		return err
@@ -408,8 +423,23 @@ func (w *Worker) startHost(ctx context.Context, request agentapi.HostActionReque
 
 	if egressCfg != nil {
 		spec := network.HostNetworkSpec{
-			HostID:       request.HostID,
-			Egress:       egressCfg,
+			HostID: request.HostID,
+			Egress: egressCfg,
+		}
+		if err := w.provider.PrepareGateway(ctx, spec); err != nil {
+			w.recordNetworkError(ctx, request.HostID, err)
+			return fmt.Errorf("prepare gateway before start: %w", err)
+		}
+	}
+
+	if err := w.runDocker(ctx, "start", containerName); err != nil {
+		return err
+	}
+
+	if egressCfg != nil {
+		spec := network.HostNetworkSpec{
+			HostID: request.HostID,
+			Egress: egressCfg,
 		}
 		if err := w.provider.PrepareHost(ctx, spec); err != nil {
 			w.recordNetworkError(ctx, request.HostID, err)

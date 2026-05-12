@@ -115,20 +115,20 @@ func TestGatewayConfigDir_WithDataDir(t *testing.T) {
 	os.Setenv("DATA_DIR", "/custom/data")
 	defer os.Unsetenv("DATA_DIR")
 
-	got := gatewayConfigDir("host-1")
+	got := GatewayConfigDir("host-1")
 	want := "/custom/data/gateway/host-1"
 	if got != want {
-		t.Errorf("gatewayConfigDir = %q, want %q", got, want)
+		t.Errorf("GatewayConfigDir = %q, want %q", got, want)
 	}
 }
 
 func TestGatewayConfigDir_Default(t *testing.T) {
 	os.Unsetenv("DATA_DIR")
 
-	got := gatewayConfigDir("host-1")
+	got := GatewayConfigDir("host-1")
 	want := "/var/lib/cloud-cli-proxy/gateway/host-1"
 	if got != want {
-		t.Errorf("gatewayConfigDir = %q, want %q", got, want)
+		t.Errorf("GatewayConfigDir = %q, want %q", got, want)
 	}
 }
 
@@ -148,9 +148,9 @@ func TestGatewayConfigDir_PathSanitization(t *testing.T) {
 	os.Unsetenv("DATA_DIR")
 	for _, tt := range tests {
 		t.Run(tt.hostID, func(t *testing.T) {
-			got := gatewayConfigDir(tt.hostID)
+			got := GatewayConfigDir(tt.hostID)
 			if got != tt.want {
-				t.Errorf("gatewayConfigDir(%q) = %q, want %q", tt.hostID, got, tt.want)
+				t.Errorf("GatewayConfigDir(%q) = %q, want %q", tt.hostID, got, tt.want)
 			}
 		})
 	}
@@ -283,3 +283,6 @@ func buildWorkerEgressScript(workerIP, defaultGW string) string {
 	echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 	`
 }
+
+// TestWorker_CreateHost_CallOrder 的实现已迁移到无 build tag 的 call_order_test.go，
+// 以便在 macOS 开发机也能跑通。此处保留注释作为定位线索。
