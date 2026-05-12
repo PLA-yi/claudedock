@@ -304,3 +304,141 @@ type ListEventsResult struct {
 	Events []Event `json:"events"`
 	Total  int     `json:"total"`
 }
+
+// ---------------------------------------------------------------------------
+// Phase 45 Plan 03 — Bypass / Whitelist data model
+// ---------------------------------------------------------------------------
+//
+// 五类核心实体 + 对应 *Params：BypassPreset / BypassRule / BypassBinding /
+// BypassSnapshot / BypassAuditLog。所有 UUID 字段在 Go 层用 string，与
+// queries.go 现有 `id::text` 模式对齐；JSONB 字段用 json.RawMessage 或专门
+// 的内嵌结构。可空 UUID 列（host_id / preset_id / rule_id / created_by /
+// actor_id / target_id）用 *string；可空 JSONB 用 json.RawMessage。
+
+// BypassPresetRule 是 host_bypass_presets.rules JSONB 数组元素。
+type BypassPresetRule struct {
+	RuleType string `json:"rule_type"`
+	Value    string `json:"value"`
+	Note     string `json:"note,omitempty"`
+}
+
+type BypassPreset struct {
+	ID          string             `json:"id"`
+	Slug        string             `json:"slug"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	IsSystem    bool               `json:"is_system"`
+	IsForceOn   bool               `json:"is_force_on"`
+	IsActive    bool               `json:"is_active"`
+	Rules       []BypassPresetRule `json:"rules"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+type CreateBypassPresetParams struct {
+	Slug        string
+	Name        string
+	Description string
+	IsForceOn   bool
+	IsActive    bool
+	Rules       []BypassPresetRule
+}
+
+// UpdateBypassPresetParams：所有字段为指针 = nil 表示不更新（COALESCE 兜底）。
+type UpdateBypassPresetParams struct {
+	Name        *string
+	Description *string
+	IsForceOn   *bool
+	IsActive    *bool
+	Rules       *[]BypassPresetRule
+}
+
+type BypassRule struct {
+	ID        string    `json:"id"`
+	Scope     string    `json:"scope"` // global / host
+	HostID    *string   `json:"host_id,omitempty"`
+	RuleType  string    `json:"rule_type"`
+	Value     string    `json:"value"`
+	Note      string    `json:"note,omitempty"`
+	IsRisky   bool      `json:"is_risky"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CreateBypassRuleParams struct {
+	Scope    string
+	HostID   *string
+	RuleType string
+	Value    string
+	Note     string
+	IsRisky  bool
+}
+
+type UpdateBypassRuleParams struct {
+	Value   *string
+	Note    *string
+	IsRisky *bool
+}
+
+type BypassBinding struct {
+	ID        string    `json:"id"`
+	HostID    string    `json:"host_id"`
+	PresetID  *string   `json:"preset_id,omitempty"`
+	RuleID    *string   `json:"rule_id,omitempty"`
+	Enabled   bool      `json:"enabled"`
+	Source    string    `json:"source"` // admin / system
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateBypassBindingParams struct {
+	HostID   string
+	PresetID *string
+	RuleID   *string
+	Enabled  bool
+	Source   string
+}
+
+type BypassSnapshot struct {
+	ID                   string          `json:"id"`
+	HostID               string          `json:"host_id"`
+	Version              int64           `json:"version"`
+	ConfigHash           string          `json:"config_hash"`
+	WhitelistCIDRsJSON   json.RawMessage `json:"whitelist_cidrs_json"`
+	WhitelistDomainsJSON json.RawMessage `json:"whitelist_domains_json"`
+	AppliedStatus        string          `json:"applied_status"` // pending / applied / failed / rolled_back
+	CreatedBy            *string         `json:"created_by,omitempty"`
+	CreatedAt            time.Time       `json:"created_at"`
+}
+
+type CreateBypassSnapshotParams struct {
+	HostID               string
+	Version              int64
+	ConfigHash           string
+	WhitelistCIDRsJSON   json.RawMessage
+	WhitelistDomainsJSON json.RawMessage
+	CreatedBy            *string
+}
+
+type BypassAuditLog struct {
+	ID         string          `json:"id"`
+	ActorID    *string         `json:"actor_id,omitempty"`
+	ActorIP    string          `json:"actor_ip,omitempty"`
+	Action     string          `json:"action"`
+	TargetKind string          `json:"target_kind"`
+	TargetID   *string         `json:"target_id,omitempty"`
+	Before     json.RawMessage `json:"before,omitempty"`
+	After      json.RawMessage `json:"after,omitempty"`
+	Note       string          `json:"note,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
+type InsertBypassAuditLogParams struct {
+	ActorID    *string
+	ActorIP    string
+	Action     string
+	TargetKind string
+	TargetID   *string
+	Before     json.RawMessage
+	After      json.RawMessage
+	Note       string
+}
