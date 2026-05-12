@@ -1,0 +1,73 @@
+import { apiFetch } from "@/lib/api";
+import type {
+  BypassPreset,
+  BypassRule,
+  BypassBinding,
+  BypassRuleCreatePayload,
+  BypassRuleUpdatePayload,
+} from "./types/bypass";
+
+// 系统预设列表（admin 全局可用预设）
+export function listBypassPresets() {
+  return apiFetch<{ presets: BypassPreset[] }>("/bypass/presets");
+}
+
+// host 维度规则集
+export function listBypassRules(hostId: string) {
+  return apiFetch<{ rules: BypassRule[] }>(
+    `/hosts/${hostId}/bypass/rules`,
+  );
+}
+
+export function createBypassRule(
+  hostId: string,
+  payload: BypassRuleCreatePayload,
+) {
+  return apiFetch<{ rule: BypassRule }>(`/hosts/${hostId}/bypass/rules`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateBypassRule(
+  hostId: string,
+  ruleId: string,
+  payload: BypassRuleUpdatePayload,
+) {
+  return apiFetch<{ rule: BypassRule }>(
+    `/hosts/${hostId}/bypass/rules/${ruleId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteBypassRule(hostId: string, ruleId: string) {
+  return apiFetch<void>(`/hosts/${hostId}/bypass/rules/${ruleId}`, {
+    method: "DELETE",
+  });
+}
+
+// host 与预设绑定
+export function listBypassBindings(hostId: string) {
+  return apiFetch<{ bindings: BypassBinding[] }>(
+    `/hosts/${hostId}/bypass/bindings`,
+  );
+}
+
+export function createBypassBinding(hostId: string, presetId: string) {
+  return apiFetch<{ binding: BypassBinding }>(
+    `/hosts/${hostId}/bypass/bindings`,
+    {
+      method: "POST",
+      body: JSON.stringify({ preset_id: presetId }),
+    },
+  );
+}
+
+export function deleteBypassBinding(hostId: string, bindingId: string) {
+  return apiFetch<void>(`/hosts/${hostId}/bypass/bindings/${bindingId}`, {
+    method: "DELETE",
+  });
+}
