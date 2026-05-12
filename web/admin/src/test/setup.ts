@@ -33,4 +33,19 @@ if (typeof window !== "undefined") {
     (globalThis as { ResizeObserver?: unknown }).ResizeObserver =
       ResizeObserverPolyfill;
   }
+
+  // Radix UI Select / DropdownMenu 等内部使用 PointerEvent API + scrollIntoView，
+  // jsdom 都没有实现，补齐以保证组件测试可用
+  if (!HTMLElement.prototype.hasPointerCapture) {
+    HTMLElement.prototype.hasPointerCapture = () => false;
+  }
+  if (!HTMLElement.prototype.setPointerCapture) {
+    HTMLElement.prototype.setPointerCapture = () => {};
+  }
+  if (!HTMLElement.prototype.releasePointerCapture) {
+    HTMLElement.prototype.releasePointerCapture = () => {};
+  }
+  if (!HTMLElement.prototype.scrollIntoView) {
+    HTMLElement.prototype.scrollIntoView = () => {};
+  }
 }
