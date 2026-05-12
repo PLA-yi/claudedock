@@ -151,9 +151,9 @@
 
 **Plans**: 3 plans
 
-- [ ] 45-01-PLAN.md — sing-box 配置渲染层扩展（两段式 + 拆分 DNS + tun 加固）+ rule-set placeholder 写盘与挂载
+- [x] 45-01-PLAN.md — sing-box 配置渲染层扩展（两段式 + 拆分 DNS + tun 加固）+ rule-set placeholder 写盘与挂载
 - [ ] 45-02-PLAN.md — 容器 DNS 入口锁（resolv.conf / nsswitch.conf ro bind mount + verify 期望常量化）
-- [ ] 45-03-PLAN.md — migration 0019 五张表 + 两条系统预设 seed + Repository 18 个 CRUD 方法
+- [x] 45-03-PLAN.md — migration 0019 五张表 + 两条系统预设 seed + Repository 18 个 CRUD 方法
 
 ### Phase 46: 控制面 API 与后台 UI
 
@@ -207,7 +207,7 @@
 | 29-35. v3.0 远端开发体验升级 | v3.0 | 30/30 | Complete | 2026-04-23 |
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
 | 38-44. v3.4 多形态容器接入 | v3.4 | 14/14 | Complete | 2026-05-08 |
-| 45. v3.5 网络配置基础与数据模型 | v3.5 | 0/0 | Planning | — |
+| 45. v3.5 网络配置基础与数据模型 | v3.5 | 2/3 | In Progress|  |
 | 46. v3.5 控制面 API 与后台 UI | v3.5 | 0/0 | Planning | — |
 | 47. v3.5 热更新链路与流量验证 | v3.5 | 0/0 | Planning | — |
 
