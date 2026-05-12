@@ -46,7 +46,7 @@ func TestWorker_CreateHost_CallOrder(t *testing.T) {
 		needle string
 	}{
 		{"PrepareGateway", "w.provider.PrepareGateway(ctx, spec)"},
-		{"buildCreateArgs", "w.buildCreateArgs(request, containerName, hostname)"},
+		{"buildCreateArgs", "w.buildCreateArgs(request, containerName, hostname, egressCfg)"},
 		{"docker_create", "w.runDocker(ctx, args...)"},
 		{"docker_start", `w.runDocker(ctx, "start", containerName)`},
 		{"PrepareHost", "w.provider.PrepareHost(ctx, spec)"},

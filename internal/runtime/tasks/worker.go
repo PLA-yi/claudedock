@@ -189,7 +189,7 @@ func actionToHostStatus(action agentapi.HostAction) string {
 	}
 }
 
-func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerName, hostname string) ([]string, error) {
+func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerName, hostname string, egressCfg *network.EgressConfig) ([]string, error) {
 	homeDir := firstNonEmpty(request.HomeDir, hostHomeDir(request.HostID))
 
 	args := []string{
@@ -266,6 +266,21 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 
 	for key, value := range request.Labels {
 		args = append(args, "--label", fmt.Sprintf("%s=%s", key, value))
+	}
+
+	// Phase 45 Plan 02：容器 DNS 入口锁。当存在 sing-box gateway 出口配置时，
+	// 把 host 上由 PrepareGateway 写好的 resolv.conf / nsswitch.conf 以 ro
+	// bind mount 接管到容器内对应位置：
+	//   - /etc/resolv.conf  → nameserver 172.19.0.1（gateway tun0）
+	//   - /etc/nsswitch.conf → hosts: files dns
+	// ro 意味着容器内任何对这两个文件的写入都会被拒绝，闭合 BYPASS-DNS-03/04。
+	// 必须在 PrepareGateway 之后、docker create 之前注入（call-order 测试守护）。
+	if egressCfg != nil && egressCfg.Proxy != nil {
+		gwDir := network.GatewayConfigDir(request.HostID)
+		args = append(args,
+			"-v", gwDir+"/resolv.conf:/etc/resolv.conf:ro",
+			"-v", gwDir+"/nsswitch.conf:/etc/nsswitch.conf:ro",
+		)
 	}
 
 	args = append(args, request.ImageName)
@@ -367,7 +382,7 @@ func (w *Worker) createHost(ctx context.Context, request agentapi.HostActionRequ
 		}
 	}
 
-	args, err := w.buildCreateArgs(request, containerName, hostname)
+	args, err := w.buildCreateArgs(request, containerName, hostname, egressCfg)
 	if err != nil {
 		return err
 	}
