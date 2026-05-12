@@ -196,11 +196,16 @@
   4. 容器启动参数携带 `--sysctl net.ipv6.conf.all.disable_ipv6=1` 和 `default.disable_ipv6=1`，容器内 `ip -6 addr` 仅看到 `::1`，ip6tables 默认 drop（I6）；gateway 容器健康检查不通过时 `provider.PrepareHost` verify 流程不放行 worker 容器开放 SSH 端口（BYPASS-NFT-04 fail-closed）
   5. 扩展后的 `internal/network/verify.go` 增加白名单 IP 走 eth0、非白名单走代理出口、`dig @8.8.8.8` 必超时 3 项检查；`scripts/uat-bypass.sh` 覆盖 6 个场景（仅 loopback / 仅 lan / loopback+lan / 自定义 IP / 自定义域名 / pkill sing-box fail-closed），10 条安全不变量（I1–I10）全部接入 CI；`host_bypass_snapshots.applied_status` 与 `host_bypass_audit_log` 在 e2e 测试中可拉到 `applied` / `rolled_back` 两种状态行
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 47-01-PLAN.md — worker dispatcher 真实实现 + agentapi BypassSnapshotID + ApplyBypassRuleSet（原子写 + nft -f）+ 自动 rollback + consistency endpoint（Wave 1）
+- [ ] 47-02-PLAN.md — worker netns nft 加固：@whitelist_v4 set + uid 锁 + mDNS/LLMNR/NetBIOS drop + 链末 log drop + I6 IPv6 双保险（Wave 1）
+- [ ] 47-03-PLAN.md — verify.go 扩展 3 项检查 + scripts/uat-bypass.sh 6 场景 × 10 不变量 + CI matrix（Wave 2）
 
 ## Progress
 
-**Current milestone:** v3.5 网络白名单与 DNS 拆分解析（planning，3 phases / 0 plans）
+**Current milestone:** v3.5 网络白名单与 DNS 拆分解析（planning，3 phases / 3 plans）
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -214,7 +219,7 @@
 | 38-44. v3.4 多形态容器接入 | v3.4 | 14/14 | Complete | 2026-05-08 |
 | 45. v3.5 网络配置基础与数据模型 | v3.5 | 3/3 | Complete    | 2026-05-12 |
 | 46. v3.5 控制面 API 与后台 UI | v3.5 | 4/4 | Complete    | 2026-05-12 |
-| 47. v3.5 热更新链路与流量验证 | v3.5 | 0/0 | Planning | — |
+| 47. v3.5 热更新链路与流量验证 | v3.5 | 0/3 | Planning | — |
 
 ---
 
