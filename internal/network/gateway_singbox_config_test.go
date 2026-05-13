@@ -601,3 +601,37 @@ func TestBuildGatewaySingBoxConfig_DirectOutboundBindEth0(t *testing.T) {
 		t.Errorf("direct.bind_interface = %q, want eth0 (Pitfall 1 防回环)", got)
 	}
 }
+
+// TestBuildGatewaySingBoxConfig_DefaultDomainResolver 覆盖 sing-box 1.13.3
+// 兼容补丁：顶层 route.default_domain_resolver 必须存在且 server=dns-local。
+//
+// 背景：sing-box 1.12.0 把缺失该字段从 warning 升级为 deprecation；1.13.0
+// 进一步升级为 FATAL，导致 gateway 容器启动后立即崩溃（FATAL "missing
+// route.default_domain_resolver or domain_resolver in dial fields"）。1.14
+// 将移除字符串简写，故采用对象形式 {"server":"dns-local"}。
+func TestBuildGatewaySingBoxConfig_DefaultDomainResolver(t *testing.T) {
+	cfg := renderTestConfig(t, "5.6.7.8")
+	route := asMap(t, cfg["route"], "route")
+	resolverVal, ok := route["default_domain_resolver"]
+	if !ok {
+		t.Fatal("route.default_domain_resolver missing (sing-box 1.13.3 FATAL)")
+	}
+	resolver := asMap(t, resolverVal, "route.default_domain_resolver")
+	if got, _ := resolver["server"].(string); got != "dns-local" {
+		t.Errorf("route.default_domain_resolver.server = %q, want %q", got, "dns-local")
+	}
+	// 必须是 dns.servers 中声明过的 tag，否则 sing-box 启动校验仍会失败。
+	dns := asMap(t, cfg["dns"], "dns")
+	servers, _ := dns["servers"].([]any)
+	var found bool
+	for _, s := range servers {
+		m := asMap(t, s, "dns server")
+		if tag, _ := m["tag"].(string); tag == "dns-local" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("route.default_domain_resolver.server references missing dns.servers tag=dns-local")
+	}
+}

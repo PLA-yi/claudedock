@@ -45,9 +45,20 @@ func buildGatewaySingBoxConfig(outboundRaw json.RawMessage, dnsServer, proxyServ
 		"outbounds": []json.RawMessage{proxyOut, directOut},
 		"route": map[string]any{
 			"default_interface": "eth0",
-			"rule_set":          buildGatewayRouteRuleSet(),
-			"rules":             buildGatewayRouteRules(proxyServerIP),
-			"final":             "proxy-out",
+			// default_domain_resolver 是 sing-box 1.12+ 的顶层兜底字段：
+			// 任何 outbound 的 dial fields（如 direct 解析 sniff 后的目标域名、
+			// proxy-out 在 server 为域名时的解析）若未单独声明 domain_resolver，
+			// 都会回退到这里。sing-box 1.13.0 已将缺失该字段从 deprecation
+			// 升级为 FATAL（ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER 仍可绕过，
+			// 但 1.14 将彻底移除）。
+			//
+			// 采用对象形式 {"server":"dns-local"} 而非字符串简写：
+			// 1.14 计划移除字符串简写，对象形式 forward-compatible。
+			// dns-local 是 dns.servers 中声明的 type=local 解析器（buildGatewayDNS）。
+			"default_domain_resolver": map[string]any{"server": "dns-local"},
+			"rule_set":                buildGatewayRouteRuleSet(),
+			"rules":                   buildGatewayRouteRules(proxyServerIP),
+			"final":                   "proxy-out",
 		},
 	}
 
