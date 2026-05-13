@@ -1,5 +1,69 @@
 # Milestones
 
+## v3.6 端到端测试体系与网络隔离验证 (In Progress: 2026-05-14)
+
+**Phases planned:** 8 phases (45-52), 38 requirements
+**Research inputs:** 5 份专项研究（e2e-infrastructure / network-leak-testing / oss-e2e-patterns / e2e-scenarios / docker-e2e-tooling）
+
+**Key scope:**
+
+- 测试基础设施：testcontainers-go + testify/suite + headscale Scenario 抽象 + CI 双层架构
+- 10 个最小可信 e2e 用例（MVS）覆盖黄金路径、出口 IP/DNS/默认拒绝、kill-switch、治理
+- 防泄漏对抗：DNS/DoT/ICMP/IPv6/IMDS/raw socket/link-local/capability 全向量
+- Kill-switch 压力：Pumba 故障注入 + SIGKILL/tun down/network disconnect 三场景
+- 代码层加固：verify.go 多源轮询、namespace.go 探测参数化、nftables counter、cap-drop
+- 可观测性：失败自动归档 artifact（日志 / 网络 / docker / postgres / 系统）
+
+**Stack decisions:**
+- testcontainers-go（容器编排）+ testify/suite（用例组织）
+- Pumba（网络故障注入）+ Tetragon（内核 oracle，Phase 50+ 可选）
+- Hurl（API 断言，Phase 52 可选）
+- self-hosted Linux runner（唯一支持 tun + nft + netns 的 CI 环境）
+
+---
+
+## v3.5 网络白名单与 DNS 拆分解析 (Shipped: 2026-05-13)
+
+**Phases completed:** 3 phases (45-47), 10 plans
+**Git range:** 127 commits, 154 files (+30,861 / -459 lines)
+**Timeline:** 2026-05-12 → 2026-05-13 (2 days)
+**Codebase LOC:** Go 92,783 + TS/TSX 16,941 + Shell 13,900 ≈ 123,600+
+
+**Key accomplishments:**
+
+- sing-box 两段式静态配置：gateway `config.json` 改造为 `rule_set` 引用 + 7 条 route.rules（sniff → hijack-dns → ip_is_private → rule_set → final proxy-out）+ tun `strict_route`/`auto_route`/`endpoint_independent_nat`
+- 拆分 DNS 模型：内网 `.lan/.local/.internal` 走 `dns-local`，公网白名单走代理 DoH 1.1.1.1（保护查询隐私）；容器 `/etc/resolv.conf` 与 `/etc/nsswitch.conf` `:ro` bind mount，唯一 nameserver 172.19.0.1
+- `ContainerProxyProvider` 拆分为 `PrepareGateway` + `PrepareHost`，消除 entrypoint 启动时 tun0 未监听的竞争
+- 白名单数据模型五张表（presets / rules / bindings / snapshots / audit_log）+ 19 个 Repository CRUD + `ErrSystemBypassPresetImmutable` 双层防御；系统预设 `loopback`（强制开启）+ `lan`（默认关闭）
+- 18 条 Admin Bypass API + 5 硬 1 软护栏（12 个 BYPASS_* 错误码）+ 双轨审计（DB audit_log + EventRecorder 事件流）
+- React 后台 Bypass Tab：11 个 `.tsx` 组件 + PreviewSheet（sing-box JSON / nft set diff 双 Tab）+ ApplyProgressDialog（5 阶段中文进度）+ RollbackConfirmDialog（slug 二次确认）
+- Agent 热更新链路：nft -f 事务更新 `@whitelist_v4` → tmpfile+rename 原子写 rule-set → sing-box 文件 watch reload → 健康检查 3 次失败自动 rollback
+- fail-closed 加固：netns nft 四层防御（`oifname sb-tun0` + uid=singbox 锁定 + `@whitelist_v4` 逃逸通道 + 链末 log drop）+ IPv6 双保险 + 显式 drop mDNS/LLMNR/NetBIOS
+- E2E 流量验证：`verify.go` 3 项新检查 + `scripts/uat-bypass.sh` 6 场景 × 10 不变量（I1–I10）+ `.github/workflows/uat-bypass.yml` fixture 自适应 preflight CI 守护
+- `Consistency` endpoint：归一化 sha256 对账（3s timeout，504/500 区分）
+
+**Coverage:**
+
+- Requirements: **34/34 satisfied** — BYPASS-NET/DNS/DATA/API-UI/AGENT 全部覆盖
+- Cross-phase integration: 7/7 WIRED（配置渲染 / DNS 拆分 / 数据模型 / API 护栏 / UI 组件 / 热更新链路 / 流量验证）
+- E2E flows: 2/2 complete（白名单 apply → nft 生效 → sing-box reload / bypass 流量 eth0 直连 + 非 bypass 流量代理出口）
+
+**Known deferred items at close:**
+
+- 5 项 tech-debt follow-up（TD-01 fixed commit 58c0a5f；TD-02..05 P2 不阻塞 ship）：I9 严格化 / detectHostEth0IPFallback 真实化 / nft counter 持续观测 / verify.go Linux runner 集成测试
+- 10 项 Info-level deferred 见 `milestones/v3.5-MILESTONE-AUDIT.md`
+
+**Audit:** `.planning/milestones/v3.5-MILESTONE-AUDIT.md` (status: tech_debt — 0 blocker)
+**Tag:** v3.5
+**Archive:**
+
+- `.planning/milestones/v3.5-ROADMAP.md`
+- `.planning/milestones/v3.5-REQUIREMENTS.md`
+- `.planning/milestones/v3.5-MILESTONE-AUDIT.md`
+- `.planning/milestones/v3.5-phases/` (3 phase directories)
+
+---
+
 ## v3.4 多形态容器接入 (Shipped: 2026-05-08)
 
 **Phases completed:** 7 phases (38-44, 含 3 gap closure), 14 plans
