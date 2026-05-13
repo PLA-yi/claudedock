@@ -379,7 +379,7 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 	var rawMounts json.RawMessage
 	if err := r.db.QueryRow(ctx, `
 		INSERT INTO hosts (user_id, status, short_id, template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (user_id, slot_key)
 		DO UPDATE SET
 			status = EXCLUDED.status,
@@ -391,7 +391,6 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 			cpu_limit = EXCLUDED.cpu_limit,
 			disk_limit_gb = EXCLUDED.disk_limit_gb,
 			host_mounts = EXCLUDED.host_mounts,
-			
 			updated_at = NOW()
 		RETURNING id::text, user_id::text, status, COALESCE(short_id, ''),
 		          template_image_ref, home_volume_name, slot_key, timezone, hostname,
