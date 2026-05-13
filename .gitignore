@@ -50,6 +50,9 @@ secrets/
 # Planning runtime outputs
 .planning/phases/*/benchmarks/
 
+# uat-bypass fixture 输出（含 admin JWT，禁止提交）
+.uat-fixture.env
+
 host-agent
 web/admin/.tanstack/
 
