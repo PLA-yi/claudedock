@@ -229,14 +229,14 @@
 
 **Plans**: 8 plans
 
-- [ ] 49-01-PLAN.md — LEAK-01 DNS 明文 UDP/53 旁路检测（`dig @8.8.8.8` + host eth0 抓包断言）
-- [ ] 49-02-PLAN.md — LEAK-02 DoT (853) 旁路检测（`kdig +tls @1.1.1.1` + host eth0 抓包断言）
-- [ ] 49-03-PLAN.md — LEAK-03 ICMP 阻断（`ping 8.8.8.8` 必须失败）
-- [ ] 49-04-PLAN.md — LEAK-04 IPv6 阻断（`curl -6 ipv6.google.com` 必须失败 + `disable_ipv6=1` 双保险）
-- [ ] 49-05-PLAN.md — LEAK-05 IMDS 阻断（`169.254.169.254` 与 `169.254.170.2` 必须失败）
-- [ ] 49-06-PLAN.md — LEAK-06 raw socket 拒绝（`SOCK_RAW` 必须 PermissionError）
-- [ ] 49-07-PLAN.md — LEAK-07 link-local 显式 drop（nftables 规则覆盖 `169.254.0.0/16`）
-- [ ] 49-08-PLAN.md — LEAK-08 capability 审计（worker CapEff/CapBnd 不含 NET_RAW/NET_ADMIN/SYS_ADMIN）
+- [x] 49-01-PLAN.md — LEAK-01 DNS 明文 UDP/53 旁路检测（`dig @8.8.8.8` + host eth0 抓包断言）— completed 2026-05-14
+- [x] 49-02-PLAN.md — LEAK-02 DoT (853) 旁路检测（`kdig +tls @1.1.1.1` + host eth0 抓包断言）— completed 2026-05-14
+- [x] 49-03-PLAN.md — LEAK-03 ICMP 阻断（`ping 8.8.8.8` 必须失败）— completed 2026-05-14
+- [x] 49-04-PLAN.md — LEAK-04 IPv6 阻断（`curl -6 ipv6.google.com` 必须失败 + `disable_ipv6=1` 双保险）— completed 2026-05-14
+- [x] 49-05-PLAN.md — LEAK-05 IMDS 阻断（`169.254.169.254` 与 `169.254.170.2` 必须失败）— completed 2026-05-14
+- [x] 49-06-PLAN.md — LEAK-06 raw socket 拒绝（`SOCK_RAW` 必须 PermissionError）— completed 2026-05-14（gap → Phase 51 QUAL-06）
+- [x] 49-07-PLAN.md — LEAK-07 link-local 显式 drop（nftables 规则覆盖 `169.254.0.0/16`）— completed 2026-05-14（gap → Phase 51 QUAL-06/07）
+- [x] 49-08-PLAN.md — LEAK-08 capability 审计（worker CapEff/CapBnd 不含 NET_RAW/NET_ADMIN/SYS_ADMIN）— completed 2026-05-14（gap → Phase 51 QUAL-06）
 
 **Details:**
 
