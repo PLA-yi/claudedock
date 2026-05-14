@@ -254,10 +254,12 @@
 
 **Plans**: 4 plans
 
-- [ ] 50-01-PLAN.md — KILL-01 `docker kill -SIGKILL` sing-box gateway → 3 秒内容器 curl 失败
-- [ ] 50-02-PLAN.md — KILL-02 `ip link set tun0 down` → 容器 curl 失败
-- [ ] 50-03-PLAN.md — KILL-03 Pumba netem delay/loss 注入 → SSH 会话存活但出口 IP 校验可能超时（行为契约固定）
-- [ ] 50-04-PLAN.md — KILL-04 网关容器 `docker network disconnect` → worker 不回落 host 默认路由（host eth0 抓包零非网关流量）
+- [x] 50-01-PLAN.md — KILL-01 SIGKILL timing 严格化（≤3s + host eth0 抓包零非网关）— completed 2026-05-14
+- [x] 50-02-PLAN.md — KILL-02 `ip link set tun0 down` 容器 curl 失败 — completed 2026-05-14
+- [x] 50-03-PLAN.md — KILL-03 Pumba netem 1000ms delay（SSH 存活 + 出口 IP 允许 inconclusive）— completed 2026-05-14
+- [x] 50-04-PLAN.md — KILL-04 `docker network disconnect` worker 不 fallback host bridge — completed 2026-05-14
+
+> 注：gateway 实际接 `cloudproxy-net-<HostID>` 自定义 bridge（非默认 bridge）；KILL-04 用例带 backend GAP 兜底 `t.Skipf` 分支自动流转 Phase 51。Pumba 固定 `gaiaadm/pumba:0.10.0` tag 避免 latest 漂移。
 
 **Details:**
 
@@ -326,7 +328,7 @@
 | 29-35. v3.0 远端开发体验升级 | v3.0 | 30/30 | Complete | 2026-04-23 |
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
 | 38-44. v3.4 多形态容器接入 | v3.4 | 14/14 | Complete | 2026-05-08 |
-| 45-52. v3.6 端到端测试体系 | v3.6 | 23/38 | In Progress | — |
+| 45-52. v3.6 端到端测试体系 | v3.6 | 27/38 | In Progress | — |
 
 ---
 
