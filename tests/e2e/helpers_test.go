@@ -1,0 +1,304 @@
+// helpers_test.go 是 Phase 46 纯函数 unit test。
+//
+// 这是 Phase 46 验收的 darwin 基线：
+//   - 不带任何 build tag，darwin 上 `go test ./tests/e2e/ -run Helpers -count=1`
+//     必须 100% 绿。
+//   - 不依赖 docker / linux netns / testcontainers / 控制面子进程。
+//   - 覆盖 Vote / ClassifyDNSResult / SummarizeDenyResults / DefaultDenyMatrix
+//     /BuildDenyProbeCmd / BootstrapExitCodeContract 6 个纯函数 / 锁定表的
+//     全部行为分支。
+//
+// Linux 真机 e2e 断言（FetchEgressIPInContainer / RunBootstrapScript /
+// StartGoldenPath）由 CI runner 跑，列为 deferred-to-CI 项。
+
+package e2e
+
+import (
+	"strings"
+	"testing"
+
+	bootstraperrors "github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http"
+)
+
+// ─── MVS-02 / Vote 多数派裁决 ─────────────────────────────────────────
+
+func TestHelpersVote_Majority(t *testing.T) {
+	got := Vote([]string{"1.2.3.4", "1.2.3.4", "5.6.7.8"})
+	if !got.OK {
+		t.Fatalf("expected ok=true, got %+v", got)
+	}
+	if got.Winner != "1.2.3.4" {
+		t.Fatalf("expected winner=1.2.3.4, got %q", got.Winner)
+	}
+	if len(got.Dissent) != 1 || got.Dissent[0] != "5.6.7.8" {
+		t.Fatalf("expected dissent=[5.6.7.8], got %v", got.Dissent)
+	}
+}
+
+func TestHelpersVote_AllAgree(t *testing.T) {
+	got := Vote([]string{"10.0.0.1", "10.0.0.1", "10.0.0.1"})
+	if !got.OK || got.Winner != "10.0.0.1" || len(got.Dissent) != 0 {
+		t.Fatalf("expected unanimous, got %+v", got)
+	}
+}
+
+func TestHelpersVote_AllAbstain(t *testing.T) {
+	got := Vote([]string{"", "", ""})
+	if got.OK || got.Winner != "" || len(got.Dissent) != 0 {
+		t.Fatalf("expected all-abstain, got %+v", got)
+	}
+}
+
+func TestHelpersVote_NilInput(t *testing.T) {
+	got := Vote(nil)
+	if got.OK || got.Winner != "" || len(got.Dissent) != 0 {
+		t.Fatalf("expected nil → all-abstain, got %+v", got)
+	}
+}
+
+func TestHelpersVote_AllDistinct(t *testing.T) {
+	got := Vote([]string{"a", "b", "c"})
+	if got.OK {
+		t.Fatalf("expected ok=false (no majority), got %+v", got)
+	}
+	if got.Winner != "" {
+		t.Fatalf("expected winner empty on no-majority, got %q", got.Winner)
+	}
+	if len(got.Dissent) != 3 {
+		t.Fatalf("expected dissent=3, got %v", got.Dissent)
+	}
+}
+
+func TestHelpersVote_PartialAbstain(t *testing.T) {
+	got := Vote([]string{"x", "x", ""})
+	if !got.OK || got.Winner != "x" || len(got.Dissent) != 0 {
+		t.Fatalf("expected ok=true winner=x dissent=[], got %+v", got)
+	}
+}
+
+func TestHelpersEgressIPSources_Locked(t *testing.T) {
+	got := EgressIPSources()
+	want := []string{"https://ip.me", "https://ifconfig.io", "https://ipinfo.io/ip"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d sources, got %d", len(want), len(got))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("source[%d]: want %q got %q", i, want[i], got[i])
+		}
+	}
+
+	// 防御 mutate：修改返回切片不应污染后续调用。
+	got[0] = "modified"
+	again := EgressIPSources()
+	if again[0] != "https://ip.me" {
+		t.Fatalf("EgressIPSources mutated: got[0]=%q", again[0])
+	}
+}
+
+// ─── MVS-03 / DNS 分类 ─────────────────────────────────────────────────
+
+func TestHelpersClassifyDNS_TunneledOnExitZero(t *testing.T) {
+	got := ClassifyDNSResult(0, "")
+	if got != DNSResultTunneled {
+		t.Fatalf("expected Tunneled, got %s", got)
+	}
+}
+
+func TestHelpersClassifyDNS_DeniedConnectionRefused(t *testing.T) {
+	got := ClassifyDNSResult(1, "curl: (7) Failed to connect: Connection refused")
+	if got != DNSResultDenied {
+		t.Fatalf("expected Denied, got %s", got)
+	}
+}
+
+func TestHelpersClassifyDNS_DeniedTimeout(t *testing.T) {
+	got := ClassifyDNSResult(28, "curl: (28) Operation timed out after 5000ms")
+	if got != DNSResultDenied {
+		t.Fatalf("expected Denied on timeout, got %s", got)
+	}
+}
+
+func TestHelpersClassifyDNS_DeniedNameResolution(t *testing.T) {
+	got := ClassifyDNSResult(6, "getaddrinfo: Name or service not known")
+	if got != DNSResultDenied {
+		t.Fatalf("expected Denied on name resolution failure, got %s", got)
+	}
+}
+
+func TestHelpersClassifyDNS_DeniedNetworkUnreachable(t *testing.T) {
+	got := ClassifyDNSResult(1, "connect: Network is unreachable")
+	if got != DNSResultDenied {
+		t.Fatalf("expected Denied on unreachable, got %s", got)
+	}
+}
+
+func TestHelpersClassifyDNS_UnknownOnGenericError(t *testing.T) {
+	got := ClassifyDNSResult(99, "something weird happened")
+	if got != DNSResultUnknown {
+		t.Fatalf("expected Unknown on unparseable error, got %s", got)
+	}
+}
+
+func TestHelpersDNSProbeResult_StringForm(t *testing.T) {
+	cases := map[DNSProbeResult]string{
+		DNSResultUnknown:  "Unknown",
+		DNSResultTunneled: "Tunneled",
+		DNSResultDenied:   "Denied",
+		DNSResultLeaked:   "Leaked",
+	}
+	for k, want := range cases {
+		if got := k.String(); got != want {
+			t.Fatalf("DNSProbeResult(%d).String(): want %q got %q", k, want, got)
+		}
+	}
+}
+
+// ─── MVS-04 / 默认拒绝矩阵 ─────────────────────────────────────────────
+
+func TestHelpersDefaultDenyMatrix_Locked(t *testing.T) {
+	want := []DenyTarget{
+		{"1.1.1.1", 80},
+		{"8.8.8.8", 443},
+		{"9.9.9.9", 443},
+		{"169.254.169.254", 80},
+	}
+	if len(DefaultDenyMatrix) != len(want) {
+		t.Fatalf("DefaultDenyMatrix length: want %d got %d", len(want), len(DefaultDenyMatrix))
+	}
+	for i, w := range want {
+		if DefaultDenyMatrix[i] != w {
+			t.Fatalf("DefaultDenyMatrix[%d]: want %+v got %+v", i, w, DefaultDenyMatrix[i])
+		}
+	}
+}
+
+func TestHelpersBuildDenyProbeCmd_Shape(t *testing.T) {
+	cmd := BuildDenyProbeCmd(DenyTarget{"1.1.1.1", 80}, 3)
+	if len(cmd) != 5 {
+		t.Fatalf("expected 5 argv, got %v", cmd)
+	}
+	if cmd[0] != "timeout" || cmd[1] != "3" || cmd[2] != "bash" || cmd[3] != "-c" {
+		t.Fatalf("argv prefix mismatch: %v", cmd)
+	}
+	if !strings.Contains(cmd[4], "/dev/tcp/1.1.1.1/80") {
+		t.Fatalf("expected /dev/tcp/1.1.1.1/80 in shell snippet, got %q", cmd[4])
+	}
+}
+
+func TestHelpersBuildDenyProbeCmd_DefaultTimeout(t *testing.T) {
+	cmd := BuildDenyProbeCmd(DenyTarget{"8.8.8.8", 443}, 0)
+	if cmd[1] != "3" {
+		t.Fatalf("expected default timeout=3, got %q", cmd[1])
+	}
+}
+
+func TestHelpersBuildDenyProbeCmd_NegativeTimeout(t *testing.T) {
+	cmd := BuildDenyProbeCmd(DenyTarget{"9.9.9.9", 443}, -5)
+	if cmd[1] != "3" {
+		t.Fatalf("expected negative timeout fallback=3, got %q", cmd[1])
+	}
+}
+
+func TestHelpersSummarizeDeny_AllDenied(t *testing.T) {
+	results := map[DenyTarget]int{
+		DefaultDenyMatrix[0]: 1,
+		DefaultDenyMatrix[1]: 124,
+		DefaultDenyMatrix[2]: 28,
+		DefaultDenyMatrix[3]: 142,
+	}
+	allDenied, leaks := SummarizeDenyResults(results)
+	if !allDenied {
+		t.Fatalf("expected allDenied=true, got leaks=%v", leaks)
+	}
+	if len(leaks) != 0 {
+		t.Fatalf("expected no leaks, got %v", leaks)
+	}
+}
+
+func TestHelpersSummarizeDeny_OneLeak(t *testing.T) {
+	results := map[DenyTarget]int{
+		DefaultDenyMatrix[0]: 1,
+		DefaultDenyMatrix[1]: 0, // leak
+		DefaultDenyMatrix[2]: 124,
+		DefaultDenyMatrix[3]: 1,
+	}
+	allDenied, leaks := SummarizeDenyResults(results)
+	if allDenied {
+		t.Fatalf("expected allDenied=false on single leak, got %v", leaks)
+	}
+	if len(leaks) != 1 || leaks[0] != DefaultDenyMatrix[1] {
+		t.Fatalf("expected leak=%v, got %v", DefaultDenyMatrix[1], leaks)
+	}
+}
+
+func TestHelpersSummarizeDeny_AllLeaks(t *testing.T) {
+	results := map[DenyTarget]int{
+		DefaultDenyMatrix[0]: 0,
+		DefaultDenyMatrix[1]: 0,
+		DefaultDenyMatrix[2]: 0,
+		DefaultDenyMatrix[3]: 0,
+	}
+	allDenied, leaks := SummarizeDenyResults(results)
+	if allDenied {
+		t.Fatalf("expected allDenied=false on all leaks")
+	}
+	if len(leaks) != len(DefaultDenyMatrix) {
+		t.Fatalf("expected %d leaks, got %v", len(DefaultDenyMatrix), leaks)
+	}
+}
+
+// ─── MVS-05 / Bootstrap 错误码契约 ─────────────────────────────────────
+
+// TestHelpersBootstrapExitCodeContract_AlignsWithSourceOfTruth 是 MVS-05 的
+// 锁定门：本地 BootstrapExitCodeContract 必须与
+// internal/controlplane/http.BootstrapErrorEntries 中对应 entry 的 ExitCode
+// 字段完全一致。任一漂移立即在 darwin 单测层失败，杜绝悄悄改 source-of-truth
+// 又忘了同步契约表的回归。
+func TestHelpersBootstrapExitCodeContract_AlignsWithSourceOfTruth(t *testing.T) {
+	for code, want := range BootstrapExitCodeContract {
+		entry, ok := bootstraperrors.BootstrapErrorEntries[code]
+		if !ok {
+			t.Errorf("source-of-truth missing entry for %q", code)
+			continue
+		}
+		if entry.ExitCode != want {
+			t.Errorf("contract[%q]=%d but BootstrapErrorEntries[%q].ExitCode=%d",
+				code, want, code, entry.ExitCode)
+		}
+	}
+}
+
+// TestHelpersBootstrapErrorEntries_AtLeastSeven 防止源码里 entry 被误删
+// （当前应有 auth_invalid/account_disabled/account_expired/host_not_found/
+// start_failed/ssh_not_ready/egress_binding_missing 共 7 条）。
+func TestHelpersBootstrapErrorEntries_AtLeastSeven(t *testing.T) {
+	got := len(bootstraperrors.BootstrapErrorEntries)
+	if got < 7 {
+		t.Errorf("expected BootstrapErrorEntries len >= 7, got %d", got)
+	}
+}
+
+// TestHelpersCLIErrorCases_Wellformed 验证 CLIErrorCases 4 条用例的
+// 退出码与 stderr 关键字结构正确，避免下游 table-driven 用例拿到坏数据。
+func TestHelpersCLIErrorCases_Wellformed(t *testing.T) {
+	wantNames := []string{"auth_invalid", "account_disabled", "account_expired", "host_not_found"}
+	if len(CLIErrorCases) != len(wantNames) {
+		t.Fatalf("expected %d CLIErrorCases, got %d", len(wantNames), len(CLIErrorCases))
+	}
+	for i, c := range CLIErrorCases {
+		if c.Name != wantNames[i] {
+			t.Errorf("case[%d].Name=%q want %q", i, c.Name, wantNames[i])
+		}
+		if c.WantExitCode != BootstrapExitCodeContract[c.Name] {
+			t.Errorf("case[%d].WantExitCode=%d mismatches contract[%q]=%d",
+				i, c.WantExitCode, c.Name, BootstrapExitCodeContract[c.Name])
+		}
+		if c.WantStderrContains == "" {
+			t.Errorf("case[%d].WantStderrContains empty", i)
+		}
+		if c.Username == "" || c.Password == "" {
+			t.Errorf("case[%d] missing credentials placeholders", i)
+		}
+	}
+}
