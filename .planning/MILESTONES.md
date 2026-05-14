@@ -1,24 +1,73 @@
 # Milestones
 
-## v3.6 端到端测试体系与网络隔离验证 (In Progress: 2026-05-14)
+## v3.6 端到端测试体系与网络隔离验证 (Shipped: 2026-05-14)
 
-**Phases planned:** 8 phases (45-52), 38 requirements
-**Research inputs:** 5 份专项研究（e2e-infrastructure / network-leak-testing / oss-e2e-patterns / e2e-scenarios / docker-e2e-tooling）
+**Phases completed:** 8 phases (45-52), 39 plans（含 51-09 收口）
+**Git range:** 213 commits（`ecad8d7` → `c08fb59`，一日冲刺 2026-05-14）
+**Timeline:** 2026-05-14（intensive sprint）
+**Codebase:** 生产代码新增 ≈ 445 行（不计测试 / fixture / workflow），集中在 `internal/network/` + `internal/controlplane/http/` + `internal/store/repository/` + `internal/runtime/tasks/`
 
-**Key scope:**
+**Key accomplishments:**
 
-- 测试基础设施：testcontainers-go + testify/suite + headscale Scenario 抽象 + CI 双层架构
-- 10 个最小可信 e2e 用例（MVS）覆盖黄金路径、出口 IP/DNS/默认拒绝、kill-switch、治理
-- 防泄漏对抗：DNS/DoT/ICMP/IPv6/IMDS/raw socket/link-local/capability 全向量
-- Kill-switch 压力：Pumba 故障注入 + SIGKILL/tun down/network disconnect 三场景
-- 代码层加固：verify.go 多源轮询、namespace.go 探测参数化、nftables counter、cap-drop
-- 可观测性：失败自动归档 artifact（日志 / 网络 / docker / postgres / 系统）
+5 大测试体系 + 1 项生产代码加固：
 
-**Stack decisions:**
-- testcontainers-go（容器编排）+ testify/suite（用例组织）
-- Pumba（网络故障注入）+ Tetragon（内核 oracle，Phase 50+ 可选）
-- Hurl（API 断言，Phase 52 可选）
-- self-hosted Linux runner（唯一支持 tun + nft + netns 的 CI 环境）
+- **E2E 测试骨架（Phase 45）** — `tests/e2e/` testcontainers-go + testify/suite + `harness.Scenario` builder API（声明式 Control Plane + sing-box gateway + Host + User 拓扑）+ `harness.WaitFor` 4 变体（Log/Port/HTTP/Exec）+ `ArtifactDumper` 5 子目录占位 + `.github/workflows/e2e.yml` 双 job（lint + e2e，hosted ubuntu-24.04）+ `scripts/lint-no-bare-sleep.sh` 双层守护
+- **MVS 黄金路径与治理（Phase 46 + 47）** — `StartGoldenPath` 抽象 + `Vote` 多数派裁决（出口 IP 三源）+ `ClassifyDNSResult` OR 语义 + `DefaultDenyMatrix` 4 target × 3s + `BootstrapExitCodeContract` cross-check + 到期自动停止 + 双绑互斥（51-09 闭 backend gap）+ host-agent 心跳与恢复（`HostHealthRecoveryContract{30s/60s}`）
+- **Kill-switch 核心 + 压力（Phase 48 + 50）** — `KillswitchTimingContract{3s/5s}` + netshoot privileged sidecar tcpdump + `ClassifyResolvConfDNSOutcome` 6 分支 OR 表 + SIGKILL/tun0 down/Pumba netem 1000ms/docker network disconnect 四向量 + Pumba `gaiaadm/pumba:0.10.0` 固定 tag
+- **8 条防泄漏对抗（Phase 49）** — DNS 明文/DoT/ICMP/IPv6/IMDS/raw socket/link-local/capability，每条都通过 host eth0 抓包 / `nft list ruleset` / `getpcaps` 等独立 oracle 做断言；3 条 backend gap 在 Phase 51 同里程碑内闭环
+- **代码层质量加固（Phase 51）** — verify.go 多源轮询 / 多目标泄漏检测 / 全 nameserver 校验 + namespace.go functional option + nft 全规则 counter + 显式 `169.254.0.0/16 counter drop` + worker `--cap-drop NET_RAW` + 删 SYS_ADMIN（NET_ADMIN 折中保留） + Makefile/ci.yml `-race -shuffle=on -count=1` 默认 + goleak.VerifyTestMain 三包接入 + 51-09 双绑 API pre-check
+- **可观测性诊断（Phase 52）** — `tests/e2e/harness/collect-artifacts.sh` 172 行 + 7 单测（含 `NoAbsoluteUserPathsInScript` 静态扫描）+ 5 子目录 README + metadata.txt 7 字段（`SCRIPT_VERSION="v1"` 锁定）+ `if: failure()` + `actions/upload-artifact@v4` retention 30 天 + PR 评论升级
+
+**Coverage:**
+
+- Requirements: **38/38 satisfied** — E2E-01..05 + MVS-01..10 + LEAK-01..08 + KILL-01..04 + QUAL-01..08 + 51-09 + OBS-01..03
+- 8 phase VERIFICATION.md 全部 passed（Phase 49 初次 gaps_found 在 Phase 51 同里程碑内闭环）
+- 跨 phase 接口约定（GoldenPath 方法 / 纯函数 / 锁定常量 / 环境变量 / Scenario builder / CI workflow）全部 WIRED，无悬空契约
+- darwin 维度六道闸全绿：`go build ./...` × `GOOS=linux go build ./...` × `GOOS=linux go build -tags='e2e linux' ./tests/e2e/...` × `go test ./... -race -shuffle=on -count=1` × `go vet ./...` × `bash scripts/lint-no-bare-sleep.sh`
+
+**Key technical decisions:**
+
+- **GoldenPath 抽象** —— Phase 46 提供 `StartGoldenPath(t) *GoldenPath` + 纯函数 + 锁定表，被 Phase 48/49/50 高频复用，避免每 phase 重新发明 e2e 入口
+- **Vote 多数派** —— 出口 IP 三源（ip.me / ifconfig.io / ipinfo.io）走 `Vote` 多数派语义，某源全部超时按"投票"裁决；Phase 51 QUAL-01 在 verify.go 复用同一语义
+- **OR 语义** —— DNS 测试覆盖 Tunneled / Denied 二选一即 PASS；resolv.conf 篡改沿用 6 分支 OR 表
+- **netshoot privileged sidecar** —— host eth0 tcpdump 改走 `docker run --network host --cap-add NET_RAW/NET_ADMIN nicolaka/netshoot:v0.13`，新增 `E2E_TCPDUMP_IMAGE` / `E2E_ALLOW_HOST_TCPDUMP` env 覆盖
+- **Pumba 0.10.0 固定 tag** —— 避免 latest 漂移
+- **nft counter + linklocal-drop** —— QUAL-05 所有规则插入 `expr.Counter{}`；worker 输出链注入 `ip daddr 169.254.0.0/16 counter drop comment "linklocal-drop"`
+- **goleak.VerifyTestMain** —— QUAL-08 在 `internal/network` / `cmd/cloud-claude` / `internal/controlplane/app` 三包接入；ignore list 仅 `broadcast.(*Hub).cleanupLoop`
+- **CONTEXT §Area 3 「以源码为准」** —— MVS-05 被测 binary 改为 `cloud-bootstrap.sh`；Phase 47 草案 5 项偏差全部以源码为准；NET_ADMIN 折中保留（sing-box tun 在 worker netns 创建 tun0 的依赖）
+- **CONTEXT §Area 4 「darwin 编译 + 纯函数单测 PASS = passed；Linux 真机断言 deferred-to-CI 非阻塞 ship」** —— 9 个签字点全 deferred-to-CI 不构成阻塞
+- **CI 走 hosted ubuntu-24.04** —— 弃用 self-hosted Linux runner（E2E-03 草案），与 v3.5 uat-bypass.yml 同款 runner 池
+
+**Issues resolved in-milestone:**
+
+- Phase 49 初次 `gaps_found` 在 Phase 51 同里程碑闭环：LEAK-06（51-06 `--cap-drop NET_RAW`）/ LEAK-07（51-05 显式 link-local drop）/ LEAK-08（51-06 删 SYS_ADMIN，NET_ADMIN 折中保留）
+- Phase 47 D-47-3「双绑互斥后端缺 pre-check」→ 51-09 一次性收口（`ErrCodeEgressIPAlreadyBound` 常量 + 409 + 中英双语 message + host_id / egress_ip_id 字段回显）
+
+**Tech debt / follow-up（8 项全部非阻塞 ship）：**
+
+| ID | 优先级 | 描述 |
+|----|--------|------|
+| TD-1 | P1 | fixture `proc_status_clean.txt` NET_ADMIN 期望校准（Phase 49 LEAK-08 与 51 QUAL-06 折中一致性） |
+| TD-2 | P2 | `dockerExecHandle` 临时 ContainerHandle 实现（KILL-04） |
+| TD-3 | P1 | Scenario.Start Step 2..7 真实接入（Linux runner 真机跑通的共同前置） |
+| TD-4 | P2 | host-agent per-host health API（多宿主机阶段视情况引入） |
+| TD-5 | P2 | fixture SQL bcrypt hash 动态生成 helper |
+| TD-6 | P2 | hosted ubuntu-24.04 `/dev/net/tun` 偶发不可用的 fixture preflight 兜底 |
+| TD-7 | P2 | `DATABASE_URL` 透传给 CI failure step 实现真实 schema dump |
+| TD-8 | P3 | fork PR 上 PR 评论 403 的 fallback |
+
+**Known deferred items at close: 40** （see STATE.md `## Deferred Items`）—— 2 项 debug_session + 37 项 quick_task + 1 项 verification_gap（Phase 49 `gaps_found` 实际已在 Phase 51 闭环，audit-open 索引滞后），全部为 v3.5 及之前里程碑的历史遗留，不影响 v3.6 ship 决策。
+
+**Human verification pending: 9 项（全 deferred-to-CI 非阻塞 ship）** —— P0 黄金路径 / P0 双绑闭环 / P0 kill-switch / P1 防泄漏 / P1 capability / P1 netem / P2 artifact / P2 PR 评论 / P3 preflight，详见 `milestones/v3.6-MILESTONE-AUDIT.md` §5 表。
+
+**Audit:** `.planning/milestones/v3.6-MILESTONE-AUDIT.md` (status: tech_debt — 0 blocker)
+**Tag:** v3.6
+**Archive:**
+
+- `.planning/milestones/v3.6-ROADMAP.md`
+- `.planning/milestones/v3.6-REQUIREMENTS.md`
+- `.planning/milestones/v3.6-MILESTONE-AUDIT.md`
+- `.planning/milestones/v3.6-phases/` (8 phase directories: 45-ci, 46-mvs-ip, 47-mvs-governance, 48-killswitch-core, 49-leak-defense, 50-killswitch-stress, 51-qual-harden, 52-observability)
 
 ---
 

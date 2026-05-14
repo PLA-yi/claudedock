@@ -11,6 +11,7 @@
 - ✅ **v3.1 映射语义补齐与懒加载** — Phases 36-37 (shipped 2026-04-24) — [Archive](milestones/v3.1-ROADMAP.md)
 - ✅ **v3.4 多形态容器接入** — Phases 38-44 (shipped 2026-05-08) — [Archive](milestones/v3.4-ROADMAP.md)
 - ✅ **v3.5 网络白名单与 DNS 拆分解析** — Phases 45-47 (shipped 2026-05-13) — [Archive](milestones/v3.5-ROADMAP.md)
+- ✅ **v3.6 端到端测试体系与网络隔离验证** — Phases 45-52 (shipped 2026-05-14) — [Archive](milestones/v3.6-ROADMAP.md)
 
 ## Phases
 
@@ -123,7 +124,21 @@
 </details>
 
 <details>
-<summary>◆ v3.6 端到端测试体系与网络隔离验证 (Phases 45-52) — IN PROGRESS</summary>
+<summary>✅ v3.6 端到端测试体系与网络隔离验证 (Phases 45-52) — SHIPPED 2026-05-14</summary>
+
+- [x] Phase 45: 测试基础设施与 CI 骨架 (5/5 plans) — completed 2026-05-14
+- [x] Phase 46: MVS 黄金路径与出口 IP 验证 (5/5 plans) — completed 2026-05-14
+- [x] Phase 47: MVS 治理与心跳验证 (3/3 plans) — completed 2026-05-14
+- [x] Phase 48: Kill-switch 核心验证 (2/2 plans) — completed 2026-05-14
+- [x] Phase 49: 防泄漏对抗测试 (8/8 plans) — completed 2026-05-14
+- [x] Phase 50: Kill-switch 压力测试 (4/4 plans) — completed 2026-05-14
+- [x] Phase 51: 代码层质量加固 (9/9 plans, 含 51-09 收口) — completed 2026-05-14
+- [x] Phase 52: 可观测性与诊断 (3/3 plans) — completed 2026-05-14
+
+8 phase / 39 plan / 38 v1 REQ satisfied；8 项 tech debt 全部非阻塞 ship，详见 `milestones/v3.6-MILESTONE-AUDIT.md`；9 项 human verification 全部 deferred-to-CI（前置 TD-3 Scenario.Start Step 2..7 真实接入）。
+
+<details>
+<summary>📦 详细 phase 计划（已归档原文）</summary>
 
 ### Phase 45: 测试基础设施与 CI 骨架
 
@@ -318,9 +333,11 @@
 
 </details>
 
+</details>
+
 ## Progress
 
-**Next milestone:** v3.6 — 端到端测试体系与网络隔离验证
+**Next milestone:** v3.7 — (待定，`/gsd-new-milestone` 进入)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -332,8 +349,9 @@
 | 29-35. v3.0 远端开发体验升级 | v3.0 | 30/30 | Complete | 2026-04-23 |
 | 36-37. v3.1 映射语义补齐与懒加载 | v3.1 | 11/11 | Complete | 2026-04-24 |
 | 38-44. v3.4 多形态容器接入 | v3.4 | 14/14 | Complete | 2026-05-08 |
-| 45-52. v3.6 端到端测试体系 | v3.6 | 39/39 | Ready for Audit | — |
+| 45-47. v3.5 白名单与 DNS 拆分 | v3.5 | 10/10 | Complete | 2026-05-13 |
+| 45-52. v3.6 端到端测试体系 | v3.6 | 39/39 | Complete | 2026-05-14 |
 
 ---
 
-*Last updated: 2026-05-14 — v3.6 所有 phase 完成（45-52 共 8 phase / 39 plan，含 51-09 收口）。ship-ready，进 milestone audit → complete → cleanup。*
+*Last updated: 2026-05-14 — v3.6 shipped (8 phase / 39 plan / 38 REQ satisfied / 8 tech debt deferred to v3.7+).*
