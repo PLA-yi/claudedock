@@ -153,6 +153,41 @@ func TestCollectArtifacts_FailsWithoutOutputDir(t *testing.T) {
 	}
 }
 
+// TestCollectArtifacts_CopiesReadmes：脚本跑完后 5 子目录都有 README.md（Plan 02 模板）。
+//
+// 模板源是 tests/e2e/harness/artifacts/<sub>/README.md，由 Plan 02 落地；脚本内
+// copy_readmes() 函数在 Plan 01 时已预埋，模板缺失时静默跳过（|| true），模板就位
+// 时立即生效，无需再改脚本。
+func TestCollectArtifacts_CopiesReadmes(t *testing.T) {
+	out := t.TempDir()
+	if _, err := runScript(t, out, "readme-check"); err != nil {
+		t.Fatalf("script err: %v", err)
+	}
+	root := filepath.Join(out, "readme-check")
+	for _, sub := range []string{"logs", "network", "docker", "postgres", "system"} {
+		readme := filepath.Join(root, sub, "README.md")
+		data, err := os.ReadFile(readme)
+		if err != nil {
+			t.Fatalf("README missing at %s: %v", readme, err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "Phase 52") {
+			t.Fatalf("%s missing 'Phase 52' marker: %s", readme, firstN(content, 120))
+		}
+		if !strings.Contains(content, "排障") {
+			t.Fatalf("%s missing '排障' keyword: %s", readme, firstN(content, 120))
+		}
+	}
+}
+
+// firstN 返回前 n 个字符（按 byte 切，README 是 utf-8 但断言失败信息够用了）。
+func firstN(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
+
 // TestCollectArtifacts_NoAbsoluteUserPathsInScript：脚本源码内不含个人绝对路径字面量。
 //
 // CONVENTIONS.md §Privacy 守护：禁止在被 git 跟踪的文件中写 /Users/<user>/ 或
