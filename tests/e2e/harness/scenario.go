@@ -51,8 +51,14 @@ var ErrScenarioStepNotImplemented = errors.New("scenario start: step not yet imp
 // ─── 声明阶段数据结构 ────────────────────────────────────────────────────
 
 // controlPlaneSpec 描述用户对 control-plane 的声明。
-// Plan 02 当前阶段无可配置项，留作后续阶段（admin 凭据 / migration 路径覆写）的扩展点。
-type controlPlaneSpec struct{}
+//
+// 字段：
+//   - ExtraEnv：Phase 47 Plan 01 新增。用例通过 WithControlPlaneEnv 注入；
+//     Step 2 真实启动控制面子进程时合并到 exec.Cmd.Env（参考 47-01-PLAN §Step 4）。
+//     当前 Step 2..7 仍 sentinel，ExtraEnv 仅作为契约挂点，实际未被消费。
+type controlPlaneSpec struct {
+	ExtraEnv map[string]string
+}
 
 // gatewaySpec 描述用户对一个 sing-box gateway 的声明。
 type gatewaySpec struct {
@@ -170,10 +176,46 @@ func New(t *testing.T) *Scenario {
 // ─── Builder 链 ────────────────────────────────────────────────────────
 
 // WithControlPlane 声明启动 control-plane。重复调用合法（idempotent，仍只起一份）。
+//
+// 注意：WithControlPlane 调用会 reset ExtraEnv 为 nil，要在 WithControlPlane 之
+// 后再调 WithControlPlaneEnv 才能保留覆写。
 func (s *Scenario) WithControlPlane() *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.controlPlane = &controlPlaneSpec{}
+	return s
+}
+
+// WithControlPlaneEnv 注入额外的环境变量给控制面子进程。
+//
+// Phase 47 Plan 01 新增。典型用法：
+//
+//	sc := harness.New(t).
+//	    WithControlPlane().
+//	    WithControlPlaneEnv(map[string]string{
+//	        "EXPIRY_SCAN_INTERVAL": "1s",
+//	    }).
+//	    WithSingBoxGateway("primary", outbound).
+//	    WithHost("alpha").
+//	    WithUser("alice")
+//
+// 行为：
+//   - 必须在 WithControlPlane 之后调用；调用前未声明 control-plane → t.Fatal。
+//   - 多次调用合并 map（同 key 后写覆盖前写）。
+//   - 当前 Step 2..7 仍 sentinel，ExtraEnv 仅作为契约挂点，待 Phase 46 Plan 01
+//     §Step 2 真实启动控制面子进程时合并到 exec.Cmd.Env。
+func (s *Scenario) WithControlPlaneEnv(envs map[string]string) *Scenario {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.controlPlane == nil {
+		s.t.Fatalf("scenario: WithControlPlaneEnv called before WithControlPlane")
+	}
+	if s.controlPlane.ExtraEnv == nil {
+		s.controlPlane.ExtraEnv = map[string]string{}
+	}
+	for k, v := range envs {
+		s.controlPlane.ExtraEnv[k] = v
+	}
 	return s
 }
 

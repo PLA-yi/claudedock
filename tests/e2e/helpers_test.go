@@ -16,6 +16,7 @@ package e2e
 import (
 	"strings"
 	"testing"
+	"time"
 
 	bootstraperrors "github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http"
 )
@@ -276,6 +277,215 @@ func TestHelpersBootstrapErrorEntries_AtLeastSeven(t *testing.T) {
 	got := len(bootstraperrors.BootstrapErrorEntries)
 	if got < 7 {
 		t.Errorf("expected BootstrapErrorEntries len >= 7, got %d", got)
+	}
+}
+
+// ─── MVS-06 / 到期治理事件 ─────────────────────────────────────────────
+
+func TestHelpersExpiryEventType_Locked(t *testing.T) {
+	if ExpiryEventType != "host.stop.expired" {
+		t.Fatalf("ExpiryEventType drifted: got %q want %q", ExpiryEventType, "host.stop.expired")
+	}
+	if UserExpiredEventType != "user.expired" {
+		t.Fatalf("UserExpiredEventType drifted: got %q want %q", UserExpiredEventType, "user.expired")
+	}
+}
+
+func TestHelpersParseEventTypes_Empty(t *testing.T) {
+	_, err := ParseEventTypes(nil)
+	if err == nil {
+		t.Fatalf("expected error on nil body")
+	}
+}
+
+func TestHelpersParseEventTypes_EmptyArray(t *testing.T) {
+	got, err := ParseEventTypes([]byte(`{"events":[]}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty slice, got %v", got)
+	}
+}
+
+func TestHelpersParseEventTypes_SingleEvent(t *testing.T) {
+	got, err := ParseEventTypes([]byte(`{"events":[{"type":"host.stop.expired","id":"x"}]}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "host.stop.expired" {
+		t.Fatalf("expected [host.stop.expired], got %v", got)
+	}
+}
+
+func TestHelpersParseEventTypes_MultiPreservesOrder(t *testing.T) {
+	body := []byte(`{"events":[{"type":"a"},{"type":"b"},{"type":"c"}]}`)
+	got, err := ParseEventTypes(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"a", "b", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("len=%d want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("idx=%d got %q want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestHelpersParseEventTypes_InvalidJSON(t *testing.T) {
+	if _, err := ParseEventTypes([]byte(`not a json`)); err == nil {
+		t.Fatalf("expected error on invalid JSON")
+	}
+}
+
+// ─── MVS-07 / 出口 IP 双绑互斥 ──────────────────────────────────────────
+
+func TestHelpersEgressIPDoubleBindContract_Locked(t *testing.T) {
+	if EgressIPDoubleBindContract.WantStatus != 409 {
+		t.Fatalf("WantStatus drifted: got %d want 409", EgressIPDoubleBindContract.WantStatus)
+	}
+	if EgressIPDoubleBindContract.WantErrSubstring != "already bound" {
+		t.Fatalf("WantErrSubstring drifted: got %q", EgressIPDoubleBindContract.WantErrSubstring)
+	}
+}
+
+func TestHelpersParseBindEgressIPResponse_Success2xx(t *testing.T) {
+	got, err := ParseBindEgressIPResponse(201, []byte(`{"binding":{"id":"x"}}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Status != 201 || got.ErrorMessage != "" {
+		t.Fatalf("expected status=201 empty err, got %+v", got)
+	}
+	if len(got.RawBody) == 0 {
+		t.Fatalf("expected raw body preserved")
+	}
+}
+
+func TestHelpersParseBindEgressIPResponse_ConflictWithError(t *testing.T) {
+	got, err := ParseBindEgressIPResponse(409, []byte(`{"error":"cannot bind egress IP to running host"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Status != 409 {
+		t.Fatalf("expected status=409, got %d", got.Status)
+	}
+	if !strings.Contains(got.ErrorMessage, "running host") {
+		t.Fatalf("error message lost substring: %q", got.ErrorMessage)
+	}
+}
+
+func TestHelpersParseBindEgressIPResponse_EmptyBody(t *testing.T) {
+	got, err := ParseBindEgressIPResponse(204, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Status != 204 || got.ErrorMessage != "" {
+		t.Fatalf("expected empty err on empty body, got %+v", got)
+	}
+}
+
+func TestHelpersParseBindEgressIPResponse_NonJSONBody(t *testing.T) {
+	got, err := ParseBindEgressIPResponse(502, []byte("upstream timeout"))
+	if err != nil {
+		t.Fatalf("expected nil err (non-JSON tolerated), got %v", err)
+	}
+	if got.Status != 502 || got.ErrorMessage != "" {
+		t.Fatalf("non-JSON body should yield empty ErrorMessage, got %+v", got)
+	}
+	if string(got.RawBody) != "upstream timeout" {
+		t.Fatalf("raw body lost: %q", string(got.RawBody))
+	}
+}
+
+// ─── MVS-08 / host-agent 心跳与恢复 ─────────────────────────────────────
+
+func TestHelpersHostHealthStatus_String(t *testing.T) {
+	cases := map[HostHealthStatus]string{
+		HostHealthUnknown:   "Unknown",
+		HostHealthHealthy:   "Healthy",
+		HostHealthUnhealthy: "Unhealthy",
+		HostHealthDegraded:  "Degraded",
+	}
+	for k, want := range cases {
+		if got := k.String(); got != want {
+			t.Fatalf("HostHealthStatus(%d).String(): got %q want %q", k, got, want)
+		}
+	}
+}
+
+func TestHelpersParseControlPlaneHealth_OKAgentOK(t *testing.T) {
+	body := []byte(`{"status":"ok","checks":{"database":"ok","agent":"ok"}}`)
+	overall, agent, err := ParseControlPlaneHealth(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if overall != HostHealthHealthy {
+		t.Fatalf("overall=%s want Healthy", overall)
+	}
+	if agent != HostHealthHealthy {
+		t.Fatalf("agent=%s want Healthy", agent)
+	}
+}
+
+func TestHelpersParseControlPlaneHealth_WarningAgentUnreachable(t *testing.T) {
+	body := []byte(`{"status":"warning","checks":{"database":"ok","agent":"unreachable"}}`)
+	overall, agent, err := ParseControlPlaneHealth(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if overall != HostHealthUnhealthy {
+		t.Fatalf("overall=%s want Unhealthy", overall)
+	}
+	if agent != HostHealthUnhealthy {
+		t.Fatalf("agent=%s want Unhealthy", agent)
+	}
+}
+
+func TestHelpersParseControlPlaneHealth_DegradedDBError(t *testing.T) {
+	body := []byte(`{"status":"degraded","checks":{"database":"connection refused"}}`)
+	overall, agent, err := ParseControlPlaneHealth(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if overall != HostHealthDegraded {
+		t.Fatalf("overall=%s want Degraded", overall)
+	}
+	if agent != HostHealthUnknown {
+		t.Fatalf("agent=%s want Unknown when checks.agent missing", agent)
+	}
+}
+
+func TestHelpersParseControlPlaneHealth_MissingChecks(t *testing.T) {
+	body := []byte(`{"status":"ok"}`)
+	overall, agent, err := ParseControlPlaneHealth(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if overall != HostHealthHealthy {
+		t.Fatalf("overall=%s want Healthy", overall)
+	}
+	if agent != HostHealthUnknown {
+		t.Fatalf("agent=%s want Unknown without checks field", agent)
+	}
+}
+
+func TestHelpersParseControlPlaneHealth_InvalidJSON(t *testing.T) {
+	_, _, err := ParseControlPlaneHealth([]byte("not json"))
+	if err == nil {
+		t.Fatalf("expected error on invalid JSON")
+	}
+}
+
+func TestHelpersHostHealthRecoveryContract_Locked(t *testing.T) {
+	if HostHealthRecoveryContract.UnhealthyWithin != 30*time.Second {
+		t.Fatalf("UnhealthyWithin drifted: %v", HostHealthRecoveryContract.UnhealthyWithin)
+	}
+	if HostHealthRecoveryContract.HealthyWithin != 60*time.Second {
+		t.Fatalf("HealthyWithin drifted: %v", HostHealthRecoveryContract.HealthyWithin)
 	}
 }
 

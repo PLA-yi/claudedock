@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/app"
 )
@@ -27,6 +28,18 @@ func main() {
 		SSHProxyContainerUser:     envOrDefault("SSH_PROXY_CONTAINER_USER", "workspace"),
 		SSHProxyContainerPassword: envOrDefault("SSH_PROXY_CONTAINER_PASSWORD", "workspace"),
 		SSHProxyHostKeyPath:       envOrDefault("SSH_PROXY_HOST_KEY_PATH", "/var/lib/cloud-cli-proxy/ssh_host_ed25519_key"),
+	}
+
+	// Phase 47 Plan 01：允许通过 EXPIRY_SCAN_INTERVAL 环境变量缩短到期扫描周期，
+	// 主要服务 e2e/Linux runner 在 60s 默认下做不到的快速断言。生产部署可不设。
+	// 解析失败仅 warn，落回 app.Run 内部的 60s 默认。
+	if v := os.Getenv("EXPIRY_SCAN_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.ExpiryScanInterval = d
+		} else {
+			slog.Warn("invalid EXPIRY_SCAN_INTERVAL, falling back to default",
+				"value", v, "error", err)
+		}
 	}
 
 	if cfg.DatabaseURL == "" {

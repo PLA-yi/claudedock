@@ -13,9 +13,11 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ─── MVS-02 / 多数派裁决 ───────────────────────────────────────────────
@@ -242,6 +244,205 @@ var BootstrapExitCodeContract = map[string]int{
 	"account_expired":  12,
 	"host_not_found":   13,
 }
+
+// ─── MVS-06 / 到期容器自动停止 + 审计事件 ────────────────────────────
+
+// ExpiryEventType 是 Phase 47 Plan 01 锁定的「过期触发主机停止」审计事件类型。
+//
+// 源码 internal/controlplane/scheduler/expiry.go::expireUser 中写入：
+//
+//	store.RecordEvent(ctx, repository.RecordEventParams{
+//	    Type: "host.stop.expired",
+//	    Metadata: map[string]any{"reason": "user expired", ...},
+//	})
+//
+// 与 ROADMAP §Phase 47 §Details 1 与 47-CONTEXT.md §Area 1 草案的差异：
+// 文档草案曾写「host.stopped」事件；以源码为准，本表锁定为 host.stop.expired。
+// 任一漂移立即在 darwin 单测层失败，并需同步更新 PLAN/SUMMARY。
+const ExpiryEventType = "host.stop.expired"
+
+// UserExpiredEventType 是 ExpiryScanner 在标记 user.status='expired' 之后
+// 写入的用户级别审计事件类型。用例可用作「scanner 已触发」的快速断言。
+const UserExpiredEventType = "user.expired"
+
+// expiryEventListResponse 对应 GET /v1/admin/events 的响应 body 顶层结构。
+// 仅取 type 字段；其它字段（id / created_at / metadata）通过 RawMessage 透传。
+type expiryEventListResponse struct {
+	Events []struct {
+		Type string `json:"type"`
+	} `json:"events"`
+}
+
+// ParseEventTypes 抽取 admin events API 响应 body 中的事件 type 列表（保留顺序）。
+//
+// 行为：
+//   - 输入为 GET /v1/admin/events 的 JSON body 切片。
+//   - 解析失败 → 返回 nil + err。
+//   - 缺 events 字段 / 空数组 → 返回 []string{} + nil。
+//   - 解析成功 → 返回每行 type 的有序切片（不去重，保留 backend 排序）。
+//
+// 不依赖 metadata 内容；上层用例自行根据 type 子串匹配 + metadata 二次过滤。
+func ParseEventTypes(body []byte) ([]string, error) {
+	if len(body) == 0 {
+		return []string{}, fmt.Errorf("parse event types: empty body")
+	}
+	var parsed expiryEventListResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("parse event types: %w", err)
+	}
+	out := make([]string, 0, len(parsed.Events))
+	for _, ev := range parsed.Events {
+		out = append(out, ev.Type)
+	}
+	return out, nil
+}
+
+// ─── MVS-07 / 出口 IP 双绑互斥 ────────────────────────────────────────
+
+// BindEgressIPResponse 是 POST /v1/admin/bindings 的解析后契约视图。
+//
+// ErrorMessage：当前源码 admin_bindings.go::Bind() 用 `{"error":"自由文本"}`
+// 而非稳定 error code 枚举；本结构保留 raw message 子串，待 backend 引入
+// 稳定 code（如 egress_ip_already_bound）后再扩展枚举字段（Phase 51 QUAL-04）。
+type BindEgressIPResponse struct {
+	Status       int
+	ErrorMessage string
+	RawBody      []byte
+}
+
+// bindErrorBody 对应 {"error":"..."}。
+type bindErrorBody struct {
+	Error string `json:"error"`
+}
+
+// ParseBindEgressIPResponse 把 admin bindings POST 的 status code + body 合成契约视图。
+//
+// 行为：
+//   - body 非空且解析出 error 字段 → ErrorMessage 取该值。
+//   - body 空 / 非 JSON / 缺 error 字段 → ErrorMessage="", err=nil（合法 2xx 路径）。
+//   - 不消耗 body；RawBody 字段透传原 bytes 供上层 t.Logf。
+func ParseBindEgressIPResponse(status int, body []byte) (BindEgressIPResponse, error) {
+	out := BindEgressIPResponse{Status: status, RawBody: body}
+	if len(body) == 0 {
+		return out, nil
+	}
+	var parsed bindErrorBody
+	if err := json.Unmarshal(body, &parsed); err == nil {
+		out.ErrorMessage = parsed.Error
+	}
+	return out, nil
+}
+
+// EgressIPDoubleBindContract 锁定 MVS-07「期望」的拒绝行为。
+//
+// 当前源码 admin_bindings.go 在底层 BindEgressIPToHost 错误时返回 500，
+// 因为 `host_egress_bindings` 仅 UNIQUE(host_id, egress_ip_id)，没有
+// 「同一 egress_ip_id 只允许绑给一个 host」的硬约束。本契约定义「应有」
+// 的行为；用例失败时把 backend 缺口落到 SUMMARY，建议 Phase 51 修源码。
+var EgressIPDoubleBindContract = struct {
+	WantStatus       int
+	WantErrSubstring string
+}{
+	WantStatus:       409,
+	WantErrSubstring: "already bound",
+}
+
+// ─── MVS-08 / host-agent 心跳与恢复 ───────────────────────────────────
+
+// HostHealthStatus 是控制面 /healthz checks.agent 字段的枚举映射。
+//
+// 当前控制面没有 GET /v1/admin/hosts/{X}/health 端点（grep router.go 与
+// admin_hosts.go），单宿主机 v1 部署用全局 /healthz 的 checks.agent 即可
+// 表达 host-agent 进程级健康状态。多宿主机场景属未来 phase。
+type HostHealthStatus int
+
+const (
+	HostHealthUnknown HostHealthStatus = iota
+	HostHealthHealthy
+	HostHealthUnhealthy
+	HostHealthDegraded
+)
+
+// String 让 HostHealthStatus 在 t.Log / artifact dump 中可读。
+func (s HostHealthStatus) String() string {
+	switch s {
+	case HostHealthHealthy:
+		return "Healthy"
+	case HostHealthUnhealthy:
+		return "Unhealthy"
+	case HostHealthDegraded:
+		return "Degraded"
+	default:
+		return "Unknown"
+	}
+}
+
+// controlPlaneHealthBody 对应 /healthz 响应顶层结构。
+type controlPlaneHealthBody struct {
+	Status string            `json:"status"`
+	Checks map[string]string `json:"checks"`
+}
+
+// ParseControlPlaneHealth 解析 GET /healthz 响应 body，返回 (overall, agent) 二元组。
+//
+// 映射（参见 internal/controlplane/http/router.go::/healthz handler）：
+//
+//	overall:
+//	  "ok"       → HostHealthHealthy
+//	  "warning"  → HostHealthUnhealthy（含 agent unreachable）
+//	  "degraded" → HostHealthDegraded（含 database 故障）
+//	  其它/缺失   → HostHealthUnknown
+//
+//	agent (取自 checks.agent 字段)：
+//	  "ok"           → HostHealthHealthy
+//	  "unreachable"  → HostHealthUnhealthy
+//	  缺失（embedded 模式不暴露 agent 字段）→ HostHealthUnknown
+//	  其它字面量      → HostHealthUnknown
+//
+// 解析失败 → 返回 (Unknown, Unknown, err)。
+func ParseControlPlaneHealth(body []byte) (HostHealthStatus, HostHealthStatus, error) {
+	if len(body) == 0 {
+		return HostHealthUnknown, HostHealthUnknown, fmt.Errorf("parse health: empty body")
+	}
+	var parsed controlPlaneHealthBody
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return HostHealthUnknown, HostHealthUnknown, fmt.Errorf("parse health: %w", err)
+	}
+	overall := HostHealthUnknown
+	switch parsed.Status {
+	case "ok":
+		overall = HostHealthHealthy
+	case "warning":
+		overall = HostHealthUnhealthy
+	case "degraded":
+		overall = HostHealthDegraded
+	}
+	agent := HostHealthUnknown
+	if parsed.Checks != nil {
+		switch parsed.Checks["agent"] {
+		case "ok":
+			agent = HostHealthHealthy
+		case "unreachable":
+			agent = HostHealthUnhealthy
+		case "":
+			agent = HostHealthUnknown
+		}
+	}
+	return overall, agent, nil
+}
+
+// HostHealthRecoveryContract 锁定 MVS-08 时间窗。
+//
+// 任一阈值漂移 → 同步修 47-03-PLAN / 47-03-SUMMARY，避免静默放宽 SLA。
+var HostHealthRecoveryContract = struct {
+	UnhealthyWithin time.Duration
+	HealthyWithin   time.Duration
+}{
+	UnhealthyWithin: 30 * time.Second,
+	HealthyWithin:   60 * time.Second,
+}
+
+// ─── 既有锁定表（保留） ────────────────────────────────────────────────
 
 // CLIErrorCases 是 MVS-05 的 4 个 table-driven 用例预设（用例代码可直接 range）。
 // stderr 关键字与 bootstrap_errors.go 中 Message 字段保持一致的子串。
