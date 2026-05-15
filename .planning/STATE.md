@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: sing-box 同容器化
-status: planning
+status: ready_to_plan
 last_updated: "2026-05-15T17:47:25.229Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 0
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 0
   completed_plans: 0
   percent: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-14)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-15 — Milestone v4.0 started
+Phase: 54
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-15
 
 ## Accumulated Context
 

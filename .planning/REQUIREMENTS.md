@@ -10,24 +10,24 @@
 
 ### IMG — 镜像与运行时基线（Phase 53）
 
-- [ ] **IMG-01**：`deploy/docker/managed-user/Dockerfile` 内置 sing-box binary，版本与 v3.6 gw 镜像保持一致（同源、同 tag）。镜像构建产物包含 `/usr/local/bin/sing-box` 且可执行。
-- [ ] **IMG-02**：镜像内置 `singbox:x:9000:9000:sing-box system user:/nonexistent:/usr/sbin/nologin` 系统账号（uid/gid 锁定 9000），用于 sing-box 降权后的运行身份。
-- [ ] **IMG-03**：镜像内置 nftables 与基础排障工具（`nft` / `iproute2` / `dig` / `getpcaps`），与 v3.6 worker 镜像工具集对齐；不引入 `bash -c` 路径以外的 suid 二进制。
-- [ ] **IMG-04**：用户登录使用的 shell 账号挂在 `nosuid` 文件系统约定下，无 sudo、无 wheel 组，验证 `id` 输出非 root 且 `getpcaps $$` 不含 `cap_net_admin`。
+- [x] **IMG-01**：`deploy/docker/managed-user/Dockerfile` 内置 sing-box binary，版本与 v3.6 gw 镜像保持一致（同源、同 tag）。镜像构建产物包含 `/usr/local/bin/sing-box` 且可执行。
+- [x] **IMG-02**：镜像内置 `singbox:x:9000:9000:sing-box system user:/nonexistent:/usr/sbin/nologin` 系统账号（uid/gid 锁定 9000），用于 sing-box 降权后的运行身份。
+- [x] **IMG-03**：镜像内置 nftables 与基础排障工具（`nft` / `iproute2` / `dig` / `getpcaps`），与 v3.6 worker 镜像工具集对齐；不引入 `bash -c` 路径以外的 suid 二进制。
+- [x] **IMG-04**：用户登录使用的 shell 账号挂在 `nosuid` 文件系统约定下，无 sudo、无 wheel 组，验证 `id` 输出非 root 且 `getpcaps $$` 不含 `cap_net_admin`。
 
 ### EP — Entrypoint 启动序列（Phase 53）
 
-- [ ] **EP-01**：entrypoint 作为 PID 1 运行，串行执行 `start sing-box → waitFor tun0 ready → apply nft default-deny → drop privileges → exec sshd`，任一步失败容器立即退出（exit code 非 0）。
-- [ ] **EP-02**：sing-box 通过其 `process.user` 字段在建好 tun + auto_route 之后 setuid 到 `singbox` 账号，运行时进程身份非 root。`ps -o uid,user,comm -p $(pidof sing-box)` 显示 uid=9000。
-- [ ] **EP-03**：sing-box 启动成功的判定走 `harness.WaitFor` 同款语义（监听 tun0 接口存在 + sing-box 健康日志或健康端口），不允许裸 sleep。
-- [ ] **EP-04**：entrypoint 在 sing-box 进程退出时（任意原因）立即向 PID 1 发起退出，触发 docker `restart=on-failure` 重新拉起；exit code 必须为非 0 以区分正常关停。
+- [x] **EP-01**：entrypoint 作为 PID 1 运行，串行执行 `start sing-box → waitFor tun0 ready → apply nft default-deny → drop privileges → exec sshd`，任一步失败容器立即退出（exit code 非 0）。
+- [x] **EP-02**：sing-box 通过其 `process.user` 字段在建好 tun + auto_route 之后 setuid 到 `singbox` 账号，运行时进程身份非 root。`ps -o uid,user,comm -p $(pidof sing-box)` 显示 uid=9000。
+- [x] **EP-03**：sing-box 启动成功的判定走 `harness.WaitFor` 同款语义（监听 tun0 接口存在 + sing-box 健康日志或健康端口），不允许裸 sleep。
+- [x] **EP-04**：entrypoint 在 sing-box 进程退出时（任意原因）立即向 PID 1 发起退出，触发 docker `restart=on-failure` 重新拉起；exit code 必须为非 0 以区分正常关停。
 
 ### NET — 网络强约束（Phase 53）
 
-- [ ] **NET-01**：nft default-deny ruleset 在 entrypoint 中应用，规则集等价于 v3.6 `worker_firewall_linux` 输出链（含 `169.254.0.0/16 counter drop` 与全规则 counter），仅放行 tun0 出口。
-- [ ] **NET-02**：DNS 流量必须经 sing-box stub resolver；`/etc/resolv.conf` 在容器内指向 sing-box 监听地址；外部 UDP/53、TCP/53、TCP/853 (DoT)、TCP/443 (DoH 常见端口路径) 出方向一律 drop。`dig @8.8.8.8 example.com` 必须失败或被 sing-box 接管。
-- [ ] **NET-03**：sing-box 死亡时（任意原因，含 SIGKILL）容器在 ≤3s 内退出；docker `restart=on-failure` 在 ≤5s 内拉起新容器，新容器复用同一 host 配置；期间 host eth0 抓包不得出现来自该容器 IP 的非 tun 流量。
-- [ ] **NET-04**：容器内 user 进程读 `getpcaps` 不含 `cap_net_admin` / `cap_net_raw` / `cap_sys_admin`；尝试 `ip link set tun0 down` 或 `nft flush ruleset` 必须返回 `Operation not permitted`。
+- [x] **NET-01**：nft default-deny ruleset 在 entrypoint 中应用，规则集等价于 v3.6 `worker_firewall_linux` 输出链（含 `169.254.0.0/16 counter drop` 与全规则 counter），仅放行 tun0 出口。
+- [x] **NET-02**：DNS 流量必须经 sing-box stub resolver；`/etc/resolv.conf` 在容器内指向 sing-box 监听地址；外部 UDP/53、TCP/53、TCP/853 (DoT)、TCP/443 (DoH 常见端口路径) 出方向一律 drop。`dig @8.8.8.8 example.com` 必须失败或被 sing-box 接管。
+- [x] **NET-03**：sing-box 死亡时（任意原因，含 SIGKILL）容器在 ≤3s 内退出；docker `restart=on-failure` 在 ≤5s 内拉起新容器，新容器复用同一 host 配置；期间 host eth0 抓包不得出现来自该容器 IP 的非 tun 流量。
+- [x] **NET-04**：容器内 user 进程读 `getpcaps` 不含 `cap_net_admin` / `cap_net_raw` / `cap_sys_admin`；尝试 `ip link set tun0 down` 或 `nft flush ruleset` 必须返回 `Operation not permitted`。
 
 ### SEC — 同容器架构特有的安全断言（Phase 55）
 
