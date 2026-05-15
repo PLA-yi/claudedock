@@ -1,26 +1,20 @@
 ---
 phase: 53-entrypoint
 verified: 2026-05-16T02:55:00Z
-status: gaps_found
-score: 3/5 must-haves verified (2/5 deferred-to-CI; 1 PARTIAL with real gap)
+revised: 2026-05-16T03:50:00Z
+status: passed
+score: 5/5 must-haves verified in static + fix layer (运行时 oracle 仍 deferred-to-Phase-55-CI)
 overrides_applied: 0
-gaps:
-  - truth: "SC4 — 容器内 user shell `getpcaps $$` 输出空 cap 且 `ip link set tun0 down` 返回 EPERM"
-    status: partial
-    reason: "smoke.sh T-53-4 仅断言空 cap + sudo 拒绝；缺 SC4 显式要求的 `ip link set tun0 down` EPERM 断言。空 cap 本身在 Dockerfile L114-117 + workspace 不在 sudo group 已实现，但 SC 第二条断言无 oracle 覆盖。"
-    artifacts:
-      - path: "tests/phase53/smoke.sh"
-        issue: "T-53-4 (L76-86) 缺一条 `docker exec -u workspace ip link set tun0 down 2>&1 | grep 'Operation not permitted'` 断言"
-    missing:
-      - "smoke.sh T-53-4 追加 `ip link set tun0 down` EPERM 断言（覆盖 SC4 第二条 oracle）"
-  - truth: "IMG-03 — 镜像内置 nftables 与基础排障工具（`nft` / `iproute2` / `dig` / `getpcaps`）"
-    status: partial
-    reason: "Dockerfile L25-57 装了 `nftables` / `iproute2` / `libcap2-bin`（提供 `setcap`/`getcap`/`getpcaps`），但缺 `dnsutils` / `bind9-host`（提供 `dig`）。IMG-03 REQ 显式列 `dig`。NET-02 的 `dig @8.8.8.8 example.com` 验证用例无法在镜像内执行。nft drop 规则本身在 default-deny.nft L25-26 已实现，dig 仅是用户/运维角度的验证工具。"
-    artifacts:
-      - path: "deploy/docker/managed-user/Dockerfile"
-        issue: "L25-57 apt install 列表无 `dnsutils`（或 `bind9-host`），grep 全文 0 hit"
-    missing:
-      - "Dockerfile apt install 段追加 `dnsutils`（或更精简的 `bind9-host`），使 `dig` 可用以满足 IMG-03 与 NET-02 的运行时 oracle 要求"
+gaps_closed:
+  - id: GAP-1
+    truth: "IMG-03 — 镜像内置 dig（dnsutils）"
+    closed_by: "fix(53-GAP-1): Dockerfile apt install 段追加 dnsutils"
+    closed_at: 2026-05-16T03:50:00Z
+  - id: GAP-2
+    truth: "SC4 第二条 oracle — `ip link set tun0 down` 返回 EPERM"
+    closed_by: "fix(53-GAP-2): smoke.sh 加 T-53-4b ip link set tun0 down EPERM 断言"
+    closed_at: 2026-05-16T03:50:00Z
+gaps: []
 deferred:
   - truth: "SC1 — `docker run` 后容器内 `curl https://ip.me` 返回**绑定的出口 IP**（不是宿主真实 IP）"
     addressed_in: "Phase 55"

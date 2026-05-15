@@ -17,7 +17,26 @@ findings:
   medium: 6
   low: 5
   total: 15
-status: issues_found
+status: partial-fixed
+fixed:
+  - CR-01
+  - HI-01
+  - HI-02
+  - HI-03
+deferred_to_tech_debt:
+  - ME-01
+  - ME-02
+  - ME-03
+  - ME-04
+  - ME-05
+  - ME-06
+  - LO-01
+  - LO-02
+  - LO-03
+  - LO-04
+  - LO-05
+tech_debt_doc: .planning/phases/53-entrypoint/53-TECH-DEBT.md
+fixed_at: 2026-05-16T03:50:00Z
 ---
 
 # Phase 53 Code Review Report
