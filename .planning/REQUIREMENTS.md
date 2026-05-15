@@ -1,0 +1,105 @@
+# Requirements: v4.0 sing-box 同容器化
+
+**Milestone goal:** 把 sing-box 从独立 `cloudproxy-gw-*` 容器搬进用户容器内部，消灭"user 容器 default 路由不指向 gw"这一整类回归泄漏；单容器架构带来 breaking change，故升 major v4.0。
+
+**Phases:** 53-56 (continued from v3.6, 4 phases total)
+
+---
+
+## Active Requirements
+
+### IMG — 镜像与运行时基线（Phase 53）
+
+- [ ] **IMG-01**：`deploy/docker/managed-user/Dockerfile` 内置 sing-box binary，版本与 v3.6 gw 镜像保持一致（同源、同 tag）。镜像构建产物包含 `/usr/local/bin/sing-box` 且可执行。
+- [ ] **IMG-02**：镜像内置 `singbox:x:9000:9000:sing-box system user:/nonexistent:/usr/sbin/nologin` 系统账号（uid/gid 锁定 9000），用于 sing-box 降权后的运行身份。
+- [ ] **IMG-03**：镜像内置 nftables 与基础排障工具（`nft` / `iproute2` / `dig` / `getpcaps`），与 v3.6 worker 镜像工具集对齐；不引入 `bash -c` 路径以外的 suid 二进制。
+- [ ] **IMG-04**：用户登录使用的 shell 账号挂在 `nosuid` 文件系统约定下，无 sudo、无 wheel 组，验证 `id` 输出非 root 且 `getpcaps $$` 不含 `cap_net_admin`。
+
+### EP — Entrypoint 启动序列（Phase 53）
+
+- [ ] **EP-01**：entrypoint 作为 PID 1 运行，串行执行 `start sing-box → waitFor tun0 ready → apply nft default-deny → drop privileges → exec sshd`，任一步失败容器立即退出（exit code 非 0）。
+- [ ] **EP-02**：sing-box 通过其 `process.user` 字段在建好 tun + auto_route 之后 setuid 到 `singbox` 账号，运行时进程身份非 root。`ps -o uid,user,comm -p $(pidof sing-box)` 显示 uid=9000。
+- [ ] **EP-03**：sing-box 启动成功的判定走 `harness.WaitFor` 同款语义（监听 tun0 接口存在 + sing-box 健康日志或健康端口），不允许裸 sleep。
+- [ ] **EP-04**：entrypoint 在 sing-box 进程退出时（任意原因）立即向 PID 1 发起退出，触发 docker `restart=on-failure` 重新拉起；exit code 必须为非 0 以区分正常关停。
+
+### NET — 网络强约束（Phase 53）
+
+- [ ] **NET-01**：nft default-deny ruleset 在 entrypoint 中应用，规则集等价于 v3.6 `worker_firewall_linux` 输出链（含 `169.254.0.0/16 counter drop` 与全规则 counter），仅放行 tun0 出口。
+- [ ] **NET-02**：DNS 流量必须经 sing-box stub resolver；`/etc/resolv.conf` 在容器内指向 sing-box 监听地址；外部 UDP/53、TCP/53、TCP/853 (DoT)、TCP/443 (DoH 常见端口路径) 出方向一律 drop。`dig @8.8.8.8 example.com` 必须失败或被 sing-box 接管。
+- [ ] **NET-03**：sing-box 死亡时（任意原因，含 SIGKILL）容器在 ≤3s 内退出；docker `restart=on-failure` 在 ≤5s 内拉起新容器，新容器复用同一 host 配置；期间 host eth0 抓包不得出现来自该容器 IP 的非 tun 流量。
+- [ ] **NET-04**：容器内 user 进程读 `getpcaps` 不含 `cap_net_admin` / `cap_net_raw` / `cap_sys_admin`；尝试 `ip link set tun0 down` 或 `nft flush ruleset` 必须返回 `Operation not permitted`。
+
+### SEC — 同容器架构特有的安全断言（Phase 55）
+
+- [ ] **SEC-01**：用户进程**不能** kill sing-box。`docker exec -u <user> kill -9 $(pidof sing-box)` 必须失败（`Operation not permitted`），或 sing-box 作 PID 1 时 user 命名空间 PID 映射阻止此调用。
+- [ ] **SEC-02**：用户进程**不能**读上游凭据。`docker exec -u <user> cat /etc/sing-box/config.json` 必须失败（`Permission denied` 或 `No such file or directory`，因启动后 rm）。该断言通过文件权限 0600 + 启动后 fs 删除双重保证。
+- [ ] **SEC-03**：用户进程**不能**绕过路由。`getpcaps <user-shell-pid>` 输出空 cap，且 `unshare -n /bin/bash` 必须失败（无 `cap_sys_admin`）。
+
+### CTRL — 控制面单容器化（Phase 54）
+
+- [ ] **CTRL-01**：`internal/network/container_proxy_provider.go` 删除 gw 容器创建与 teardownGateway 路径，`PrepareHost` 只管 user 容器的 `--device /dev/net/tun` / `--cap-add NET_ADMIN` / `--restart=on-failure` 与 sing-box config 注入。
+- [ ] **CTRL-02**：`cloudproxy-net-<HostID>` 自定义 bridge 退役；user 容器只接 docker 默认网络获得 host 入向 SSH 端口转发，出方向流量由容器内 sing-box 接管。
+- [ ] **CTRL-03**：host-agent 在 PrepareHost 时把 sing-box config（含出口 IP 对应的上游凭据）写入 user 容器内 `/etc/sing-box/config.json` 路径，root:root 0600；entrypoint 启动 sing-box 成功后立即 `rm` 该文件。
+- [ ] **CTRL-04**：双绑互斥 pre-check（v3.6 51-09 落地的 `ErrCodeEgressIPAlreadyBound` + 409）保留功能、调整数据源到单容器路径，API 行为契约不变。
+- [ ] **CTRL-05**：`deploy/docker/sing-box/` 与 Makefile `gateway-image` target 整体退役；镜像构建产物不再产出 gw 镜像。
+
+### E2E — 端到端测试重构（Phase 55）
+
+- [ ] **E2E-V4-01**：`tests/e2e/harness/scenario.go` 的 builder 合并 `WithSingBoxGateway(...)` 进 `WithUser(...)`，单容器拓扑；旧 API 调用点全部迁移。
+- [ ] **E2E-V4-02**：v3.6 LEAK-01..08 用例迁移到单容器架构，抓包视角统一改为 host eth0 + 容器 veth pair，断言语义保持不变；迁移完成后 8 条用例继续绿。
+- [ ] **E2E-V4-03**：v3.6 KILL-01..04 用例迁移：`docker kill <gw>` 改为 `docker exec <user> kill -9 $(pidof sing-box)`；新增断言 "PID 1 死 → 容器死 → 出网立即断"。
+- [ ] **E2E-V4-04**：v3.6 GoldenPath 与 MVS-01..10 用例迁移到单容器，所有出口 IP / DNS / default-deny / 错误码契约保持不变。
+- [ ] **E2E-V4-05**：删除 v3.6 期间为 cross-container 协调写的辅助代码（gw 启动同步、network connect 等待等）。
+- [ ] **E2E-V4-06**：新增 SEC-01..03 三条同容器安全断言为 e2e 用例（实现 IMG-04 / SEC-01 / SEC-02 / SEC-03 的验证）。
+
+### CI — CI / 本地一条命令入口（Phase 56）
+
+- [ ] **CI-01**：`.github/workflows/e2e.yml` paths filter 扩面，新增 `internal/controlplane/http/**` / `internal/store/**` / `deploy/docker/**` / `Makefile` / `go.mod` / `go.sum`；这些路径被改动时 e2e 强制触发。
+- [ ] **CI-02**：Makefile 新增 `e2e` target —— `make e2e` 等价于 `go test -tags=e2e ./tests/e2e/... -count=1 -v -timeout=15m`，本地一条命令即可跑 e2e 套件。
+- [ ] **CI-03**：Makefile `e2e` target 内串入 `lint-no-bare-sleep` + `go vet -tags=e2e ./tests/e2e/...`，与 CI lint job 行为对齐；`make e2e` 出错语义与 CI 一致。
+
+---
+
+## Future Requirements (deferred)
+
+- **F-V4-DID**：本地 Docker-in-Docker runner（`make e2e-linux` 在 Ubuntu 容器里跑 `make e2e`），让 macOS 一条命令复现 CI 全套 Linux 维度断言。**Deferred to v4.1**，因为 v4.0 主线已经大幅简化 e2e 拓扑，darwin 编译 + CI 真机维度的现有契约够用一段时间。
+- **F-V4-TMPFS**：sing-box config 走 tmpfs 注入而非 fs 写后删（更强凭据隔离）。**Deferred to v4.1**，rm 后内存常驻的方案已经满足核心威胁模型。
+
+---
+
+## Out of Scope
+
+- ❌ **生产用户迁移机制**（D-V4-5）：v4.0 是 breaking change 大版本，存量容器直接重建即可，不实现 sidecar/inline 双模式共存。理由：维护双路径成本远大于收益；存量用户量级不需要无中断迁移。
+- ❌ **Restart GoldenPath e2e**（D-V4-6）：单容器架构消除了 "user 容器 default 路由不指向 gw" 这一回归 bug 类，stop/start 重启路径不再有跨容器协调，无需专门 e2e 覆盖。
+- ❌ **sing-box 协议层变更**：VMess / VLESS / Trojan / Shadowsocks / HTTP 等 outbound 协议沿用 v3.6 sing-box 原生实现，v4.0 不改协议层。
+- ❌ **9 项 v3.6 deferred-to-CI 真机签字**：与 v4.0 主线无关，可在 v4.0 ship 后或并行通过 V36-TD-3 路径推进。
+
+---
+
+## Phase Mapping (Traceability)
+
+| REQ | Phase | Rationale |
+|---|---|---|
+| IMG-01..04 | 53 | 镜像基线，单 phase 内可独立验证 |
+| EP-01..04 | 53 | entrypoint 启动序列，与 IMG 一同验证 |
+| NET-01..04 | 53 | nft / DNS / cap 强约束，本地手工 `docker run` 即可断言 |
+| CTRL-01..05 | 54 | 控制面单容器化，依赖 Phase 53 镜像产物 |
+| SEC-01..03 | 55 | 同容器安全断言，依赖 Phase 54 控制面落地 |
+| E2E-V4-01..06 | 55 | e2e 重构，与 SEC-01..03 同 phase（同属 e2e 套件） |
+| CI-01..03 | 56 | CI 与本地入口收尾，与功能改造解耦 |
+
+---
+
+## Summary
+
+**Total requirements:** 28
+- IMG: 4 / EP: 4 / NET: 4 / CTRL: 5 / SEC: 3 / E2E-V4: 6 / CI: 3
+- Phase 53: 12 REQ (IMG + EP + NET)
+- Phase 54: 5 REQ (CTRL)
+- Phase 55: 9 REQ (SEC + E2E-V4)
+- Phase 56: 3 REQ (CI)
+
+**Deferred:** 2（F-V4-DID / F-V4-TMPFS → v4.1 候选）
+**Out of scope:** 4 类（迁移机制 / Restart e2e / 协议层变更 / v3.6 历史 deferred）
+
+*Last updated: 2026-05-16 — v4.0 requirements initial draft (28 REQ across 4 phases).*
