@@ -2,9 +2,11 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -113,5 +115,36 @@ func TestNewContainerProxyProvider(t *testing.T) {
 	}
 	if p.logger != nil {
 		t.Error("expected nil logger when passed nil")
+	}
+}
+
+// TestContainerProxyProvider_PrepareGateway_DarwinChownNotFatal 锁 D-54-2 darwin
+// 容错：darwin / 非 root 跑 chown root:singbox 必失败，PrepareGateway 应降级为
+// Warn 不阻断（return nil），并保留已写入磁盘的 config.json 供 worker.buildCreateArgs
+// bind mount 引用。
+//
+// Linux root 环境下 chown 必成功，本测试 SKIP。
+func TestContainerProxyProvider_PrepareGateway_DarwinChownNotFatal(t *testing.T) {
+	if runtime.GOOS == "linux" && os.Geteuid() == 0 {
+		t.Skip("test simulates darwin chown EPERM; skipping on linux root")
+	}
+	tmp := t.TempDir()
+	t.Setenv("DATA_DIR", tmp)
+	p := NewContainerProxyProvider(slog.Default())
+	err := p.PrepareGateway(context.Background(), HostNetworkSpec{
+		HostID: "h-darwin",
+		Egress: &EgressConfig{
+			EgressIPID: "eip", ExpectedIP: "9.9.9.9", TunnelType: TunnelTypeProxy,
+			Proxy: &ProxySpec{
+				OutboundConfig: json.RawMessage(`{"type":"socks","server":"1.2.3.4","server_port":1080}`),
+				DNSServer:      "1.1.1.1",
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("PrepareGateway should not fail on chown EPERM (darwin/non-root); got: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(tmp, "gateway", "h-darwin", "config.json")); statErr != nil {
+		t.Errorf("config.json should exist after PrepareGateway: %v", statErr)
 	}
 }
