@@ -152,6 +152,127 @@ assert_tmux_version() {
   esac
 }
 
+# ===== v4.0 (Phase 53): sing-box 同容器化启动序列 — fail-closed =====
+# D-V4-1..4 + D-53-2/3/4/5/6 集中实现：
+# - start_singbox_or_die：runuser → uid=9000 + 文件 cap + tun0 waitFor
+# - lock_resolv_conf：DNS 强制走 sing-box stub (127.0.0.1:53)
+# - apply_nft_or_die：容器内 nft default-deny ruleset
+# - remove_singbox_config：sing-box load 后 shred config 从 fs
+# - monitor_singbox_fail_closed：sing-box 死 → kill PID 1 → 容器死
+
+SING_BOX_CONFIG="/etc/sing-box/config.json"
+SING_BOX_USER="singbox"
+NFT_RULESET="/etc/cloud-claude/default-deny.nft"
+TUN_READY_TIMEOUT_S=30
+SING_BOX_PID=""
+
+start_singbox_or_die() {
+  if [ ! -f "$SING_BOX_CONFIG" ]; then
+    echo "[entrypoint] FATAL: sing-box config 不存在: $SING_BOX_CONFIG" >&2
+    exit 1
+  fi
+
+  # 验证 config 文件权限（D-V4-2 / D-53-3 前置）
+  local perm owner
+  perm="$(stat -c '%a' "$SING_BOX_CONFIG")"
+  owner="$(stat -c '%U' "$SING_BOX_CONFIG")"
+  if [ "$perm" != "600" ] || [ "$owner" != "root" ]; then
+    echo "[entrypoint] FATAL: config 权限不对（want root:0600，got ${owner}:${perm}）" >&2
+    exit 1
+  fi
+
+  # 启动 sing-box（runuser → singbox uid=9000，binary 文件 cap 提供 NET_ADMIN）
+  echo "[entrypoint] starting sing-box as uid=9000 (file-cap based)"
+  runuser -u "$SING_BOX_USER" -- /usr/local/bin/sing-box run -c "$SING_BOX_CONFIG" &
+  SING_BOX_PID=$!
+
+  # WaitFor tun0 ready（替代裸 sleep）
+  echo "[entrypoint] waiting for tun0 (timeout=${TUN_READY_TIMEOUT_S}s)"
+  local deadline=$((SECONDS + TUN_READY_TIMEOUT_S))
+  while (( SECONDS < deadline )); do
+    if ip link show tun0 >/dev/null 2>&1; then
+      if kill -0 "$SING_BOX_PID" 2>/dev/null; then
+        local sb_uid
+        sb_uid="$(ps -o uid= -p "$SING_BOX_PID" 2>/dev/null | tr -d ' ' || echo 'unknown')"
+        echo "[entrypoint] tun0 ready (sing-box pid=$SING_BOX_PID, uid=$sb_uid)"
+        return 0
+      fi
+    fi
+    sleep 0.5
+  done
+
+  echo "[entrypoint] FATAL: tun0 未在 ${TUN_READY_TIMEOUT_S}s 内就绪" >&2
+  if [ -n "$SING_BOX_PID" ]; then
+    kill "$SING_BOX_PID" 2>/dev/null || true
+  fi
+  exit 1
+}
+
+lock_resolv_conf() {
+  echo "[entrypoint] locking /etc/resolv.conf to sing-box stub"
+  cat > /etc/resolv.conf <<'EOF'
+# v4.0: DNS 强制走 sing-box stub resolver (D-V4-3)
+nameserver 127.0.0.1
+options edns0 trust-ad
+EOF
+  chmod 0644 /etc/resolv.conf
+  # chattr +i 让用户无法修改（即便 user 是 root，没 cap_linux_immutable 也改不了）
+  # T5: overlay2 storage driver 可能不支持 immutable bit，仅 WARN，依赖 nft 兜底
+  if ! chattr +i /etc/resolv.conf 2>/dev/null; then
+    echo "[entrypoint] WARN: chattr +i /etc/resolv.conf 失败（可能是 overlayfs），依赖 nft drop 兜底"
+  fi
+}
+
+apply_nft_or_die() {
+  echo "[entrypoint] applying nft default-deny ruleset: $NFT_RULESET"
+  if [ ! -f "$NFT_RULESET" ]; then
+    echo "[entrypoint] FATAL: nft ruleset 不存在: $NFT_RULESET" >&2
+    if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi
+    exit 1
+  fi
+  if ! nft -f "$NFT_RULESET"; then
+    echo "[entrypoint] FATAL: nft 应用失败" >&2
+    if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi
+    exit 1
+  fi
+  # 二次 verify
+  if ! nft list table inet cloud_proxy_v4 >/dev/null 2>&1; then
+    echo "[entrypoint] FATAL: nft table cloud_proxy_v4 未生效" >&2
+    if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi
+    exit 1
+  fi
+  echo "[entrypoint] nft default-deny applied"
+}
+
+remove_singbox_config() {
+  # D-V4-2: sing-box 已加载到内存，从 fs 删除 config
+  echo "[entrypoint] removing sing-box config from fs (D-V4-2)"
+  shred -u "$SING_BOX_CONFIG" 2>/dev/null || rm -f "$SING_BOX_CONFIG"
+  if [ -f "$SING_BOX_CONFIG" ]; then
+    echo "[entrypoint] FATAL: config rm 失败" >&2
+    if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi
+    exit 1
+  fi
+}
+
+monitor_singbox_fail_closed() {
+  # D-V4-4 / EP-04 / NET-03: sing-box 死 → 整个容器死
+  # 注意：用 kill -0 polling 而不是 wait —— wait 只能等当前 shell 的子进程，
+  # 子 shell `(...)` 看不到父 shell 的 background process，wait 会立即返回。
+  (
+    while kill -0 "$SING_BOX_PID" 2>/dev/null; do
+      sleep 1
+    done
+    echo "[entrypoint] FATAL: sing-box 退出，触发容器死 (sing-box pid=$SING_BOX_PID)" >&2
+    # 给 tini (PID 1) 发 TERM，让它清理子进程并退出
+    kill -TERM 1 2>/dev/null || true
+    # 兜底：如果 kill 1 没生效，硬退出
+    sleep 2
+    kill -KILL 1 2>/dev/null || true
+  ) &
+  echo "[entrypoint] sing-box fail-closed monitor armed (monitor pid=$!, sing-box pid=$SING_BOX_PID)"
+}
+
 # SSH setup
 mkdir -p /var/run/sshd
 if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
@@ -170,16 +291,18 @@ fi
 if [ "$CONTAINER_USER" != "workspace" ] && id workspace >/dev/null 2>&1; then
   usermod -l "$CONTAINER_USER" workspace
   groupmod -n "$CONTAINER_USER" workspace 2>/dev/null || true
-  if [ -f /etc/sudoers.d/workspace ]; then
-    sed -i "s/^workspace /${CONTAINER_USER} /" /etc/sudoers.d/workspace
-  fi
+  # v4.0 (D-53-4): 不再 sed sudoers — v4.0 移除了用户 sudo NOPASSWD 路径。
 fi
 
 RUN_USER="${CONTAINER_USER:-workspace}"
 
-# 确保 sudoers 始终与实际用户名一致（修复历史容器可能残留的错误配置）
-echo "${RUN_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/workspace
-chmod 0440 /etc/sudoers.d/workspace
+# v4.0 (D-53-4): 删除 v3.x 的 sudoers NOPASSWD 写入。
+# 用户拿到 shell 后不再有任何 sudo / root 提权路径。
+# 兜底清理（防御历史镜像残留 / volume 挂载的 sudoers.d）：
+rm -f /etc/sudoers.d/workspace 2>/dev/null || true
+if [ "${RUN_USER}" != "workspace" ]; then
+  rm -f "/etc/sudoers.d/${RUN_USER}" 2>/dev/null || true
+fi
 
 mkdir -p /workspace/.ssh
 chown -R "${RUN_USER}:${RUN_USER}" /workspace
@@ -214,7 +337,15 @@ if [ -c /dev/fuse ]; then
   chmod 666 /dev/fuse
 fi
 
-# MODE 检测：remote（默认）= 完整桌面栈，local = 仅 sshd + 可选 sing-box
+# ===== v4.0: sing-box 启动序列（所有 MODE 都跑，fail-fast）=====
+# 顺序固定，任一步失败 entrypoint 非 0 退出 → tini 关停容器（EP-01 / D-V4-4）
+start_singbox_or_die
+lock_resolv_conf
+apply_nft_or_die
+remove_singbox_config
+monitor_singbox_fail_closed
+
+# MODE 检测：remote（默认）= 完整桌面栈，local = 仅 sshd
 MODE="${MODE:-remote}"
 
 if [ "$MODE" != "local" ]; then
@@ -312,76 +443,10 @@ assert_tmux_version
 
 fi # end MODE != "local"
 
-# sing-box 启动（MODE=local + 有 egress 配置时）
-if [ "$MODE" = "local" ] && [ -f /etc/cloud-claude/sing-box-outbound.json ]; then
-  SING_BOX_CONFIG="/etc/sing-box/config.json"
-  SING_BOX_OUTBOUND="/etc/cloud-claude/sing-box-outbound.json"
-  SING_BOX_MODE="${SING_BOX_MODE:-tun}"
-
-  echo "[entrypoint] local mode: starting sing-box (${SING_BOX_MODE} mode)"
-
-  if [ "$SING_BOX_MODE" = "tun" ]; then
-    # tun 模式：需要 NET_ADMIN 权限，由 docker create --cap-add NET_ADMIN 提供
-    if [ ! -f "$SING_BOX_CONFIG" ]; then
-      echo "[entrypoint] WARNING: sing-box tun mode requires /etc/sing-box/config.json" >&2
-      echo "[entrypoint] Falling back to proxy mode" >&2
-      SING_BOX_MODE="proxy"
-    fi
-  fi
-
-  if [ "$SING_BOX_MODE" = "proxy" ]; then
-    # proxy 模式：从 outbound JSON 构建最小 sing-box 配置
-    PROXY_SOCKS_PORT="${PROXY_SOCKS_PORT:-1080}"
-    PROXY_HTTP_PORT="${PROXY_HTTP_PORT:-1081}"
-
-    mkdir -p /etc/sing-box
-    cat > "$SING_BOX_CONFIG" <<SINGCFG
-{
-  "log": {"level": "warn"},
-  "inbounds": [
-    {"type": "socks", "tag": "socks-in", "listen": "127.0.0.1", "listen_port": ${PROXY_SOCKS_PORT}},
-    {"type": "http", "tag": "http-in", "listen": "127.0.0.1", "listen_port": ${PROXY_HTTP_PORT}}
-  ],
-  "outbounds": [
-    $(cat "$SING_BOX_OUTBOUND"),
-    {"type": "direct", "tag": "direct"}
-  ],
-  "route": {
-    "rules": [{"action": "sniff"}],
-    "auto_detect_interface": true
-  }
-}
-SINGCFG
-
-    # 设置代理环境变量（供所有用户 session 继承）
-    export ALL_PROXY="socks5://127.0.0.1:${PROXY_SOCKS_PORT}"
-    export HTTP_PROXY="http://127.0.0.1:${PROXY_HTTP_PORT}"
-    export HTTPS_PROXY="http://127.0.0.1:${PROXY_HTTP_PORT}"
-    export NO_PROXY="localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-
-    cat >> /etc/environment <<PROXYENV
-ALL_PROXY=${ALL_PROXY}
-HTTP_PROXY=${HTTP_PROXY}
-HTTPS_PROXY=${HTTPS_PROXY}
-NO_PROXY=${NO_PROXY}
-PROXYENV
-
-    echo "[entrypoint] local mode: proxy env vars set (socks5://127.0.0.1:${PROXY_SOCKS_PORT})"
-  fi
-
-  # 启动 sing-box（后台）
-  if command -v sing-box >/dev/null 2>&1; then
-    sing-box run -c "$SING_BOX_CONFIG" &
-    sleep 1
-    if kill -0 $! 2>/dev/null; then
-      echo "[entrypoint] sing-box started (mode=${SING_BOX_MODE})"
-    else
-      echo "[entrypoint] WARNING: sing-box failed to start" >&2
-    fi
-  else
-    echo "[entrypoint] WARNING: sing-box binary not found, egress tunnel disabled" >&2
-  fi
-fi
+# v4.0 (Phase 53): 旧的 MODE=local sing-box 分支已删除。
+# 出网现在由顶部 start_singbox_or_die / apply_nft_or_die 序列统一处理，
+# 所有 MODE 都强制走 sing-box tun + nft default-deny，没有 proxy fallback。
+# 用户的 ALL_PROXY / HTTP_PROXY 环境变量也不再注入（应用应直接走 tun）。
 
 # Foreground: sshd
 exec /usr/sbin/sshd -D -e
