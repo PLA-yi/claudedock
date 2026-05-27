@@ -1,5 +1,19 @@
 # Milestones
 
+## v4.0 sing-box 同容器化 (Shipped: 2026-05-27)
+
+**Phases completed:** 4 phases, 13 plans, 25 tasks
+
+**Key accomplishments:**
+
+- managed-user 镜像 v4.0 基线：内置 sing-box 1.13.3（file cap cap_net_admin+eip）+ singbox 系统账号 uid=9000 + 删除 workspace sudo NOPASSWD + 安装 nftables/libcap2-bin。
+- entrypoint.sh 改造为 v4.0 fail-closed 启动序列：sing-box 通过 `runuser` 降权运行 → tun0 waitFor → nft default-deny → DNS 强制 stub → config shred → 死亡 PID 1 fail-closed → sshd foreground。新增 default-deny.nft ruleset 文件 + Dockerfile COPY 行。v3.x sudo / 旧 MODE=local sing-box 分支整体删除。
+- Phase 53 自测层落地：tests/phase53/smoke.sh 本地一键烟测脚本 + 最小 sing-box 1.13.x fixture + README 使用说明，覆盖 T-53-1..6 六条断言。Makefile 加 phase53-smoke target alias。不接 v3.6 e2e harness（Phase 55 才完整接入）。
+- 1. [Rule 3 - Blocking] resolvConfContent 常量迁移到 verify.go 而非直接删除
+- 新增 Test_Phase54_DoubleBindingContract_PreservedAfterSingleContainerRefactor（96 行）作为单容器化重构的不变式锁；admin_bindings.go 业务代码 0 diff，5 项 v3.6 51-09 双绑互斥契约（HTTP 409 / ErrCodeEgressIPAlreadyBound / 中英双语 message / host_id 占用者回显 / egress_ip_id 请求回显）锁定
+
+---
+
 ## v3.6 端到端测试体系与网络隔离验证 (Shipped: 2026-05-14)
 
 **Phases completed:** 8 phases (45-52), 39 plans（含 51-09 收口）

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: sing-box 同容器化
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: v3.6 archived to .planning/milestones/ + tag v3.6
-last_updated: "2026-05-27T10:55:08.606Z"
-last_activity: 2026-05-27 -- Phase 55 execution started
+last_updated: "2026-05-27T11:08:19.705Z"
+last_activity: 2026-05-27 — Milestone v4.0 completed and archived
 progress:
   total_phases: 12
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 7
-  percent: 33
+  total_plans: 13
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-14)
 
 ## Current Position
 
-Phase: 56
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-27
+Phase: Milestone v4.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-27 — Milestone v4.0 completed and archived
 
 ## Accumulated Context
 
@@ -167,3 +167,7 @@ Resume: `/clear` 后 `/gsd-new-milestone` 进入下一里程碑
 ---
 
 <!-- State updated: 2026-05-14 — v3.6 milestone shipped & archived (Phases 45-52, 39/39 plans, 38/38 REQ, 8 tech debt, 40 deferred items acknowledged at close, tag v3.6) -->
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
