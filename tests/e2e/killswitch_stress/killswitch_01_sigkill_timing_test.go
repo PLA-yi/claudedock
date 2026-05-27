@@ -1,17 +1,7 @@
 //go:build e2e && linux
 
-// killswitch_01_sigkill_timing_test.go 是 Phase 50 Plan 01 / KILL-01 的主用例：
-//
-//   - 入口：基线 worker `curl https://ifconfig.io` 必须 exit 0；
-//   - 后台启 host eth0 tcpdump（BPF：src worker and not dst gateway）；
-//   - `docker kill --signal=KILL <gateway>` 并记 wall-clock；
-//   - 容器内立即跑 `curl --max-time 3 <url>`，期望非 0 退出；
-//   - tcpdump 退出后包数必须 0；
-//   - ClassifyStressResult("KILL-01", ...) 合成裁决，
-//     verdict != StressVerdictPass → t.Fatalf。
-//
-// 与 Phase 48 既有 killswitch_singbox_crash_test.go 互不替代：MVS-09 守护
-// 「行为不变量」，KILL-01 在同一故障注入下额外锁「timing ≤ 3000ms」。
+// killswitch_01_sigkill_timing_test.go v4.0 (Phase 55):
+// KILL-01: `docker exec <user> kill -9 $(pidof sing-box)` + timing ≤ 3000ms
 
 package killswitch_stress
 
@@ -37,41 +27,28 @@ func TestKillSwitch_01_SigkillTiming(t *testing.T) {
 
 	baselineExit, err := g.ProbeOutboundFromUser(ctx, probeURL, 5*time.Second)
 	if err != nil {
-		t.Skipf("baseline probe unavailable (worker container handle): %v", err)
+		t.Skipf("baseline probe unavailable: %v", err)
 		return
 	}
 	if baselineExit != 0 {
-		t.Skipf("baseline egress not working (exit=%d); 避免外网抖动 false-fail", baselineExit)
+		t.Skipf("baseline egress not working (exit=%d)", baselineExit)
 		return
 	}
 
-	workerName, err := workerInspectName(ctx, g)
+	containerName, err := workerInspectName(ctx, g)
 	if err != nil {
-		t.Skipf("worker container name unavailable: %v", err)
-		return
-	}
-	gatewayName, err := gatewayInspectName(ctx, g)
-	if err != nil {
-		t.Skipf("gateway container name unavailable: %v", err)
+		t.Skipf("container name unavailable: %v", err)
 		return
 	}
 
-	workerIP, err := g.InspectContainerIPv4(ctx, workerName, "")
+	workerIP, err := g.InspectContainerIPv4(ctx, containerName, "")
 	if err != nil {
-		t.Skipf("worker container ipv4 not available: %v", err)
+		t.Skipf("container ipv4 not available: %v", err)
 		return
 	}
-	gatewayIP := g.Gateway.GatewayIP
-	if gatewayIP == "" {
-		var ipErr error
-		gatewayIP, ipErr = g.InspectContainerIPv4(ctx, gatewayName, "")
-		if ipErr != nil {
-			t.Skipf("gateway ipv4 not available: %v", ipErr)
-			return
-		}
-	}
 
-	bpf := "src host " + workerIP + " and not dst host " + gatewayIP
+	// v4.0: 单容器，BPF 简化为 src host workerIP
+	bpf := "src host " + workerIP
 
 	type tcpdumpResult struct {
 		packets int
@@ -85,8 +62,8 @@ func TestKillSwitch_01_SigkillTiming(t *testing.T) {
 
 	contract := e2e.KillswitchStressContract["KILL-01"]
 	start := time.Now()
-	if err := g.KillGateway(ctx); err != nil {
-		t.Fatalf("kill gateway: %v", err)
+	if err := g.KillSingBox(ctx); err != nil {
+		t.Fatalf("kill sing-box: %v", err)
 	}
 	probeTimeout := time.Duration(contract.MaxDisconnectMs) * time.Millisecond
 	probeExit, probeErr := g.ProbeOutboundFromUser(ctx, probeURL, probeTimeout)
@@ -99,12 +76,11 @@ func TestKillSwitch_01_SigkillTiming(t *testing.T) {
 	select {
 	case td = <-dumpCh:
 	case <-ctx.Done():
-		t.Fatalf("tcpdump goroutine did not finish before ctx deadline: %v", ctx.Err())
+		t.Fatalf("tcpdump goroutine did not finish: %v", ctx.Err())
 	}
 
 	if td.err != nil {
-		t.Logf("tcpdump sidecar reported err (host eth0 抓包不可用): %v", td.err)
-		t.Skipf("host eth0 tcpdump oracle unavailable; deferred-to-CI (hosted ubuntu-24.04 with sudo)")
+		t.Skipf("host eth0 tcpdump oracle unavailable; deferred-to-CI: %v", td.err)
 		return
 	}
 
@@ -113,8 +89,8 @@ func TestKillSwitch_01_SigkillTiming(t *testing.T) {
 		LeakedPackets: td.packets,
 		ElapsedMs:     elapsedMs,
 	})
-	t.Logf("KILL-01 verdict=%s reason=%q elapsed=%dms probeExit=%d packets=%d worker=%s gateway=%s bpf=%q",
-		verdict, reason, elapsedMs, probeExit, td.packets, workerIP, gatewayIP, bpf)
+	t.Logf("KILL-01 v4.0 verdict=%s reason=%q elapsed=%dms probeExit=%d packets=%d container=%s",
+		verdict, reason, elapsedMs, probeExit, td.packets, workerIP)
 	if verdict != e2e.StressVerdictPass {
 		t.Fatalf("KILL-01 fail: verdict=%s reason=%s elapsed=%dms probeExit=%d packets=%d",
 			verdict, reason, elapsedMs, probeExit, td.packets)

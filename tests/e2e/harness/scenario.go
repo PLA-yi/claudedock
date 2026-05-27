@@ -2,26 +2,18 @@
 
 // Package harness 中的 scenario.go 提供 Scenario builder API。
 //
-// Phase 45 Plan 02 当前阶段交付：
-//   - 完整 builder 链 + 状态机数据结构 + 4 个访问器 + 幂等 Stop
-//   - Start 内部 Step 1（Postgres testcontainer 起停）真实实现
-//   - Step 2..7（控制面子进程 / admin login / fixture 三件套 / PrepareGateway /
-//     PrepareHost / ready）留 TODO + sentinel error，由 Plan 02 后续阶段或独立
-//     plan 推进真实代码
-//
-// 这样保证：
-//   - 编译通过、签名锁定，后续 plan 不会因 builder/状态机签名漂移而返工
-//   - Step 1 真实实现验证 BaseSuite + harness.WaitFor + testcontainers 集成可行
-//   - Plan 04（artifact dump）可基于已就位的 cleanups LIFO 模式直接接 hook
-//   - Plan 05（CI workflow）的 `go test -tags=e2e ./tests/e2e/...` 跑通（smoke
-//     用例 t.Skip 跳过未实现部分，不算 fail）
+// v4.0 (Phase 55) 单容器化重构：
+//   - 删除 gatewaySpec / GatewayHandle / WithSingBoxGateway / SingBoxGateway
+//   - 合并到 userSpec / User，outbound 通过 WithOutboundConfig 设置
+//   - WithHost 不再要求先声明 gateway
+//   - 4 个访问器改为 3 个（ControlPlane/Host/User）
 //
 // 设计契约（不可在后续阶段破坏）：
 //   - builder 链每个方法都返回 *Scenario，支持继续链式
-//   - 重复声明同名 gateway/host/user 立即 t.Fatalf
+//   - 重复声明同名 host/user 立即 t.Fatalf
 //   - Start 任一步失败 → 跑 cleanups LIFO → 返回 fmt.Errorf 包装错
 //   - Stop 幂等 + best-effort，多次调用不 panic、不报错
-//   - 4 个访问器（ControlPlane/SingBoxGateway/Host/User）在 Start 之前调用
+//   - 3 个访问器（ControlPlane/Host/User）在 Start 之前调用
 //     立即 t.Fatal("scenario not started")
 package harness
 
@@ -40,71 +32,49 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
 )
 
 // ErrScenarioStepNotImplemented 是 Plan 02 当前阶段 Step 2..7 的 sentinel error。
-// 后续阶段实现真实启动序列时必须移除该返回路径。
 var ErrScenarioStepNotImplemented = errors.New("scenario start: step not yet implemented in plan 02 (TODO Step 2..7)")
 
 // ─── 声明阶段数据结构 ────────────────────────────────────────────────────
 
 // controlPlaneSpec 描述用户对 control-plane 的声明。
-//
-// 字段：
-//   - ExtraEnv：Phase 47 Plan 01 新增。用例通过 WithControlPlaneEnv 注入；
-//     Step 2 真实启动控制面子进程时合并到 exec.Cmd.Env（参考 47-01-PLAN §Step 4）。
-//     当前 Step 2..7 仍 sentinel，ExtraEnv 仅作为契约挂点，实际未被消费。
 type controlPlaneSpec struct {
 	ExtraEnv map[string]string
 }
 
-// gatewaySpec 描述用户对一个 sing-box gateway 的声明。
-type gatewaySpec struct {
-	Name           string
-	OutboundConfig json.RawMessage
-}
-
-// hostSpec 描述用户对一个 host 的声明。默认绑定到 *最近一次声明* 的 SingBoxGateway。
+// hostSpec 描述用户对一个 host 的声明。
+// v4.0 (Phase 55): GatewayName 字段已删除，单容器架构下 host 直接绑定 outbound。
 type hostSpec struct {
-	Name        string
-	GatewayName string
+	Name string
 }
 
 // userSpec 描述用户对一个 user 的声明。默认绑定到 *最近一次声明* 的 Host。
+// v4.0 (Phase 55): 新增 OutboundConfig 字段，原 gatewaySpec 合并到此处。
 type userSpec struct {
-	Name     string
-	HostName string
+	Name           string
+	HostName       string
+	OutboundConfig json.RawMessage
 }
 
 // ─── 运行时句柄（Start 后填充） ────────────────────────────────────────
 
-// ControlPlaneHandle 由访问器返回。Plan 02 当前阶段 Step 2..7 未实现，
-// Addr / AdminToken / DBURL 在 Start 真实跑通 Step 2..3 之前为空。
+// ControlPlaneHandle 由访问器返回。
 type ControlPlaneHandle struct {
 	Addr       string // http://127.0.0.1:<port>
 	AdminToken string
 	DBURL      string // postgres://...（Step 1 后填充）
 }
 
-// GatewayHandle 由访问器返回。Plan 02 Step 4..6 未实现，Container/IP/ConfigDir 暂为空。
-type GatewayHandle struct {
-	Name        string
-	HostID      string
-	ContainerID string
-	GatewayIP   string // 10.99.<x>.2
-	ConfigDir   string // network.GatewayConfigDir(HostID)
-}
-
-// HostHandle 由访问器返回。Plan 02 Step 7 未实现，ContainerName 暂为空。
+// HostHandle 由访问器返回。
 type HostHandle struct {
 	ID            string // DB row id（Step 3 后填充）
 	Name          string // logical name（builder 阶段填充）
 	ContainerName string // cloudproxy-<host_id>（Step 7 后填充）
 }
 
-// UserHandle 由访问器返回。Plan 02 Step 3 未实现，ID/Username/EntryPassword 暂为空。
+// UserHandle 由访问器返回。
 type UserHandle struct {
 	ID            string
 	Username      string
@@ -115,18 +85,19 @@ type UserHandle struct {
 
 // Scenario 是 e2e 拓扑的 builder + 状态机。
 //
-// 用法：
+// v4.0 单容器用法：
 //
 //	sc := harness.New(t).
 //	    WithControlPlane().
-//	    WithSingBoxGateway("primary", outboundJSON).
+//	    WithOutboundConfig(outboundJSON).
 //	    WithHost("alpha").
 //	    WithUser("alice")
 //	if err := sc.Start(ctx); err != nil { t.Fatal(err) }
 //	defer sc.Stop(ctx)
 //
 //	cp := sc.ControlPlane()
-//	gw := sc.SingBoxGateway("primary")
+//	host := sc.Host("alpha")
+//	user := sc.User("alice")
 type Scenario struct {
 	mu          sync.Mutex
 	t           *testing.T
@@ -135,19 +106,17 @@ type Scenario struct {
 	scenarioID  string // 8 位随机 hex，避免并发 e2e 资源命名冲突
 
 	// 声明阶段累积的拓扑
-	controlPlane     *controlPlaneSpec
-	gateways         map[string]*gatewaySpec
-	gatewayDeclOrder []string // 维护"最近一次声明"语义
-	hosts            map[string]*hostSpec
-	hostDeclOrder    []string
-	users            map[string]*userSpec
+	controlPlane  *controlPlaneSpec
+	outboundConfig json.RawMessage // v4.0: 全局 outbound（替代 v3.6 gatewaySpec.OutboundConfig）
+	hosts         map[string]*hostSpec
+	hostDeclOrder []string
+	users         map[string]*userSpec
 
 	// Start 后填充的运行时句柄
-	pgContainer    testcontainers.Container
-	cpHandle       *ControlPlaneHandle
-	gatewayHandles map[string]*GatewayHandle
-	hostHandles    map[string]*HostHandle
-	userHandles    map[string]*UserHandle
+	pgContainer testcontainers.Container
+	cpHandle    *ControlPlaneHandle
+	hostHandles map[string]*HostHandle
+	userHandles map[string]*UserHandle
 
 	// LIFO 清理列表，Start 内每完成一步就 append 一个回滚 func
 	cleanups []func(context.Context) error
@@ -160,25 +129,20 @@ type Scenario struct {
 func New(t *testing.T) *Scenario {
 	t.Helper()
 	return &Scenario{
-		t:              t,
-		logger:         newScenarioLogger(),
-		projectRoot:    projectRootFromCaller(),
-		scenarioID:     mustRandomHex(4),
-		gateways:       map[string]*gatewaySpec{},
-		hosts:          map[string]*hostSpec{},
-		users:          map[string]*userSpec{},
-		gatewayHandles: map[string]*GatewayHandle{},
-		hostHandles:    map[string]*HostHandle{},
-		userHandles:    map[string]*UserHandle{},
+		t:           t,
+		logger:      newScenarioLogger(),
+		projectRoot: projectRootFromCaller(),
+		scenarioID:  mustRandomHex(4),
+		hosts:       map[string]*hostSpec{},
+		users:       map[string]*userSpec{},
+		hostHandles: map[string]*HostHandle{},
+		userHandles: map[string]*UserHandle{},
 	}
 }
 
 // ─── Builder 链 ────────────────────────────────────────────────────────
 
 // WithControlPlane 声明启动 control-plane。重复调用合法（idempotent，仍只起一份）。
-//
-// 注意：WithControlPlane 调用会 reset ExtraEnv 为 nil，要在 WithControlPlane 之
-// 后再调 WithControlPlaneEnv 才能保留覆写。
 func (s *Scenario) WithControlPlane() *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -187,23 +151,6 @@ func (s *Scenario) WithControlPlane() *Scenario {
 }
 
 // WithControlPlaneEnv 注入额外的环境变量给控制面子进程。
-//
-// Phase 47 Plan 01 新增。典型用法：
-//
-//	sc := harness.New(t).
-//	    WithControlPlane().
-//	    WithControlPlaneEnv(map[string]string{
-//	        "EXPIRY_SCAN_INTERVAL": "1s",
-//	    }).
-//	    WithSingBoxGateway("primary", outbound).
-//	    WithHost("alpha").
-//	    WithUser("alice")
-//
-// 行为：
-//   - 必须在 WithControlPlane 之后调用；调用前未声明 control-plane → t.Fatal。
-//   - 多次调用合并 map（同 key 后写覆盖前写）。
-//   - 当前 Step 2..7 仍 sentinel，ExtraEnv 仅作为契约挂点，待 Phase 46 Plan 01
-//     §Step 2 真实启动控制面子进程时合并到 exec.Cmd.Env。
 func (s *Scenario) WithControlPlaneEnv(envs map[string]string) *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -219,39 +166,30 @@ func (s *Scenario) WithControlPlaneEnv(envs map[string]string) *Scenario {
 	return s
 }
 
-// WithSingBoxGateway 声明一个 sing-box gateway。重复 name 立即 t.Fatalf。
-// outboundConfig 为 sing-box outbound JSON（如 `{"type":"socks","tag":"proxy-out","server":"127.0.0.1","server_port":1080}`）。
-func (s *Scenario) WithSingBoxGateway(name string, outboundConfig json.RawMessage) *Scenario {
+// WithOutboundConfig 设置全局 outbound config（sing-box proxy outbound JSON）。
+// v4.0 (Phase 55): 替代 v3.6 WithSingBoxGateway，outbound 直接与 scenario 关联，
+// 由 PrepareHost 写入容器内 sing-box config。
+func (s *Scenario) WithOutboundConfig(outboundConfig json.RawMessage) *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.gateways[name]; exists {
-		s.t.Fatalf("scenario: duplicate SingBoxGateway name %q", name)
-	}
-	s.gateways[name] = &gatewaySpec{Name: name, OutboundConfig: outboundConfig}
-	s.gatewayDeclOrder = append(s.gatewayDeclOrder, name)
+	s.outboundConfig = outboundConfig
 	return s
 }
 
-// WithHost 声明一个 host，默认绑定到最近一次 WithSingBoxGateway 的 gateway。
-// 如未先声明 gateway，立即 t.Fatalf。
+// WithHost 声明一个 host。v4.0 单容器架构下不再要求先声明 gateway。
 func (s *Scenario) WithHost(name string) *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.hosts[name]; exists {
 		s.t.Fatalf("scenario: duplicate Host name %q", name)
 	}
-	if len(s.gatewayDeclOrder) == 0 {
-		s.t.Fatalf("scenario: WithHost(%q) called before WithSingBoxGateway; declare a gateway first", name)
-	}
-	s.hosts[name] = &hostSpec{
-		Name:        name,
-		GatewayName: s.gatewayDeclOrder[len(s.gatewayDeclOrder)-1],
-	}
+	s.hosts[name] = &hostSpec{Name: name}
 	s.hostDeclOrder = append(s.hostDeclOrder, name)
 	return s
 }
 
 // WithUser 声明一个 user，默认绑定到最近一次 WithHost 的 host。
+// 如果已通过 WithOutboundConfig 设置全局 outbound，自动关联到 user。
 func (s *Scenario) WithUser(name string) *Scenario {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -262,8 +200,9 @@ func (s *Scenario) WithUser(name string) *Scenario {
 		s.t.Fatalf("scenario: WithUser(%q) called before WithHost; declare a host first", name)
 	}
 	s.users[name] = &userSpec{
-		Name:     name,
-		HostName: s.hostDeclOrder[len(s.hostDeclOrder)-1],
+		Name:           name,
+		HostName:       s.hostDeclOrder[len(s.hostDeclOrder)-1],
+		OutboundConfig: s.outboundConfig,
 	}
 	return s
 }
@@ -271,13 +210,6 @@ func (s *Scenario) WithUser(name string) *Scenario {
 // ─── Start / Stop ──────────────────────────────────────────────────────
 
 // Start 按 Step 1..7 顺序执行真实启动序列。任一步失败 → 跑 cleanups LIFO → 返回错。
-//
-// 当前阶段：
-//   - Step 1（Postgres testcontainer）真实实现
-//   - Step 2..7 返回 ErrScenarioStepNotImplemented
-//
-// 后续阶段实现 Step 2..7 时，**不要**改变 Step 1 的行为，也不要破坏 cleanups
-// LIFO 模式（每完成一步立刻 append 对应回滚 func）。
 func (s *Scenario) Start(ctx context.Context) (retErr error) {
 	s.mu.Lock()
 	if s.started {
@@ -286,7 +218,6 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 	}
 	s.mu.Unlock()
 
-	// 失败回滚：任一步失败时 best-effort 跑所有已 append 的 cleanups。
 	defer func() {
 		if retErr != nil {
 			s.logger.Warn("scenario start failed, running cleanups", "err", retErr)
@@ -299,46 +230,18 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 		return fmt.Errorf("scenario start step1 (postgres): %w", err)
 	}
 
-	// ─── Step 2: control-plane 子进程（go run ./cmd/control-plane） ───
-	// TODO: provider.PrepareGateway 和子进程控制面的真实启动序列
-	// 当前阶段返回 sentinel；smoke 用例用 t.Skip 跳过未实现路径。
-	//
-	// 设计要点（实现时参考 PLAN 02 Task 2）：
-	// 1. e2e 先 net.Listen("tcp", ":0") 抢一个端口、关掉，把端口数字传给
-	//    CONTROL_PLANE_ADDR=":NNNN"
-	// 2. exec.CommandContext(ctx, "go", "run", "./cmd/control-plane")
-	//    + 必要环境变量（DATABASE_URL/ADMIN_USERNAME/ADMIN_PASSWORD/ADMIN_JWT_SECRET）
-	// 3. waitFor.WaitForPort 等监听端口可达
-	// 4. 把端口写到 s.cpHandle.Addr，append 一个 kill subprocess 的 cleanup
+	// ─── Step 2: control-plane 子进程 ─────────────────────────────────
 	if s.controlPlane != nil {
 		return ErrScenarioStepNotImplemented
 	}
 
-	// ─── Step 3: admin login + 创建 user/egress/host 三件套 ──────────
-	// TODO: 通过控制面 admin API 颁发 token + 调 POST /admin/users / egress-ips
-	// / hosts，把 fixture 写到数据库；handle 字段在此填充。
-	// 参考 scripts/uat-bypass-fixture-up.sh 的 admin login 与 fixture 调用顺序。
+	// ─── Step 3: admin login + fixture ────────────────────────────────
 
-	// ─── Step 4..6: 每个 gateway 调 provider.PrepareGateway ──────────
-	// TODO: provider := network.NewContainerProxyProvider(s.logger);
-	// for _, name := range s.gatewayDeclOrder {
-	//     gw := s.gateways[name]
-	//     spec := network.HostNetworkSpec{
-	//         HostID: fmt.Sprintf("e2e-%s-%s", s.scenarioID, gw.Name),
-	//         Egress: &network.EgressConfig{
-	//             TunnelType: network.TunnelTypeProxy,
-	//             Proxy: &network.ProxySpec{OutboundConfig: gw.OutboundConfig, DNSServer: "1.1.1.1"},
-	//         },
-	//     }
-	//     provider.PrepareGateway(ctx, spec)  // 失败 → 错误冒泡
-	//     // 填充 s.gatewayHandles[name].HostID/ContainerID/GatewayIP/ConfigDir
-	//     s.cleanups = append(s.cleanups, func(ctx) error { return provider.CleanupHost(ctx, spec) })
-	// }
+	// ─── Step 4: PrepareHost（v4.0 单容器, 替代 v3.6 PrepareGateway） ──
+	// v4.0: host-agent PrepareHost 写入 sing-box config 到容器内，
+	// 使用 s.outboundConfig 作为 outbound。
 
-	// ─── Step 7: 每个 host 调 provider.PrepareHost ─────────────────
-	// TODO: 为每个 host 起 worker 容器（alpine:3.20 + sleep infinity 占位），
-	// 拿 ContainerPID，调 provider.PrepareHost(ctx, spec)。
-	// 参考 PLAN 02 Task 2 第 4 步「worker 镜像本 plan 用 alpine:3.20 占位」。
+	// ─── Step 5: ready ───────────────────────────────────────────────
 
 	s.mu.Lock()
 	s.started = true
@@ -346,8 +249,7 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 	return nil
 }
 
-// startPostgres 是 Start 的 Step 1：起 postgres:18 testcontainer，wait.ForLog 双 occurrence
-// 排除 init 重启假阳性，把端口写到 s.cpHandle.DBURL，append cleanup。
+// startPostgres 是 Start 的 Step 1：起 postgres:18 testcontainer。
 func (s *Scenario) startPostgres(ctx context.Context) error {
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:18",
@@ -402,7 +304,6 @@ func (s *Scenario) startPostgres(ctx context.Context) error {
 }
 
 // Stop 幂等 best-effort 跑所有 cleanups（LIFO）。多次调用安全。
-// 第一次 Stop 把 stopped=true，cleanups 清空；后续调用直接返回 nil。
 func (s *Scenario) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	if s.stopped {
@@ -414,8 +315,6 @@ func (s *Scenario) Stop(ctx context.Context) error {
 	return s.runCleanups(ctx)
 }
 
-// runCleanups 跑 cleanups（LIFO），best-effort 收集第一个非 nil 错；
-// 其它错记 logger.Warn 不中断后续清理。
 func (s *Scenario) runCleanups(ctx context.Context) error {
 	s.mu.Lock()
 	cleanups := s.cleanups
@@ -451,18 +350,6 @@ func (s *Scenario) ControlPlane() *ControlPlaneHandle {
 	return s.cpHandle
 }
 
-// SingBoxGateway 返回指定名字的 gateway 句柄。Start 之前调用 / name 不存在 → t.Fatal。
-func (s *Scenario) SingBoxGateway(name string) *GatewayHandle {
-	s.requireStarted()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	h, ok := s.gatewayHandles[name]
-	if !ok {
-		s.t.Fatalf("scenario: SingBoxGateway %q not declared or not started", name)
-	}
-	return h
-}
-
 // Host 返回指定名字的 host 句柄。
 func (s *Scenario) Host(name string) *HostHandle {
 	s.requireStarted()
@@ -489,29 +376,14 @@ func (s *Scenario) User(name string) *UserHandle {
 
 // ─── 内部 helpers ──────────────────────────────────────────────────────
 
-// newScenarioLogger 返回一个与 BaseSuite 同源的 slog text handler（输出到 stderr）。
 func newScenarioLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 }
 
-// mustRandomHex 返回 n 字节的随机 hex 字符串，用于 scenarioID 防并发命名冲突。
 func mustRandomHex(n int) string {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		// e2e harness 启动时 crypto/rand 失败，环境严重异常，直接 panic 比降级安全
 		panic(fmt.Errorf("scenario: read random bytes: %w", err))
 	}
 	return hex.EncodeToString(b)
-}
-
-// _ 强引用 internal/network 包，作为 Plan 02 后续阶段会真实调用 provider 的占位
-// （避免 goimports 在当前阶段把 import 删掉，破坏 Step 4..7 实现挂点）。
-// 同时让 verify grep 能命中 PrepareGateway / PrepareHost / CleanupHost 关键字。
-var _ = func() {
-	// PrepareGateway / PrepareHost / CleanupHost 调用挂点（Step 4..7 实现时启用）：
-	//   provider := network.NewContainerProxyProvider(slog.Default())
-	//   _ = provider.PrepareGateway
-	//   _ = provider.PrepareHost
-	//   _ = provider.CleanupHost
-	_ = network.TunnelTypeProxy
 }

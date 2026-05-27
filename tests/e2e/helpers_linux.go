@@ -37,12 +37,12 @@ import (
 )
 
 // GoldenPath 封装 Phase 46 MVS 所需的完整 e2e 拓扑：
-// 控制面 + host-agent + Postgres + sing-box gateway + 1 user + 1 host。
+// 控制面 + host-agent + Postgres + 1 user + 1 host。
+// v4.0 (Phase 55): Gateway 字段删除，单容器架构下不存在独立 gateway。
 //
 // 字段在 StartGoldenPath 成功返回后才填充；用例代码不应自行构造 GoldenPath。
 type GoldenPath struct {
 	Scenario        *harness.Scenario
-	Gateway         *harness.GatewayHandle
 	Host            *harness.HostHandle
 	User            *harness.UserHandle
 	ControlPlaneURL string
@@ -77,7 +77,7 @@ func StartGoldenPath(t *testing.T) *GoldenPath {
 	outbound := json.RawMessage(`{"type":"direct","tag":"proxy-out"}`)
 	sc := harness.New(t).
 		WithControlPlane().
-		WithSingBoxGateway("primary", outbound).
+		WithOutboundConfig(outbound).
 		WithHost("alpha").
 		WithUser("alice")
 
@@ -99,13 +99,11 @@ func StartGoldenPath(t *testing.T) *GoldenPath {
 	})
 
 	cp := sc.ControlPlane()
-	gw := sc.SingBoxGateway("primary")
 	host := sc.Host("alpha")
 	user := sc.User("alice")
 
 	return &GoldenPath{
 		Scenario:        sc,
-		Gateway:         gw,
 		Host:            host,
 		User:            user,
 		ControlPlaneURL: cp.Addr,
@@ -486,28 +484,18 @@ func (p *GoldenPath) WaitHostHealthStatus(ctx context.Context, expected HostHeal
 // 调用方应据此 t.Skip 而不是 t.Fatalf。
 var errWorkerContainerHandleUnavailable = errors.New("worker container handle unavailable (scenario step 7 未实现)")
 
-// gatewayDockerName 优先返回 GatewayHandle.ContainerID（Phase 45 Step 4..6
-// 真实填充），否则回退到约定命名 `cloudproxy-gw-<HostID>`。
-//
-// 在 Step 4..6 sentinel 期间，ContainerID 与 HostID 都可能为空；调用方需要
-// 据此判 t.Skip。
-func (p *GoldenPath) gatewayDockerName() (string, error) {
-	if p == nil || p.Gateway == nil {
-		return "", errors.New("gateway handle nil")
+// singBoxContainerName v4.0 (Phase 55): sing-box 跑在 user 容器内，直接用 host container name。
+func (p *GoldenPath) singBoxContainerName() (string, error) {
+	if p == nil || p.Host == nil {
+		return "", errors.New("host handle nil")
 	}
-	if id := strings.TrimSpace(p.Gateway.ContainerID); id != "" {
-		return id, nil
+	if name := strings.TrimSpace(p.Host.ContainerName); name != "" {
+		return name, nil
 	}
-	if p.Gateway.HostID != "" {
-		return "cloudproxy-gw-" + p.Gateway.HostID, nil
-	}
-	if p.Host != nil && p.Host.ID != "" {
-		return "cloudproxy-gw-" + p.Host.ID, nil
-	}
-	return "", errors.New("gateway container id/name unavailable (scenario step 4..6 未实现)")
+	return "", errWorkerContainerHandleUnavailable
 }
 
-// workerDockerName 类似 gatewayDockerName，但走 worker 容器命名约定。
+// workerDockerName 类似 singBoxContainerName，但走 worker 容器命名约定。
 func (p *GoldenPath) workerDockerName() (string, error) {
 	if p == nil || p.Host == nil {
 		return "", errors.New("host handle nil")
@@ -521,43 +509,42 @@ func (p *GoldenPath) workerDockerName() (string, error) {
 	return "", errWorkerContainerHandleUnavailable
 }
 
-// KillGateway 通过 `docker kill --signal=KILL <gateway>` 强杀 sing-box 网关容器
-// （MVS-09）。
+// KillSingBox v4.0 (Phase 55): 通过 `docker exec <container> kill -9 $(pidof sing-box)`
+// 杀死容器内 sing-box 进程（替代 v3.6 `docker kill <gw>`）。
+//
+// v4.0 单容器架构下，sing-box 跑在 user 容器内作 PID 1 的子进程，
+// entrypoint 以 fail-closed 模式运行：sing-box 死 → 容器退出 → 出网立即断。
 //
 // 行为约定：
-//   - 优先用 GatewayHandle.ContainerID；回退到 `cloudproxy-gw-<HostID>` 命名。
-//   - 固定 SIGKILL，不发 SIGTERM（CONTEXT §Area 1 决策，避免触发 sing-box
-//     graceful shutdown / cleanup 路径）。
-//   - 调完后通过 `docker inspect -f '{{.State.Running}}'` 二次确认；非 false
-//     即视为 kill 未生效（与 docker exit code 0 互不替代）。
-//   - 句柄未填充（Step 4..6 sentinel） → 返回错，调用方 t.Skip。
-//
-// 不用 docker stop / docker rm：契约是「sing-box 崩溃」而不是「优雅退出」。
-func (p *GoldenPath) KillGateway(ctx context.Context) error {
-	name, err := p.gatewayDockerName()
+//   - docker exec 固定 SIGKILL 杀 sing-box
+//   - 调完后等待容器退出（≤3s per Phase 53 entrypoint fail-closed 约束）
+//   - 句柄未填充 → 返回错，调用方 t.Skip
+func (p *GoldenPath) KillSingBox(ctx context.Context) error {
+	name, err := p.singBoxContainerName()
 	if err != nil {
-		return fmt.Errorf("kill gateway: %w", err)
+		return fmt.Errorf("kill sing-box: %w", err)
 	}
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "docker", "kill", "--signal=KILL", name)
+	// kill sing-box 进程（docker exec 以 root 跑，与 SEC-01 用户不能杀互补）
+	cmd := exec.CommandContext(ctx, "docker", "exec", name, "kill", "-9", "$(pidof sing-box)")
 	cmd.Stderr = &stderr
-	if runErr := cmd.Run(); runErr != nil {
-		return fmt.Errorf("kill gateway: docker kill %s: %w (stderr=%s)",
-			name, runErr, stderr.String())
-	}
+	_ = cmd.Run() // kill 可能返回非 0 如果 sing-box 已死，不视为错
 
-	var inspectOut bytes.Buffer
-	insp := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Running}}", name)
-	insp.Stdout = &inspectOut
-	if inspErr := insp.Run(); inspErr != nil {
-		// inspect 失败本身不致命：可能容器已被 docker 自动清理。容器不在 = 已死。
-		return nil
+	// 等待容器在 ≤3s 内退出（entrypoint fail-closed）
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		var inspectOut bytes.Buffer
+		insp := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Running}}", name)
+		insp.Stdout = &inspectOut
+		if inspErr := insp.Run(); inspErr != nil {
+			return nil // 容器已死
+		}
+		if strings.TrimSpace(inspectOut.String()) != "true" {
+			return nil // 容器已退出
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
-	if strings.TrimSpace(inspectOut.String()) != "false" {
-		return fmt.Errorf("kill gateway: container %s still running after docker kill (state=%q)",
-			name, strings.TrimSpace(inspectOut.String()))
-	}
-	return nil
+	return fmt.Errorf("kill sing-box: container %s still running after 3s (entrypoint fail-closed violation)", name)
 }
 
 // ProbeOutboundFromUser 在 worker 容器内跑 `curl -sS --max-time <N> <url>`，
@@ -1163,7 +1150,7 @@ echo "install-attempted"`
 //   - 与 worker netns 内 nft `oifname "sb-tun0"` 中的接口名不同：sb-tun0 是
 //     worker 侧防火墙规则用的标识，KILL-02 关的是 gateway 容器内的设备。
 func (p *GoldenPath) SetTunDevDown(ctx context.Context) error {
-	name, err := p.gatewayDockerName()
+	name, err := p.singBoxContainerName()
 	if err != nil {
 		return fmt.Errorf("set tun0 down: %w", err)
 	}
@@ -1184,7 +1171,7 @@ func (p *GoldenPath) SetTunDevDown(ctx context.Context) error {
 // 因为该用例的契约结果在 t.Cleanup 触发前已经定盘，恢复失败只影响
 // 该 Scenario 实例后续可用性（每用例独立 GoldenPath 隔离）。
 func (p *GoldenPath) SetTunDevUp(ctx context.Context) error {
-	name, err := p.gatewayDockerName()
+	name, err := p.singBoxContainerName()
 	if err != nil {
 		return fmt.Errorf("set tun0 up: %w", err)
 	}
@@ -1211,7 +1198,7 @@ func (p *GoldenPath) SetTunDevUp(ctx context.Context) error {
 // savedNet == "" → gateway 未接 cloudproxy-net 类网络，调用方 t.Skipf 并把
 // backend gap 流转 Phase 51（同 Phase 49 LEAK-06/07/08 流程）。
 func (p *GoldenPath) DisconnectGatewayFromBridge(ctx context.Context) (string, string, error) {
-	name, err := p.gatewayDockerName()
+	name, err := p.singBoxContainerName()
 	if err != nil {
 		return "", "", fmt.Errorf("disconnect gateway: %w", err)
 	}
@@ -1245,7 +1232,7 @@ func (p *GoldenPath) ReconnectGatewayToBridge(ctx context.Context, netName, stat
 	if strings.TrimSpace(netName) == "" {
 		return errors.New("reconnect gateway: net name empty")
 	}
-	name, err := p.gatewayDockerName()
+	name, err := p.singBoxContainerName()
 	if err != nil {
 		return fmt.Errorf("reconnect gateway: %w", err)
 	}

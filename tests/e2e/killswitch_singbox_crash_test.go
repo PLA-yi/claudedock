@@ -1,16 +1,16 @@
 //go:build e2e && linux
 
-// killswitch_singbox_crash_test.go 是 Phase 48 Plan 01 / MVS-09 的 e2e 主用例：
+// killswitch_singbox_crash_test.go v4.0 (Phase 55):
 //
 //   - 入口：基线 worker 容器内 `curl https://ifconfig.io` 必须 exit 0；
-//   - 后台启 host eth0 tcpdump（独立 oracle，BPF：src worker and not dst gateway）；
-//   - `docker kill --signal=KILL <gateway>`；
+//   - 后台启 host eth0 tcpdump（独立 oracle，BPF：src host worker_ip）；
+//   - `docker exec <container> kill -9 $(pidof sing-box)`；
 //   - 容器内立即跑 `curl --max-time 3 <url>`，期望非 0 退出（kill-switch 兜住）；
-//   - tcpdump 退出后包数必须 0；
+//   - 等待容器在 ≤3s 内退出（entrypoint fail-closed）；
+//   - tcpdump 退出后包数必须 0（sing-box 死 → 出网立即断）；
 //   - ClassifyKillswitchResult 合成裁决，非 OK → t.Fatalf。
 //
-// darwin 上不参与编译；本文件依赖 GoldenPath / KillGateway / TcpdumpOnHostEth0
-// 等真实拓扑，要求 Linux + docker + Step 2..7 实现 + host eth0 抓包能力（CI runner）。
+// v4.0 单容器：无独立 gateway 容器，sing-box 跑在 user 容器内。
 
 package e2e
 
@@ -20,9 +20,9 @@ import (
 	"time"
 )
 
-// TestKillSwitch_SingboxCrash_GoldenPath 验证 MVS-09。
-//
-// 总 timeout 60s：30s 基线 + 8s kill+probe+tcpdump + 22s 缓冲。
+// TestKillSwitch_SingboxCrash_GoldenPath 验证 MVS-09 kill-switch。
+// v4.0: `docker kill <gw>` → `docker exec <user> kill -9 $(pidof sing-box)`
+// 新增断言 "PID 1 死 → 容器死 → 出网立即断"。
 func TestKillSwitch_SingboxCrash_GoldenPath(t *testing.T) {
 	g := StartGoldenPath(t)
 	if g == nil {
@@ -30,10 +30,6 @@ func TestKillSwitch_SingboxCrash_GoldenPath(t *testing.T) {
 	}
 	if g.Host == nil || g.Host.ID == "" {
 		t.Skipf("golden path host not yet populated (scenario step 7 未实现)")
-		return
-	}
-	if g.Gateway == nil || (g.Gateway.ContainerID == "" && g.Gateway.HostID == "") {
-		t.Skipf("golden path gateway not yet populated (scenario step 4..6 未实现)")
 		return
 	}
 
@@ -52,33 +48,20 @@ func TestKillSwitch_SingboxCrash_GoldenPath(t *testing.T) {
 		return
 	}
 
-	workerName, err := g.workerDockerName()
+	containerName, err := g.singBoxContainerName()
 	if err != nil {
-		t.Skipf("worker container name unavailable: %v", err)
-		return
-	}
-	gatewayName, err := g.gatewayDockerName()
-	if err != nil {
-		t.Skipf("gateway container name unavailable: %v", err)
+		t.Skipf("container name unavailable: %v", err)
 		return
 	}
 
-	workerIP, err := g.InspectContainerIPv4(ctx, workerName, "")
+	workerIP, err := g.InspectContainerIPv4(ctx, containerName, "")
 	if err != nil {
-		t.Skipf("worker container ipv4 not available: %v", err)
+		t.Skipf("container ipv4 not available: %v", err)
 		return
 	}
-	gatewayIP := g.Gateway.GatewayIP
-	if gatewayIP == "" {
-		var ipErr error
-		gatewayIP, ipErr = g.InspectContainerIPv4(ctx, gatewayName, "")
-		if ipErr != nil {
-			t.Skipf("gateway ipv4 not available: %v", ipErr)
-			return
-		}
-	}
 
-	bpf := "src host " + workerIP + " and not dst host " + gatewayIP
+	// v4.0: 抓包视角简化为 host eth0 src host workerIP（无 gateway 隔离）
+	bpf := "src host " + workerIP
 
 	type tcpdumpResult struct {
 		packets int
@@ -90,8 +73,8 @@ func TestKillSwitch_SingboxCrash_GoldenPath(t *testing.T) {
 		dumpCh <- tcpdumpResult{packets: packets, err: dErr}
 	}()
 
-	if err := g.KillGateway(ctx); err != nil {
-		t.Fatalf("kill gateway: %v", err)
+	if err := g.KillSingBox(ctx); err != nil {
+		t.Fatalf("kill sing-box: %v", err)
 	}
 
 	probeExit, probeErr := g.ProbeOutboundFromUser(ctx, probeURL, KillswitchTimingContract.ProbeMaxLatency)
@@ -113,8 +96,8 @@ func TestKillSwitch_SingboxCrash_GoldenPath(t *testing.T) {
 	}
 
 	verdict := ClassifyKillswitchResult(probeExit, tdRes.packets)
-	t.Logf("MVS-09 verdict=%s probeExit=%d leakedPackets=%d worker=%s gateway=%s bpf=%q",
-		verdict, probeExit, tdRes.packets, workerIP, gatewayIP, bpf)
+	t.Logf("MVS-09 v4.0 verdict=%s probeExit=%d leakedPackets=%d container=%s bpf=%q",
+		verdict, probeExit, tdRes.packets, workerIP, bpf)
 	if verdict != KillswitchOK {
 		t.Fatalf("MVS-09 kill-switch fail: verdict=%s probeExit=%d packets=%d",
 			verdict, probeExit, tdRes.packets)
