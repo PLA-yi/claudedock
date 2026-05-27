@@ -61,6 +61,14 @@ test-go: ## Run Go tests (Phase 51 QUAL-07: -race -shuffle=on 默认；tests/e2e
 test-smoke: ## Run BATS bootstrap smoke tests
 	pnpm exec bats tests/smoke/
 
+e2e: ## Run e2e test suite (v4.0 Phase 56: lint + vet + test)
+	@echo "=== e2e: lint-no-bare-sleep ==="
+	bash scripts/lint-no-bare-sleep.sh tests/e2e/
+	@echo "=== e2e: go vet ==="
+	go vet -tags=e2e ./tests/e2e/...
+	@echo "=== e2e: go test ==="
+	go test -tags=e2e ./tests/e2e/... -count=1 -v -timeout=15m
+
 phase53-smoke: ## Run Phase 53 image smoke tests (requires managed-user:v4-dev)
 	bash tests/phase53/smoke.sh
 

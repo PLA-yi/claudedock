@@ -19,16 +19,23 @@ name: e2e
 # 已知限制：actions/github-script@v7 在 fork PR 上 GITHUB_TOKEN 权限被强制降级为
 # read，PR 评论会 403；artifact 上传仍正常。仅同仓 PR 享受自动评论。
 
+# v4.0 (Phase 56): 扩面 paths filter，新增 internal/controlplane/http/ store/ deploy/docker/ Makefile go.mod go.sum
 on:
   pull_request:
     paths:
       - "tests/e2e/**"
       - "internal/network/**"
+      - "internal/controlplane/http/**"
+      - "internal/store/**"
       - "internal/runtime/**"
       - "internal/agent/**"
       - "internal/agentapi/**"
       - "cmd/host-agent/**"
       - "cmd/control-plane/**"
+      - "deploy/docker/**"
+      - "Makefile"
+      - "go.mod"
+      - "go.sum"
       - "scripts/lint-no-bare-sleep.sh"
       - ".github/workflows/e2e.yml"
   push:
