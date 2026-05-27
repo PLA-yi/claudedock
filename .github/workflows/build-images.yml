@@ -32,9 +32,6 @@ jobs:
           - image: managed-user
             dockerfile: deploy/docker/managed-user/Dockerfile
             context: .
-          - image: sing-box-gateway
-            dockerfile: deploy/docker/sing-box-gateway/Dockerfile
-            context: .
 
     steps:
       - name: Checkout

@@ -31,7 +31,6 @@ services:
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:?Set ADMIN_JWT_SECRET in .env}
       LOG_FORMAT: ${LOG_FORMAT:-json}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CLOUD_CLI_PROXY_GATEWAY_IMAGE: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
     ports:
       - "${SSH_PROXY_PORT:-2222}:2222"
     cap_add:
@@ -56,12 +55,6 @@ services:
         condition: service_healthy
     ports:
       - "${ADMIN_PORT:-3000}:80"
-
-  sing-box-gateway:
-    image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
-    pull_policy: always
-    restart: "no"
-    command: ["true"]
 
   managed-user:
     image: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest

@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: sing-box 同容器化
-status: ready_to_plan
-last_updated: "2026-05-15T17:47:25.229Z"
-last_activity: 2026-05-15
+status: executing
+stopped_at: v3.6 archived to .planning/milestones/ + tag v3.6
+last_updated: "2026-05-27T10:46:32.103Z"
+last_activity: 2026-05-27 -- Phase 54 execution started
 progress:
-  total_phases: 0
+  total_phases: 12
   completed_phases: 1
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 7
+  completed_plans: 5
+  percent: 71
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-14)
 
 **Core value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
-**Current focus:** v3.6 已 shipped，等待 `/gsd-new-milestone` 进入下一里程碑收敛
+**Current focus:** Phase 54 — 控制面单容器化
 
 ## Current Position
 
-Phase: 54
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-15
+Phase: 54 (控制面单容器化) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 54
+Last activity: 2026-05-27 -- Phase 54 execution started
 
 ## Accumulated Context
 

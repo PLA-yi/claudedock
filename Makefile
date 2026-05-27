@@ -3,7 +3,7 @@ export
 
 DEV_COMPOSE := docker compose -f deploy/compose/control-plane.dev.yml
 
-.PHONY: dev dev-api dev-web db test test-go test-smoke build build-cli install-cli clean gateway-image up up-build up-rebuild up-api down logs release
+.PHONY: dev dev-api dev-web db test test-go test-smoke build build-cli install-cli clean up up-build up-rebuild up-api down logs release
 
 # ── Development ──────────────────────────────────────────────
 
@@ -17,13 +17,8 @@ dev: ## Start backend + frontend (auto-starts PostgreSQL if needed)
 	@# Auto-start PostgreSQL if not running
 	@nc -z 127.0.0.1 $(POSTGRES_PORT) > /dev/null 2>&1 || \
 		{ echo "PostgreSQL not running, starting it now..."; $(MAKE) db; }
-	@# On macOS / Windows, ensure gateway sidecar image exists (ContainerProxyProvider needs it)
-	@if [ "$$(uname -s)" != "Linux" ]; then \
-		if ! docker images $(GATEWAY_IMAGE) --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -qF '$(GATEWAY_IMAGE)'; then \
-			echo "Non-Linux host: gateway image not found, building $(GATEWAY_IMAGE)..."; \
-			$(MAKE) gateway-image; \
-		fi; \
-	fi
+	@# v4.0 (Phase 54): sing-box 同容器化后不再需要 sidecar gateway image；
+	@# managed-user 镜像内置 sing-box（Phase 53），非 Linux host 直接跑无需 build。
 	@trap 'kill $$CP_PID $$VITE_PID 2>/dev/null; wait' INT EXIT; \
 		bash scripts/dev-backend.sh & CP_PID=$$!; \
 		cd web/admin && pnpm dev & VITE_PID=$$!; \
@@ -72,15 +67,10 @@ phase53-smoke: ## Run Phase 53 image smoke tests (requires managed-user:v4-dev)
 # ── Images ────────────────────────────────────────────────────
 
 MANAGED_USER_TAG := $(shell grep '^image_name:' deploy/docker/managed-user/image.lock | cut -d' ' -f2)
-GATEWAY_IMAGE    := cloud-cli-proxy-sing-gateway:local
 
 user-image: ## Build managed-user image (cloud desktop)
 	docker build -t $(MANAGED_USER_TAG) -f deploy/docker/managed-user/Dockerfile .
 	@echo "Built: $(MANAGED_USER_TAG)"
-
-gateway-image: ## Build sing-box + iptables sidecar (required for macOS/Windows host-agent egress)
-	docker build -t $(GATEWAY_IMAGE) -f deploy/docker/sing-box-gateway/Dockerfile .
-	@echo "Built: $(GATEWAY_IMAGE)"
 
 # ── Build ────────────────────────────────────────────────────
 
@@ -144,8 +134,6 @@ setup: ## First-time setup: install deps, copy .env
 	@echo "  make dev-api     只启动后端（自动启动 PostgreSQL）"
 	@echo "  make dev-web     只启动前端"
 	@echo "  make db          只启动 PostgreSQL"
-	@echo "  make gateway-image  构建网关 sidecar 镜像（非 Linux 首次需执行）"
-
 # ── Utilities ────────────────────────────────────────────────
 
 clean: ## Remove build artifacts

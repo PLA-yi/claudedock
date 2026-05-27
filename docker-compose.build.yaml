@@ -13,16 +13,6 @@ services:
     image: ghcr.io/zanel1u/cloud-cli-proxy/admin:latest
     pull_policy: never
 
-  sing-box-gateway:
-    build:
-      context: .
-      dockerfile: deploy/docker/sing-box-gateway/Dockerfile
-    image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
-    pull_policy: never
-    command: ["true"]
-    profiles:
-      - build-only
-
   managed-user-image:
     build:
       context: .

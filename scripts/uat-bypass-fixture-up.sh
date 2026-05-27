@@ -363,46 +363,28 @@ if [[ -z "$HOST_ID" || "$HOST_ID" == "null" ]]; then
 fi
 ok "host_id=${HOST_ID} short_id=${HOST_SHORT}"
 
-# ─── Step 10: Linux 真实模式：拉起 mock worker + gateway 容器 ──────────────
-step "拉起 mock worker / gateway 容器（仅 Linux 真实模式）"
+# ─── Step 10: Linux 真实模式：拉起 mock worker 容器 ──────────────
+step "拉起 mock worker 容器（仅 Linux 真实模式）"
 WORKER_CONTAINER="cloudproxy-${HOST_ID}"
-GATEWAY_CONTAINER="cloudproxy-gw-${HOST_ID}"
 WORKER_IMAGE="${WORKER_IMAGE:-alpine:3.20}"
-GATEWAY_IMAGE="${GATEWAY_IMAGE:-cloud-cli-proxy-sing-gateway:local}"
 
 if [[ "$DRY_RUN" == "true" ]]; then
-  info "dry-run：跳过容器启动（计划名：${WORKER_CONTAINER} / ${GATEWAY_CONTAINER}）"
+  info "dry-run：跳过容器启动（计划名：${WORKER_CONTAINER}）"
 elif [[ "$IS_LINUX" != "true" ]]; then
-  warn "非 Linux 环境（$(uname -s)），跳过 worker/gateway 容器（uat-bypass.sh 真实模式仅 Linux 可跑）"
+  warn "非 Linux 环境（$(uname -s)），跳过 worker 容器（uat-bypass.sh 真实模式仅 Linux 可跑）"
 else
   # mock worker：sleep 容器，足够 nsenter -t <pid> 进 netns；
   # 真实 uat-bypass.sh 通过 docker inspect 拿 PID，所以名字与 PID 都需可解析
   if docker ps -a --format '{{.Names}}' | grep -qx "$WORKER_CONTAINER"; then
     docker rm -f "$WORKER_CONTAINER" >/dev/null 2>&1 || true
   fi
+  # v4.0 (Phase 54): sing-box 同容器化后不再需要 sidecar gateway 容器；
+  # managed-user 镜像内置 sing-box（Phase 53），mock worker 仅需 alpine 占位
   docker run -d --rm --name "$WORKER_CONTAINER" \
     --label "com.cloud-cli-proxy.managed=true" \
     --label "com.cloud-cli-proxy.host-id=${HOST_ID}" \
     "$WORKER_IMAGE" sleep 86400 >/dev/null
   ok "worker 容器已启动：$WORKER_CONTAINER"
-
-  # gateway：优先用项目自带 sing-box 镜像；缺失则回退 alpine 占位（uat-bypass.sh
-  # 的 I5/I8 会用 docker exec/sh，所以容器内得有 sh + 能跑 jq/pkill 才算严格）
-  if docker image inspect "$GATEWAY_IMAGE" >/dev/null 2>&1; then
-    info "复用 gateway 镜像：$GATEWAY_IMAGE"
-  else
-    warn "gateway 镜像 $GATEWAY_IMAGE 不存在，退化到 alpine 占位（I5/I8 走 lenient）"
-    GATEWAY_IMAGE="alpine:3.20"
-  fi
-  if docker ps -a --format '{{.Names}}' | grep -qx "$GATEWAY_CONTAINER"; then
-    docker rm -f "$GATEWAY_CONTAINER" >/dev/null 2>&1 || true
-  fi
-  docker run -d --rm --name "$GATEWAY_CONTAINER" \
-    --label "com.cloud-cli-proxy.managed=true" \
-    --label "com.cloud-cli-proxy.host-id=${HOST_ID}" \
-    --label "com.cloud-cli-proxy.role=gateway" \
-    "$GATEWAY_IMAGE" sh -c "apk add --no-cache jq >/dev/null 2>&1 || true; sleep 86400" >/dev/null
-  ok "gateway 容器已启动：$GATEWAY_CONTAINER"
 fi
 
 # ─── Step 11: 输出 fixture 契约 ────────────────────────────────────────────
@@ -416,7 +398,6 @@ FIXTURE_JSON=$(jq -n \
   --arg user_id "$USER_ID" \
   --arg egress_id "$EGRESS_ID" \
   --arg worker "$WORKER_CONTAINER" \
-  --arg gateway "$GATEWAY_CONTAINER" \
   --arg database_url "$DATABASE_URL" \
   '{
     host_id:$host_id,
@@ -426,7 +407,6 @@ FIXTURE_JSON=$(jq -n \
     user_id:$user_id,
     egress_ip_id:$egress_id,
     worker_container:$worker,
-    gateway_container:$gateway,
     database_url:$database_url
   }')
 echo "$FIXTURE_JSON" > "$FIXTURE_OUTPUT_JSON"
@@ -444,7 +424,6 @@ export UAT_BYPASS_HOST_SHORT_ID="${HOST_SHORT}"
 export UAT_BYPASS_USER_ID="${USER_ID}"
 export UAT_BYPASS_EGRESS_IP_ID="${EGRESS_ID}"
 export UAT_BYPASS_WORKER_CONTAINER="${WORKER_CONTAINER}"
-export UAT_BYPASS_GATEWAY_CONTAINER="${GATEWAY_CONTAINER}"
 export DATABASE_URL="${DATABASE_URL}"
 EOF
 ok "写出 $FIXTURE_ENV_FILE"
@@ -456,7 +435,6 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     echo "admin_token=${ADMIN_TOKEN}"
     echo "api_base=${API_BASE}"
     echo "worker_container=${WORKER_CONTAINER}"
-    echo "gateway_container=${GATEWAY_CONTAINER}"
   } >> "$GITHUB_OUTPUT"
   ok "已追加 host_id / admin_token / api_base 到 \$GITHUB_OUTPUT"
 fi
@@ -469,7 +447,6 @@ echo "  short_id         = $HOST_SHORT"
 echo "  api_base         = $API_BASE"
 echo "  admin_token      = ${ADMIN_TOKEN:0:8}***（已脱敏）"
 echo "  worker_container = $WORKER_CONTAINER"
-echo "  gateway_container= $GATEWAY_CONTAINER"
 echo ""
 echo "下一步："
 echo "  source ${FIXTURE_ENV_FILE}"
