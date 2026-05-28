@@ -175,6 +175,13 @@ start_singbox_or_die() {
   # 验证 config 文件权限（D-V4-2 / D-53-3 前置）
   # CR-01 (53-REVIEW): sing-box 跑在 uid=9000，root:0600 在 DAC 下 read 必失败。
   # 改为 root:singbox 0640 — owner=root 写、group=singbox 读，最小权限暴露。
+  #
+  # macOS Docker Desktop 开发环境：host-agent chown root:singbox 必失败（APFS 不支持），
+  # config 文件保持 host user 权限。entrypoint 以 root 身份在容器内修复权限后
+  # 继续 hard-assert，prod Linux 上修复操作是 no-op。
+  chown root:singbox "$SING_BOX_CONFIG" 2>/dev/null || true
+  chmod 0640 "$SING_BOX_CONFIG" 2>/dev/null || true
+
   local perm owner group
   perm="$(stat -c '%a' "$SING_BOX_CONFIG")"
   owner="$(stat -c '%U' "$SING_BOX_CONFIG")"
