@@ -443,11 +443,13 @@
 **Goal:** 允许管理员在创建和停止主机时手动设置内存、CPU 和磁盘限制，支持"无限制"选项。数据库列改为 nullable（NULL = 无限制），API 使用指针类型区分三态（省略=默认 / 0=无限制 / 正值=限制），新增 PATCH 端点，前端提供直观的预设+自定义选择控件。
 **Requirements**: RES-01（无限制语义）/ RES-02（PATCH API）/ RES-03（前端控件）/ RES-04（磁盘限制执行）
 **Depends on:** Phase 56
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 57 to break down)
+- [ ] 57-01-PLAN.md — 数据库迁移 + Go 数据模型类型变更（RES-01）
+- [ ] 57-02-PLAN.md — API 三态解析 + PATCH 端点 + Worker --storage-opt（RES-02, RES-04）
+- [ ] 57-03-PLAN.md — 前端资源限制选择器 + 创建表单 + 详情页编辑（RES-03）
 
 ---
 
-*Last updated: 2026-05-16 — v4.0 sing-box 同容器化 milestone started (Phases 53-56, 28 REQ, 6 locked decisions D-V4-1..6). v3.6 shipped & archived (8 phase / 39 plan / 38 REQ).*
+*Last updated: 2026-05-29 — Phase 57 planned (3 plans, 2 waves, 4 REQ covered).*
