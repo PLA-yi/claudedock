@@ -438,6 +438,16 @@
 | 45-47. v3.5 白名单与 DNS 拆分 | v3.5 | 10/10 | Complete | 2026-05-13 |
 | 45-52. v3.6 端到端测试体系 | v3.6 | 39/39 | Complete | 2026-05-14 |
 
+### Phase 57: 资源限制可配置化
+
+**Goal:** 允许管理员在创建和停止主机时手动设置内存、CPU 和磁盘限制，支持"无限制"选项。数据库列改为 nullable（NULL = 无限制），API 使用指针类型区分三态（省略=默认 / 0=无限制 / 正值=限制），新增 PATCH 端点，前端提供直观的预设+自定义选择控件。
+**Requirements**: RES-01（无限制语义）/ RES-02（PATCH API）/ RES-03（前端控件）/ RES-04（磁盘限制执行）
+**Depends on:** Phase 56
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 57 to break down)
+
 ---
 
 *Last updated: 2026-05-16 — v4.0 sing-box 同容器化 milestone started (Phases 53-56, 28 REQ, 6 locked decisions D-V4-1..6). v3.6 shipped & archived (8 phase / 39 plan / 38 REQ).*
