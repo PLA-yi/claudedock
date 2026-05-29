@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v4.0.3 - 2026-05-29
+## What's Changed
+
+### Backend (Go / API)
+- feat(bypass): 域名白名单全链路 + macOS 跨平台 + UI 重构 (2716e0d)
+
+### Frontend (Admin Web)
+- feat(bypass): 域名白名单全链路 + macOS 跨平台 + UI 重构 (2716e0d)
+
+### Runtime & Deployment
+- feat(bypass): 域名白名单全链路 + macOS 跨平台 + UI 重构 (2716e0d)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v4.0.2...v4.0.3
+
+
 ## v4.0.1 - 2026-05-29
 ## What's Changed
 
