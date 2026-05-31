@@ -177,8 +177,9 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		},
 		Timezone:      host.Timezone,
 		Hostname:      host.Hostname,
-		MemoryLimitMB: defaultIntIfZero(host.MemoryLimitMB, 4096),
-		CPULimit:      defaultFloatIfZero(host.CPULimit, 2.0),
+		MemoryLimitMB: ptrToInt(host.MemoryLimitMB),
+		CPULimit:      ptrToFloat(host.CPULimit),
+		DiskLimitGB:   ptrToInt(host.DiskLimitGB),
 		Username:        owner.Username,
 		EntryPassword:   owner.EntryPassword,
 		SSHPublicKey:    "",
@@ -328,16 +329,17 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func defaultIntIfZero(value, fallback int) int {
-	if value == 0 {
-		return fallback
+
+func ptrToInt(p *int) int {
+	if p == nil {
+		return 0
 	}
-	return value
+	return *p
 }
 
-func defaultFloatIfZero(value, fallback float64) float64 {
-	if value == 0 {
-		return fallback
+func ptrToFloat(p *float64) float64 {
+	if p == nil {
+		return 0
 	}
-	return value
+	return *p
 }
