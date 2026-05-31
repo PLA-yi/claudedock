@@ -61,12 +61,20 @@ curl http://127.0.0.1:8080/healthz
 
 ### 方案一：使用 docker-compose.cn.yml（推荐）
 
-项目提供了 `docker-compose.cn.yml`，已将镜像源替换为 `ghcr.1ms.run`（毫秒镜像）。直接通过覆盖文件启动：
+项目提供了 `docker-compose.cn.yml`，已将 compose 镜像替换为 `ghcr.1ms.run`（毫秒镜像），同时设置了 `CONTAINER_REGISTRY` 环境变量，确保运行时动态拉取的镜像（`managed-user`、`sing-box` 探针）也走同一镜像源。直接通过覆盖文件启动：
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.cn.yml pull
 docker compose -f docker-compose.yml -f docker-compose.cn.yml up -d
 ```
+
+systemd 裸机部署的用户，在 `/etc/cloud-cli-proxy/env` 中加上：
+
+```bash
+CONTAINER_REGISTRY=ghcr.1ms.run
+```
+
+重启控制面后生效。所有 `docker pull` 操作都会自动走镜像源。
 
 源码构建（兜底）：
 

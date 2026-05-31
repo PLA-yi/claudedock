@@ -12,6 +12,8 @@
 services:
   control-plane:
     image: ghcr.1ms.run/zanel1u/cloud-cli-proxy/control-plane:latest
+    environment:
+      CONTAINER_REGISTRY: ghcr.1ms.run
 
   admin:
     image: ghcr.1ms.run/zanel1u/cloud-cli-proxy/admin:latest

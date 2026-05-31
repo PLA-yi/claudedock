@@ -61,12 +61,20 @@ curl http://127.0.0.1:8080/healthz
 
 ### Option 1: Use docker-compose.cn.yml (recommended)
 
-The repo includes `docker-compose.cn.yml`, which pre-configures the `ghcr.1ms.run` mirror. Start with the override file:
+The repo includes `docker-compose.cn.yml`, which pre-configures `ghcr.1ms.run` mirror for compose images and sets the `CONTAINER_REGISTRY` environment variable so that runtime image pulls (`managed-user`, `sing-box` probe) also go through the mirror. Start with the override file:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.cn.yml pull
 docker compose -f docker-compose.yml -f docker-compose.cn.yml up -d
 ```
+
+For bare-metal systemd deployments, add to `/etc/cloud-cli-proxy/env`:
+
+```bash
+CONTAINER_REGISTRY=ghcr.1ms.run
+```
+
+Restart the control plane. All `docker pull` operations will use the mirror.
 
 Building from source (fallback):
 

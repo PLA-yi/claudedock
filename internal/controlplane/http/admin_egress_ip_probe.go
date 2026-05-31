@@ -20,10 +20,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/net/proxy"
+
+	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
 )
 
-// probeImage 固定 sing-box 版本（v1.13.3），避免 latest 版本配置格式不兼容导致探针失败。
-const probeImage = "ghcr.io/sagernet/sing-box:v1.13.3"
+// probeImageRef 固定 sing-box 版本（v1.13.3），避免 latest 版本配置格式不兼容导致探针失败。
+const probeImageRef = "ghcr.io/sagernet/sing-box:v1.13.3"
+
+func probeImage() string { return containerregistry.Resolve(probeImageRef) }
 
 type ProbeResult struct {
 	Status   string    `json:"status"`
@@ -356,18 +360,18 @@ func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port i
 	containerName := fmt.Sprintf("singbox-probe-%d", port)
 
 	// 如果镜像已在本地，跳过 docker pull（避免不必要的网络等待）
-	inspectCmd := exec.CommandContext(ctx, "docker", "inspect", "--type=image", probeImage)
+	inspectCmd := exec.CommandContext(ctx, "docker", "inspect", "--type=image", probeImage())
 	if inspectCmd.Run() != nil {
 		// docker pull 单独限 3 分钟（镜像约 2MB，代理环境通常够用）
 		pullCtx, pullCancel := context.WithTimeout(ctx, 3*time.Minute)
-		pullCmd := exec.CommandContext(pullCtx, "docker", "pull", probeImage)
+		pullCmd := exec.CommandContext(pullCtx, "docker", "pull", probeImage())
 		pullOutput, pullErr := pullCmd.CombinedOutput()
 		pullCancel()
 		if pullErr != nil {
 			os.Remove(tmpFile.Name())
 			msg := strings.TrimSpace(string(pullOutput))
 			if pullCtx.Err() == context.DeadlineExceeded {
-				return 0, nil, fmt.Errorf("拉取探针镜像超时（3min），请检查 docker 是否能访问 ghcr.io（如配置 docker 代理或手动运行 `docker pull %s`）", probeImage)
+				return 0, nil, fmt.Errorf("拉取探针镜像超时（3min），请检查 docker 是否能访问 ghcr.io（如配置 docker 代理或手动运行 `docker pull %s`）", probeImage())
 			}
 			return 0, nil, fmt.Errorf("拉取探针镜像失败: %s: %w", msg, pullErr)
 		}
@@ -377,7 +381,7 @@ func startSingBoxDocker(ctx context.Context, proxyConfig json.RawMessage, port i
 
 	args := []string{"run", "-d", "--name", containerName}
 	args = append(args, netArgs...)
-	args = append(args, "-v", tmpFile.Name()+":/etc/sing-box/config.json:ro", probeImage, "run", "-c", "/etc/sing-box/config.json")
+	args = append(args, "-v", tmpFile.Name()+":/etc/sing-box/config.json:ro", probeImage(), "run", "-c", "/etc/sing-box/config.json")
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

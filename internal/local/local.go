@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
 )
 
 const (
@@ -55,7 +57,7 @@ type LocalManager struct {
 // NewLocalManager creates a new LocalManager with the given options.
 func NewLocalManager(opts LocalOptions) *LocalManager {
 	if opts.ImageName == "" {
-		opts.ImageName = defaultImage
+		opts.ImageName = containerregistry.Resolve(defaultImage)
 	}
 	if opts.MemoryLimitMB == 0 {
 		opts.MemoryLimitMB = defaultMemoryMB

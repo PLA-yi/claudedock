@@ -14,6 +14,7 @@ import (
 
 	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
 	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
+	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
 	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
 )
 
@@ -294,7 +295,7 @@ func LoadRuntimeSpec(path string) (RuntimeSpec, error) {
 	}
 
 	spec := RuntimeSpec{
-		ImageName:          values["image_name"],
+		ImageName:          containerregistry.Resolve(values["image_name"]),
 		ImageVersion:       values["image_version"],
 		DefaultUser:        values["default_user"],
 		HomeMount:          values["home_mount"],
