@@ -1256,38 +1256,29 @@ func (h *AdminHostsHandler) GetLogs() nethttp.Handler {
 func intPtr(v int) *int          { return &v }
 func floatPtr(v float64) *float64 { return &v }
 
-// resolveMemory 三态解析：nil → 默认值(4096) / 0 → NULL(无限制) / >0 → 传值。
+// resolveMemory 三态解析：nil → 默认值(4096) / 0 → 无限制 / >0 → 传值。
 func resolveMemory(mb *int) *int {
 	if mb == nil {
 		def := 4096
 		return &def
 	}
-	if *mb == 0 {
-		return nil
-	}
 	return mb
 }
 
-// resolveCPU 三态解析：nil → 默认值(2.0) / 0 → NULL(无限制) / >0 → 传值。
+// resolveCPU 三态解析：nil → 默认值(2.0) / 0 → 无限制 / >0 → 传值。
 func resolveCPU(cpu *float64) *float64 {
 	if cpu == nil {
 		def := 2.0
 		return &def
 	}
-	if *cpu == 0 {
-		return nil
-	}
 	return cpu
 }
 
-// resolveDisk 三态解析：nil → 默认值(20) / 0 → NULL(无限制) / >0 → 传值。
+// resolveDisk 三态解析：nil → 默认值(20) / 0 → 无限制 / >0 → 传值。
 func resolveDisk(gb *int) *int {
 	if gb == nil {
 		def := 20
 		return &def
-	}
-	if *gb == 0 {
-		return nil
 	}
 	return gb
 }
