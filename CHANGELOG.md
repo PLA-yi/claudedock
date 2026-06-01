@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v4.2.2 - 2026-06-01
+## What's Changed
+
+### Backend (Go / API)
+- fix: correct migration 0019 test to expect DATETIME not TEXT for CURRENT_TIMESTAMP (6bfda7b)
+- refactor: remove disk limit from host resource management (904bd03)
+
+### Frontend (Admin Web)
+- refactor: remove disk limit from host resource management (904bd03)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v4.2.1...v4.2.2
+
+
 ## v4.2.0 - 2026-06-01
 ## What's Changed
 
