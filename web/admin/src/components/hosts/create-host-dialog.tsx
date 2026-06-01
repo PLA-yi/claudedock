@@ -88,7 +88,6 @@ export function CreateHostDialog({
   const [resources, setResources] = useState<ResourceLimitsValue>({
     memory_limit_mb: null,
     cpu_limit: null,
-    disk_limit_gb: null,
   });
   const [hostMounts, setHostMounts] = useState<Array<{ source: string; target: string }>>([
     { source: "", target: "" },
@@ -137,7 +136,7 @@ export function CreateHostDialog({
     const mounts = hostMounts
       .filter((m) => m.source && m.target && m.source.startsWith("/") && m.target.startsWith("/"));
     createMutation.mutate(
-      { user_id: userId, egress_ip_id: egressIpId, timezone, memory_limit_mb: resources.memory_limit_mb, cpu_limit: resources.cpu_limit, disk_limit_gb: resources.disk_limit_gb, host_mounts: mounts.length > 0 ? mounts : undefined },
+      { user_id: userId, egress_ip_id: egressIpId, timezone, memory_limit_mb: resources.memory_limit_mb, cpu_limit: resources.cpu_limit, host_mounts: mounts.length > 0 ? mounts : undefined },
       {
         onSuccess: (data) => {
           setTaskId(data.task_id);
@@ -151,7 +150,7 @@ export function CreateHostDialog({
     setUserId("");
     setEgressIpId("");
     setTimezone("America/Los_Angeles");
-    setResources({ memory_limit_mb: null, cpu_limit: null, disk_limit_gb: null });
+    setResources({ memory_limit_mb: null, cpu_limit: null });
     setHostMounts([{ source: "", target: "" }]);
     setTaskId(null);
     onOpenChange(false);

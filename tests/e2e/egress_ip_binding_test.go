@@ -17,12 +17,13 @@ package e2e
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	_ "modernc.org/sqlite"
 )
 
 // TestEgressIPBinding_DoubleBindExcluded 验证 MVS-07「同一 egress IP 第二次绑定被拒绝」。
@@ -128,26 +129,26 @@ func TestEgressIPBinding_DoubleBindExcluded(t *testing.T) {
 // container 任务，e2e fixture 流程引入额外不确定性；本测试只关心 binding handler
 // 行为，故 DB 直插一行 status='stopped' 的 host 即可。
 func setupEgressBindingFixture(ctx context.Context, dbURL, userID string) (hostBID, egressIPID string, err error) {
-	conn, err := pgx.Connect(ctx, dbURL)
+	conn, err := sql.Open("sqlite", dbURL)
 	if err != nil {
 		return "", "", fmt.Errorf("connect db: %w", err)
 	}
-	defer func() { _ = conn.Close(ctx) }()
+	defer conn.Close()
 
 	// host B：复用 hosts 表 schema（参见 0001_initial.sql）；只填必需字段。
-	if err := conn.QueryRow(ctx, `
+	if err := conn.QueryRowContext(ctx, `
 		INSERT INTO hosts (user_id, status)
-		VALUES ($1, 'stopped')
-		RETURNING id::text
+		VALUES (?1, 'stopped')
+		RETURNING id
 	`, userID).Scan(&hostBID); err != nil {
 		return "", "", fmt.Errorf("insert host B: %w", err)
 	}
 
 	// egress_ip X：label / ip_address 都用 e2e- 前缀避免与既有 fixture 冲突。
-	if err := conn.QueryRow(ctx, `
+	if err := conn.QueryRowContext(ctx, `
 		INSERT INTO egress_ips (label, ip_address, provider, status)
-		VALUES ($1, $2, 'manual', 'available')
-		RETURNING id::text
+		VALUES (?1, ?2, 'manual', 'available')
+		RETURNING id
 	`, "e2e-mvs07-"+hostBID[:8], "192.0.2.47").Scan(&egressIPID); err != nil {
 		return "", "", fmt.Errorf("insert egress_ip: %w", err)
 	}

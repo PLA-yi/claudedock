@@ -73,7 +73,7 @@ func (s *stubHostStore) UpdateHostMounts(_ context.Context, _ string, _ reposito
 	return nil
 }
 
-func (s *stubHostStore) UpdateHostResources(_ context.Context, _ string, _ *int, _ *float64, _ *int) error {
+func (s *stubHostStore) UpdateHostResources(_ context.Context, _ string, _ *int, _ *float64) error {
 	return nil
 }
 

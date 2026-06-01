@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- hosts
 -- ============================================================
 CREATE TABLE IF NOT EXISTS hosts (
-    id                  TEXT PRIMARY KEY,
+    id                  TEXT NOT NULL PRIMARY KEY,
     user_id             TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     status              TEXT NOT NULL DEFAULT 'pending',
     template_image_ref  TEXT NOT NULL,
@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS hosts (
     short_id            TEXT UNIQUE,
     memory_limit_mb     INTEGER,
     cpu_limit           REAL,
-    disk_limit_gb       INTEGER,
     host_mounts         TEXT NOT NULL DEFAULT '[]',
     UNIQUE (user_id, slot_key)
 );

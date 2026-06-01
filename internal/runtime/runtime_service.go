@@ -180,7 +180,6 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		Hostname:      host.Hostname,
 		MemoryLimitMB: ptrToInt(host.MemoryLimitMB),
 		CPULimit:      ptrToFloat(host.CPULimit),
-		DiskLimitGB:   ptrToInt(host.DiskLimitGB),
 		Username:        owner.Username,
 		EntryPassword:   owner.EntryPassword,
 		SSHPublicKey:    "",

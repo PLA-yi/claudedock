@@ -271,9 +271,6 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 	if request.CPULimit > 0 {
 		args = append(args, "--cpus", fmt.Sprintf("%.1f", request.CPULimit))
 	}
-	if request.DiskLimitGB > 0 {
-		args = append(args, "--storage-opt", fmt.Sprintf("size=%dG", request.DiskLimitGB))
-	}
 
 	if request.EntryPassword == "" {
 		return nil, fmt.Errorf("host %s entry_password is empty; refusing to build create args", request.HostID)

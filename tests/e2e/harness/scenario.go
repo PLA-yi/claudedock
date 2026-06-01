@@ -20,18 +20,19 @@ package harness
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	_ "modernc.org/sqlite"
 )
 
 // ErrScenarioStepNotImplemented 是 Plan 02 当前阶段 Step 2..7 的 sentinel error。
@@ -64,7 +65,7 @@ type userSpec struct {
 type ControlPlaneHandle struct {
 	Addr       string // http://127.0.0.1:<port>
 	AdminToken string
-	DBURL      string // postgres://...（Step 1 后填充）
+	DBURL      string // SQLite file path（Step 1 后填充）
 }
 
 // HostHandle 由访问器返回。
@@ -113,7 +114,6 @@ type Scenario struct {
 	users         map[string]*userSpec
 
 	// Start 后填充的运行时句柄
-	pgContainer testcontainers.Container
 	cpHandle    *ControlPlaneHandle
 	hostHandles map[string]*HostHandle
 	userHandles map[string]*UserHandle
@@ -225,10 +225,10 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 		}
 	}()
 
-	// ─── Step 1: Postgres testcontainer ──────────────────────────────
-	if err := s.startPostgres(ctx); err != nil {
-		return fmt.Errorf("scenario start step1 (postgres): %w", err)
-	}
+		// ─── Step 1: SQLite ──────────────────────────────
+	// ─── Step 1: SQLite ───────────────────────────────────────────────
+	if err := s.startSQLite(ctx); err != nil {
+		return fmt.Errorf("scenario start step1 (sqlite): %w", err)
 
 	// ─── Step 2: control-plane 子进程 ─────────────────────────────────
 	if s.controlPlane != nil {
@@ -249,56 +249,33 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 	return nil
 }
 
-// startPostgres 是 Start 的 Step 1：起 postgres:18 testcontainer。
-func (s *Scenario) startPostgres(ctx context.Context) error {
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:18",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": "e2e-postgres-pw",
-			"POSTGRES_DB":       "cloud_cli_proxy_e2e",
-			"POSTGRES_USER":     "postgres",
-		},
-		WaitingFor: wait.ForLog("database system is ready to accept connections").
-			WithOccurrence(2).
-			WithStartupTimeout(90 * time.Second),
-	}
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return fmt.Errorf("start postgres testcontainer: %w", err)
-	}
+// startSQLite 是 Start 的 Step 1：创建临时 SQLite 数据库并通过 DATABASE_URL 传给子进程。
+func (s *Scenario) startSQLite(ctx context.Context) error {
+	dbPath := filepath.Join(os.TempDir(), "cloud-cli-proxy-e2e-"+s.scenarioID+".db")
 
-	host, err := c.Host(ctx)
+	// 创建 SQLite 数据库文件并验证连通性。
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?_texttotime=true")
 	if err != nil {
-		_ = c.Terminate(context.Background())
-		return fmt.Errorf("get postgres host: %w", err)
+		return fmt.Errorf("open sqlite: %w", err)
 	}
-	mappedPort, err := c.MappedPort(ctx, "5432/tcp")
-	if err != nil {
-		_ = c.Terminate(context.Background())
-		return fmt.Errorf("get postgres mapped port: %w", err)
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return fmt.Errorf("ping sqlite: %w", err)
 	}
+	db.Close()
 
 	s.mu.Lock()
-	s.pgContainer = c
 	s.cpHandle = &ControlPlaneHandle{
-		DBURL: fmt.Sprintf("postgres://postgres:e2e-postgres-pw@%s:%s/cloud_cli_proxy_e2e?sslmode=disable", host, mappedPort.Port()),
+		DBURL: "file:" + dbPath + "?_texttotime=true",
 	}
-	s.cleanups = append(s.cleanups, func(ctx context.Context) error {
-		if termErr := c.Terminate(ctx); termErr != nil {
-			return fmt.Errorf("terminate postgres testcontainer: %w", termErr)
-		}
-		return nil
+	s.cleanups = append(s.cleanups, func(_ context.Context) error {
+		return os.Remove(dbPath)
 	})
 	s.mu.Unlock()
 
 	s.logger.Info("scenario step1 done",
-		"step", "postgres",
-		"host", host,
-		"port", mappedPort.Port(),
+		"step", "sqlite",
+		"dbPath", dbPath,
 	)
 	return nil
 }

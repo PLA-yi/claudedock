@@ -114,7 +114,7 @@ func (r *Repository) UpdateUserPassword(ctx context.Context, userID string, pass
 
 // listHostsByUserIDSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言。
 const listHostsByUserIDSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts WHERE user_id = ?
 	ORDER BY created_at ASC
 `
@@ -133,7 +133,7 @@ func (r *Repository) ListHostsByUserID(ctx context.Context, userID string) ([]Ho
 		if err := rows.Scan(
 			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
-			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&item.MemoryLimitMB, &item.CPULimit, 
 			&rawMounts,
 			&item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
@@ -194,7 +194,7 @@ func (r *Repository) GetDashboardStats(ctx context.Context) (DashboardStats, err
 
 // listHostsSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言。
 const listHostsSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts
 	ORDER BY updated_at DESC
 `
@@ -222,7 +222,7 @@ func (r *Repository) ListHosts(ctx context.Context) ([]Host, error) {
 			&item.Hostname,
 			&item.MemoryLimitMB,
 			&item.CPULimit,
-			&item.DiskLimitGB,
+			
 			&rawMounts,
 			&item.CreatedAt,
 			&item.UpdatedAt,
@@ -265,7 +265,7 @@ func (r *Repository) GetPrimaryHostByUserID(ctx context.Context, userID string) 
 	var item Host
 	var rawMounts json.RawMessage
 	if err := r.db.QueryRowContext(ctx, `
-		SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+		SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 		FROM hosts
 		WHERE user_id = ? AND slot_key = 'primary'
 		LIMIT 1
@@ -281,7 +281,7 @@ func (r *Repository) GetPrimaryHostByUserID(ctx context.Context, userID string) 
 		&item.Hostname,
 		&item.MemoryLimitMB,
 		&item.CPULimit,
-		&item.DiskLimitGB,
+		
 		&rawMounts,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -367,7 +367,7 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 	var item Host
 	var rawMounts json.RawMessage
 	if err := r.db.QueryRowContext(ctx, `
-		INSERT INTO hosts (user_id, status, short_id, template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts)
+		INSERT INTO hosts (id, user_id, status, short_id, template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (user_id, slot_key)
 		DO UPDATE SET
@@ -378,13 +378,13 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 			hostname = excluded.hostname,
 			memory_limit_mb = excluded.memory_limit_mb,
 			cpu_limit = excluded.cpu_limit,
-			disk_limit_gb = excluded.disk_limit_gb,
 			host_mounts = excluded.host_mounts,
 			updated_at = CURRENT_TIMESTAMP
 		RETURNING id, user_id, status, COALESCE(short_id, ''),
 		          template_image_ref, home_volume_name, slot_key, timezone, hostname,
-		          memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+		          memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	`,
+		uuid.NewString(),
 		params.UserID,
 		params.Status,
 		params.ShortID,
@@ -395,7 +395,6 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 		params.Hostname,
 		params.MemoryLimitMB,
 		params.CPULimit,
-		params.DiskLimitGB,
 		mountsJSON,
 	).Scan(
 		&item.ID,
@@ -409,7 +408,7 @@ func (r *Repository) UpsertHost(ctx context.Context, params UpsertHostParams) (H
 		&item.Hostname,
 		&item.MemoryLimitMB,
 		&item.CPULimit,
-		&item.DiskLimitGB,
+		
 		&rawMounts,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -649,15 +648,12 @@ func (r *Repository) GetHostDetail(ctx context.Context, hostID string) (HostDeta
 const listHostsWithUsernameSQL = `
 	SELECT h.id, h.user_id, h.status, COALESCE(h.short_id, ''), h.template_image_ref,
 	       h.home_volume_name, h.slot_key, h.timezone, h.hostname,
-	       h.memory_limit_mb, h.cpu_limit, h.disk_limit_gb,
+	       h.memory_limit_mb, h.cpu_limit,
 	       h.host_mounts, h.created_at, h.updated_at, u.username,
 	       e.label, e.ip_address, e.detected_ip_address
 	FROM hosts h
 	JOIN users u ON u.id = h.user_id
-	LEFT JOIN LATERAL (
-		SELECT b.egress_ip_id FROM host_egress_bindings b
-		WHERE b.host_id = h.id ORDER BY b.created_at ASC LIMIT 1
-	) lb ON true
+	LEFT JOIN host_egress_bindings lb ON lb.host_id = h.id
 	LEFT JOIN egress_ips e ON e.id = lb.egress_ip_id
 	ORDER BY h.updated_at DESC
 `
@@ -676,7 +672,7 @@ func (r *Repository) ListHostsWithUsername(ctx context.Context) ([]HostWithUsern
 		if err := rows.Scan(
 			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
-			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&item.MemoryLimitMB, &item.CPULimit, 
 			&rawMounts,
 			&item.CreatedAt, &item.UpdatedAt,
 			&item.Username,
@@ -748,7 +744,7 @@ func (r *Repository) GetEgressIPByHost(ctx context.Context, hostID string) (Egre
 
 // getHostSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言。
 const getHostSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts
 	WHERE id = ?
 `
@@ -768,7 +764,7 @@ func (r *Repository) GetHost(ctx context.Context, hostID string) (Host, error) {
 		&item.Hostname,
 		&item.MemoryLimitMB,
 		&item.CPULimit,
-		&item.DiskLimitGB,
+		
 		&rawMounts,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -986,7 +982,7 @@ func (r *Repository) UpdateUserExpiry(ctx context.Context, userID string, expire
 
 // listRunningHostsByUserIDSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言。
 const listRunningHostsByUserIDSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts
 	WHERE user_id = ? AND status = 'running'
 `
@@ -1005,7 +1001,7 @@ func (r *Repository) ListRunningHostsByUserID(ctx context.Context, userID string
 		if err := rows.Scan(
 			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
-			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&item.MemoryLimitMB, &item.CPULimit, 
 			&rawMounts,
 			&item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
@@ -1024,7 +1020,7 @@ func (r *Repository) ListRunningHostsByUserID(ctx context.Context, userID string
 
 // listRunningHostsSQL 将 SQL 文本提升为包级常量，方便仓储层回归测试断言。
 const listRunningHostsSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts
 	WHERE status = 'running'
 	ORDER BY updated_at ASC
@@ -1032,7 +1028,7 @@ const listRunningHostsSQL = `
 
 // listFailedHostsSQL 查询 status='failed' 的主机，供 reconciler 自动恢复。
 const listFailedHostsSQL = `
-	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, disk_limit_gb, host_mounts, created_at, updated_at
+	SELECT id, user_id, status, COALESCE(short_id, ''), template_image_ref, home_volume_name, slot_key, timezone, hostname, memory_limit_mb, cpu_limit, host_mounts, created_at, updated_at
 	FROM hosts
 	WHERE status = 'failed'
 	ORDER BY updated_at ASC
@@ -1052,7 +1048,7 @@ func (r *Repository) ListRunningHosts(ctx context.Context) ([]Host, error) {
 		if err := rows.Scan(
 			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
-			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&item.MemoryLimitMB, &item.CPULimit, 
 			&rawMounts,
 			&item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
@@ -1083,7 +1079,7 @@ func (r *Repository) ListFailedHosts(ctx context.Context) ([]Host, error) {
 		if err := rows.Scan(
 			&item.ID, &item.UserID, &item.Status, &item.ShortID, &item.TemplateImageRef,
 			&item.HomeVolumeName, &item.SlotKey, &item.Timezone, &item.Hostname,
-			&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+			&item.MemoryLimitMB, &item.CPULimit, 
 			&rawMounts,
 			&item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
@@ -1533,15 +1529,14 @@ func (r *Repository) UpdateHostMounts(ctx context.Context, hostID string, mounts
 }
 
 // UpdateHostResources 更新主机的资源限制（内存/CPU/磁盘）。
-func (r *Repository) UpdateHostResources(ctx context.Context, hostID string, memoryLimitMB *int, cpuLimit *float64, diskLimitGB *int) error {
+func (r *Repository) UpdateHostResources(ctx context.Context, hostID string, memoryLimitMB *int, cpuLimit *float64) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE hosts
 		SET memory_limit_mb = COALESCE(?, memory_limit_mb),
 		    cpu_limit = COALESCE(?, cpu_limit),
-		    disk_limit_gb = COALESCE(?, disk_limit_gb),
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, memoryLimitMB, cpuLimit, diskLimitGB, hostID)
+	`, memoryLimitMB, cpuLimit, hostID)
 	if err != nil {
 		return fmt.Errorf("update host resources: %w", err)
 	}
@@ -1598,7 +1593,7 @@ const getHostWithClaudeAccountSQL = `
 		h.id, h.user_id, h.status, COALESCE(h.short_id, ''),
 		h.template_image_ref, h.home_volume_name,
 		h.slot_key, h.timezone, h.hostname, h.memory_limit_mb, h.cpu_limit,
-		h.disk_limit_gb, h.host_mounts, h.created_at, h.updated_at,
+		h.h.host_mounts, h.created_at, h.updated_at,
 		COALESCE(ca.persistent_volume_name, '')
 	FROM hosts h
 	LEFT JOIN claude_accounts ca ON ca.host_id = h.id
@@ -1615,7 +1610,7 @@ func (r *Repository) GetHostWithClaudeAccount(ctx context.Context, hostID string
 		&item.ID, &item.UserID, &item.Status, &item.ShortID,
 		&item.TemplateImageRef, &item.HomeVolumeName,
 		&item.SlotKey, &item.Timezone, &item.Hostname,
-		&item.MemoryLimitMB, &item.CPULimit, &item.DiskLimitGB,
+		&item.MemoryLimitMB, &item.CPULimit, 
 		&rawMounts,
 		&item.CreatedAt, &item.UpdatedAt,
 		&item.PersistentVolumeName,

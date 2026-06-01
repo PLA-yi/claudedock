@@ -12,7 +12,6 @@ import {
 export interface ResourceLimitsValue {
   memory_limit_mb: number | null;
   cpu_limit: number | null;
-  disk_limit_gb: number | null;
 }
 
 interface ResourceLimitsSelectorProps {
@@ -41,15 +40,6 @@ const CPU_PRESETS = [
   { label: "自定义...", value: -1 },
 ] as const;
 
-const DISK_PRESETS = [
-  { label: "无限制", value: 0 },
-  { label: "10 GB", value: 10 },
-  { label: "20 GB (默认)", value: 20 },
-  { label: "50 GB", value: 50 },
-  { label: "100 GB", value: 100 },
-  { label: "自定义...", value: -1 },
-] as const;
-
 type PresetItem = { label: string; value: number };
 
 function findPreset(presets: readonly PresetItem[], value: number | null): string {
@@ -69,7 +59,6 @@ function getDisplayLabel(presets: readonly PresetItem[], value: number | null, u
 export function ResourceLimitsSelector({ value, onChange, disabled }: ResourceLimitsSelectorProps) {
   const [customMemory, setCustomMemory] = useState("");
   const [customCPU, setCustomCPU] = useState("");
-  const [customDisk, setCustomDisk] = useState("");
 
   function isInCustomMode(currentValue: number | null, presets: readonly PresetItem[]): boolean {
     if (currentValue === null) return false;
@@ -171,54 +160,6 @@ export function ResourceLimitsSelector({ value, onChange, disabled }: ResourceLi
               }}
             />
             <span className="text-sm text-muted-foreground shrink-0">核</span>
-          </div>
-        )}
-      </div>
-
-      {/* 磁盘选择器 */}
-      <div className="space-y-2">
-        <Label>磁盘限制</Label>
-        <Select
-          value={findPreset(DISK_PRESETS, value.disk_limit_gb)}
-          onValueChange={(v) => {
-            if (v === "custom") {
-              setCustomDisk("");
-              onChange({ ...value, disk_limit_gb: 0 });
-            } else {
-              onChange({ ...value, disk_limit_gb: Number(v) });
-            }
-          }}
-          disabled={disabled}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={getDisplayLabel(DISK_PRESETS, value.disk_limit_gb, "GB", "默认 (20 GB)")}>
-              {getDisplayLabel(DISK_PRESETS, value.disk_limit_gb, "GB", "默认 (20 GB)")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {DISK_PRESETS.map((p) => (
-              <SelectItem key={p.value} value={String(p.value)}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {isInCustomMode(value.disk_limit_gb, DISK_PRESETS) && (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              placeholder="自定义 GB"
-              disabled={disabled}
-              value={value.disk_limit_gb === 0 || value.disk_limit_gb === null ? "" : String(value.disk_limit_gb)}
-              onChange={(e) => {
-                const v = e.target.value === "" ? 0 : Number(e.target.value);
-                if (v >= 0) {
-                  onChange({ ...value, disk_limit_gb: v });
-                }
-              }}
-            />
-            <span className="text-sm text-muted-foreground shrink-0">GB</span>
           </div>
         )}
       </div>

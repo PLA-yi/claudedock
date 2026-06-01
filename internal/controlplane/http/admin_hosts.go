@@ -40,7 +40,7 @@ type AdminHostStore interface {
 	ListRunningHosts(ctx context.Context) ([]repository.Host, error)
 	GetHostWithClaudeAccount(ctx context.Context, hostID string) (repository.HostWithClaudeAccount, error) // Phase 33 D-22
 	UpdateHostMounts(ctx context.Context, hostID string, mounts repository.HostMounts) error
-	UpdateHostResources(ctx context.Context, hostID string, memoryLimitMB *int, cpuLimit *float64, diskLimitGB *int) error
+	UpdateHostResources(ctx context.Context, hostID string, memoryLimitMB *int, cpuLimit *float64) error
 }
 
 type AdminHostsHandler struct {
@@ -153,7 +153,6 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 			Timezone      string                `json:"timezone"`
 			MemoryLimitMB *int                  `json:"memory_limit_mb"`
 			CPULimit      *float64              `json:"cpu_limit"`
-			DiskLimitGB   *int                  `json:"disk_limit_gb"`
 			HostMounts    repository.HostMounts `json:"host_mounts"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == "" {
@@ -227,7 +226,6 @@ func (h *AdminHostsHandler) Create() nethttp.Handler {
 				Hostname:         hostname,
 				MemoryLimitMB:    resolveMemory(body.MemoryLimitMB),
 				CPULimit:         resolveCPU(body.CPULimit),
-				DiskLimitGB:      resolveDisk(body.DiskLimitGB),
 				HostMounts:       expandHostMountSources(body.HostMounts),
 			})
 			if err == nil {
@@ -1088,7 +1086,6 @@ func (h *AdminHostsHandler) PatchResources() nethttp.Handler {
 		var body struct {
 			MemoryLimitMB *int     `json:"memory_limit_mb"`
 			CPULimit      *float64 `json:"cpu_limit"`
-			DiskLimitGB   *int     `json:"disk_limit_gb"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -1115,16 +1112,7 @@ func (h *AdminHostsHandler) PatchResources() nethttp.Handler {
 				return
 			}
 		}
-		if body.DiskLimitGB != nil && *body.DiskLimitGB > 0 {
-			if *body.DiskLimitGB < 1 {
-				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "disk_limit_gb 不能小于 1 GB"})
-				return
-			}
-			if *body.DiskLimitGB > 2048 {
-				writeJSON(w, nethttp.StatusBadRequest, map[string]string{"error": "disk_limit_gb 不能大于 2048 GB (2 TB)"})
-				return
-			}
-		}
+
 
 		host, err := h.store.GetHost(r.Context(), hostID)
 		if err != nil {
@@ -1145,7 +1133,6 @@ func (h *AdminHostsHandler) PatchResources() nethttp.Handler {
 		if err := h.store.UpdateHostResources(r.Context(), hostID,
 			resolveResourceMemory(body.MemoryLimitMB),
 			resolveResourceCPU(body.CPULimit),
-			resolveResourceDisk(body.DiskLimitGB),
 		); err != nil {
 			h.logger.Error("update host resources failed", "host_id", hostID, "error", err)
 			writeJSON(w, nethttp.StatusInternalServerError, map[string]string{"error": "update resources failed"})
@@ -1274,15 +1261,6 @@ func resolveCPU(cpu *float64) *float64 {
 	return cpu
 }
 
-// resolveDisk 三态解析：nil → 默认值(20) / 0 → 无限制 / >0 → 传值。
-func resolveDisk(gb *int) *int {
-	if gb == nil {
-		def := 20
-		return &def
-	}
-	return gb
-}
-
 // resolveResourceMemory PATCH 端点的三态解析：nil=不修改，0→NULL(无限制)，>0→传值。
 // 注意：0 不能转 nil，SQL 层需要区分"不传"和"传 0 设无限制"。
 func resolveResourceMemory(mb *int) *int {
@@ -1300,11 +1278,4 @@ func resolveResourceCPU(cpu *float64) *float64 {
 	return cpu
 }
 
-// resolveResourceDisk PATCH 端点的三态解析：nil=不修改，0→NULL(无限制)，>0→传值。
-func resolveResourceDisk(gb *int) *int {
-	if gb == nil {
-		return nil
-	}
-	return gb
-}
 

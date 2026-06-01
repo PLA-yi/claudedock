@@ -126,7 +126,6 @@ function HostDetailPage() {
   const [editResourcesValue, setEditResourcesValue] = useState<ResourceLimitsValue>({
     memory_limit_mb: null,
     cpu_limit: null,
-    disk_limit_gb: null,
   });
 
   const { data: task } = useTaskPolling(upgradeTaskId);
@@ -477,16 +476,6 @@ function HostDetailPage() {
                           : "默认 (2 核)"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                      <span className="text-sm">磁盘</span>
-                      <span className="font-mono text-sm font-medium">
-                        {host.disk_limit_gb != null
-                          ? host.disk_limit_gb === 0
-                            ? "无限制"
-                            : `${host.disk_limit_gb} GB`
-                          : "默认 (20 GB)"}
-                      </span>
-                    </div>
 
                     <Button
                       size="sm"
@@ -498,7 +487,6 @@ function HostDetailPage() {
                         setEditResourcesValue({
                           memory_limit_mb: host.memory_limit_mb,
                           cpu_limit: host.cpu_limit,
-                          disk_limit_gb: host.disk_limit_gb,
                         });
                         setEditingResources(true);
                       }}
@@ -530,7 +518,6 @@ function HostDetailPage() {
                             {
                               memory_limit_mb: editResourcesValue.memory_limit_mb,
                               cpu_limit: editResourcesValue.cpu_limit,
-                              disk_limit_gb: editResourcesValue.disk_limit_gb,
                             },
                             {
                               onSuccess: () => setEditingResources(false),

@@ -14,6 +14,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	_ "modernc.org/sqlite"
 	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
@@ -232,14 +233,14 @@ func (p *GoldenPath) SimulateExpiry(ctx context.Context, userID string, waitForT
 		return errors.New("simulate expiry: control plane DBURL empty")
 	}
 
-	conn, err := pgx.Connect(ctx, cp.DBURL)
+	conn, err := sql.Open("sqlite", cp.DBURL)
 	if err != nil {
 		return fmt.Errorf("simulate expiry: connect db: %w", err)
 	}
-	defer func() { _ = conn.Close(ctx) }()
+	defer conn.Close()
 
-	tag, err := conn.Exec(ctx,
-		`UPDATE users SET expires_at = NOW() - INTERVAL '1 second' WHERE id = $1`,
+	tag, err := conn.ExecContext(ctx,
+		`UPDATE users SET expires_at = datetime('now', '-1 second') WHERE id = ?`,
 		userID,
 	)
 	if err != nil {
@@ -256,8 +257,8 @@ func (p *GoldenPath) SimulateExpiry(ctx context.Context, userID string, waitForT
 	return harness.WaitFor(ctx, fmt.Sprintf("user.expired:%s", userID),
 		func(ctx context.Context) error {
 			var hits int
-			row := conn.QueryRow(ctx,
-				`SELECT COUNT(*) FROM events WHERE type = $1 AND user_id = $2`,
+			row := conn.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM events WHERE type = ? AND user_id = ?`,
 				UserExpiredEventType, userID,
 			)
 			if err := row.Scan(&hits); err != nil {
@@ -385,14 +386,14 @@ func (p *GoldenPath) QueryBindingExists(ctx context.Context, hostID, egressIPID 
 	if cp == nil || cp.DBURL == "" {
 		return false, errors.New("query binding: control plane DBURL empty")
 	}
-	conn, err := pgx.Connect(ctx, cp.DBURL)
+	conn, err := sql.Open("sqlite", cp.DBURL)
 	if err != nil {
 		return false, fmt.Errorf("query binding: connect db: %w", err)
 	}
-	defer func() { _ = conn.Close(ctx) }()
+	defer conn.Close()
 
 	var hits int
-	row := conn.QueryRow(ctx,
+	row := conn.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM host_egress_bindings WHERE host_id = $1 AND egress_ip_id = $2`,
 		hostID, egressIPID,
 	)

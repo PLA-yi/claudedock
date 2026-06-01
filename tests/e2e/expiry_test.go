@@ -14,6 +14,7 @@ package e2e
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	_ "modernc.org/sqlite"
 
 	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
 )
@@ -135,20 +136,20 @@ func waitExpiryEvent(ctx context.Context, g *GoldenPath, hostID string, timeout 
 	if cp == nil || cp.DBURL == "" {
 		return fmt.Errorf("control plane DBURL empty")
 	}
-	conn, err := pgx.Connect(ctx, cp.DBURL)
+	conn, err := sql.Open("sqlite", cp.DBURL)
 	if err != nil {
 		return fmt.Errorf("connect db: %w", err)
 	}
-	defer func() { _ = conn.Close(ctx) }()
+	defer conn.Close()
 
 	return harness.WaitFor(ctx, fmt.Sprintf("%s:%s", ExpiryEventType, hostID),
 		func(ctx context.Context) error {
 			var hits int
-			row := conn.QueryRow(ctx,
+			row := conn.QueryRowContext(ctx,
 				`SELECT COUNT(*) FROM events
-				 WHERE type = $1
-				   AND host_id = $2
-				   AND metadata->>'reason' = $3`,
+				 WHERE type = ?
+				   AND host_id = ?
+				   AND json_extract(metadata, '$.reason') = ?`,
 				ExpiryEventType, hostID, "user expired",
 			)
 			if err := row.Scan(&hits); err != nil {

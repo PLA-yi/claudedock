@@ -90,7 +90,6 @@ func TestHost_JSONMarshaling(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	memLimit := 4096
 	cpuLimit := 2.0
-	diskLimit := 50
 	h := Host{
 		ID:               "host-1",
 		UserID:           "user-1",
@@ -103,7 +102,6 @@ func TestHost_JSONMarshaling(t *testing.T) {
 		Hostname:         "dev-box",
 		MemoryLimitMB:    &memLimit,
 		CPULimit:         &cpuLimit,
-		DiskLimitGB:      &diskLimit,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -277,7 +275,6 @@ func TestCreateUserWithRoleParams_Defaults(t *testing.T) {
 func TestUpsertHostParams_AllFields(t *testing.T) {
 	memLimit := 8192
 	cpuLimit := 4.0
-	diskLimit := 100
 	p := UpsertHostParams{
 		UserID:           "u1",
 		Status:           "running",
@@ -289,7 +286,6 @@ func TestUpsertHostParams_AllFields(t *testing.T) {
 		Hostname:         "box1",
 		MemoryLimitMB:    &memLimit,
 		CPULimit:         &cpuLimit,
-		DiskLimitGB:      &diskLimit,
 	}
 	if p.UserID == "" {
 		t.Error("UserID is required")

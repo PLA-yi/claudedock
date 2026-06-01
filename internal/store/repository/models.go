@@ -43,7 +43,6 @@ type Host struct {
 	Hostname         string    `json:"hostname"`
 	MemoryLimitMB    *int      `json:"memory_limit_mb"`
 	CPULimit         *float64  `json:"cpu_limit"`
-	DiskLimitGB      *int      `json:"disk_limit_gb"`
 	HostMounts       HostMounts `json:"host_mounts"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
@@ -278,7 +277,6 @@ type UpsertHostParams struct {
 	Hostname         string
 	MemoryLimitMB    *int
 	CPULimit         *float64
-	DiskLimitGB      *int
 	HostMounts       HostMounts
 }
 
