@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v4.1.4 - 2026-06-01
+## What's Changed
+
+### Backend (Go / API)
+- fix: 创建主机选择"无限制"时不再转换为 NULL，与 PATCH 路径保持一致 (b86ff11)
+- fix: restart 策略改为 unless-stopped，启动时立即协调恢复容器 (ddbd50a)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v4.1.3...v4.1.4
+
+
 ## v4.1.3 - 2026-05-31
 ## What's Changed
 
