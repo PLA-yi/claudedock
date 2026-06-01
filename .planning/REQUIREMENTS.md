@@ -1,105 +1,96 @@
-# Requirements: v4.0 sing-box 同容器化
+# Requirements: Cloud CLI Proxy
 
-**Milestone goal:** 把 sing-box 从独立 `cloudproxy-gw-*` 容器搬进用户容器内部，消灭"user 容器 default 路由不指向 gw"这一整类回归泄漏；单容器架构带来 breaking change，故升 major v4.0。
+**Milestone:** v4.2.0 容器合并 · SQLite 迁移 · 配置统一
+**Core Value:** 给每个用户提供一台开箱即用的 SSH 云主机，并且严格保证其所有出网流量都走受控的指定出口 IP
 
-**Phases:** 53-56 (continued from v3.6, 4 phases total)
+## v4.2.0 Requirements
 
----
+本次里程碑需求：将部署从 5 服务精简至 2 服务，数据库从 PostgreSQL 切换至 SQLite，admin 前端与 sing-box 探针均内嵌至 control-plane 单一二进制。
 
-## Active Requirements
+### DB — 数据库层迁移（PostgreSQL → SQLite）
 
-### IMG — 镜像与运行时基线（Phase 53）
+- [ ] **DB-01**: 依赖切换 — 移除 pgx/v5，引入 modernc.org/sqlite，go mod tidy 后编译通过
+- [ ] **DB-02**: 迁移系统重写 — migrator 支持 SQLite 语法 + embed.FS 嵌入迁移文件
+- [ ] **DB-03**: 24 个迁移文件改写为 SQLite 语法（TEXT 替代 UUID/TIMESTAMPTZ/JSONB，Go 侧生成 UUID）
+- [ ] **DB-04**: Repository 层重写 — pgxpool.Pool → *sql.DB，140+ 处 Query/QueryRow 调用改为标准库
+- [ ] **DB-05**: App 初始化重写 — sql.Open("sqlite", ...) + PRAGMA WAL/foreign_keys/busy_timeout
 
-- [x] **IMG-01**：`deploy/docker/managed-user/Dockerfile` 内置 sing-box binary，版本与 v3.6 gw 镜像保持一致（同源、同 tag）。镜像构建产物包含 `/usr/local/bin/sing-box` 且可执行。
-- [x] **IMG-02**：镜像内置 `singbox:x:9000:9000:sing-box system user:/nonexistent:/usr/sbin/nologin` 系统账号（uid/gid 锁定 9000），用于 sing-box 降权后的运行身份。
-- [x] **IMG-03**：镜像内置 nftables 与基础排障工具（`nft` / `iproute2` / `dig` / `getpcaps`），与 v3.6 worker 镜像工具集对齐；不引入 `bash -c` 路径以外的 suid 二进制。
-- [x] **IMG-04**：用户登录使用的 shell 账号挂在 `nosuid` 文件系统约定下，无 sudo、无 wheel 组，验证 `id` 输出非 root 且 `getpcaps $$` 不含 `cap_net_admin`。
+### UI — Admin 前端嵌入
 
-### EP — Entrypoint 启动序列（Phase 53）
+- [ ] **UI-01**: 使用 //go:embed 嵌入 web/admin/dist/* 到 Go 二进制
+- [ ] **UI-02**: 实现 SPA fallback — 非 API 路径先匹配静态文件，未命中返回 index.html
+- [ ] **UI-03**: router.go 注册静态文件 handler，API 路由优先级高于静态文件
+- [ ] **UI-04**: vite.config.ts 代理 target 从 127.0.0.1:8090 改为 127.0.0.1:8080
 
-- [x] **EP-01**：entrypoint 作为 PID 1 运行，串行执行 `start sing-box → waitFor tun0 ready → apply nft default-deny → drop privileges → exec sshd`，任一步失败容器立即退出（exit code 非 0）。
-- [x] **EP-02**：sing-box 通过其 `process.user` 字段在建好 tun + auto_route 之后 setuid 到 `singbox` 账号，运行时进程身份非 root。`ps -o uid,user,comm -p $(pidof sing-box)` 显示 uid=9000。
-- [x] **EP-03**：sing-box 启动成功的判定走 `harness.WaitFor` 同款语义（监听 tun0 接口存在 + sing-box 健康日志或健康端口），不允许裸 sleep。
-- [x] **EP-04**：entrypoint 在 sing-box 进程退出时（任意原因）立即向 PID 1 发起退出，触发 docker `restart=on-failure` 重新拉起；exit code 必须为非 0 以区分正常关停。
+### PRB — Sing-box 探针内嵌
 
-### NET — 网络强约束（Phase 53）
+- [ ] **PRB-01**: control-plane Dockerfile 运行阶段下载 sing-box v1.13.3 二进制到 /usr/local/bin/
+- [ ] **PRB-02**: 探针优先级调整 — startLocalSingBox 优先使用宿主机二进制，不存在才回退 Docker
 
-- [x] **NET-01**：nft default-deny ruleset 在 entrypoint 中应用，规则集等价于 v3.6 `worker_firewall_linux` 输出链（含 `169.254.0.0/16 counter drop` 与全规则 counter），仅放行 tun0 出口。
-- [x] **NET-02**：DNS 流量必须经 sing-box stub resolver；`/etc/resolv.conf` 在容器内指向 sing-box 监听地址；外部 UDP/53、TCP/53、TCP/853 (DoT)、TCP/443 (DoH 常见端口路径) 出方向一律 drop。`dig @8.8.8.8 example.com` 必须失败或被 sing-box 接管。
-- [x] **NET-03**：sing-box 死亡时（任意原因，含 SIGKILL）容器在 ≤3s 内退出；docker `restart=on-failure` 在 ≤5s 内拉起新容器，新容器复用同一 host 配置；期间 host eth0 抓包不得出现来自该容器 IP 的非 tun 流量。
-- [x] **NET-04**：容器内 user 进程读 `getpcaps` 不含 `cap_net_admin` / `cap_net_raw` / `cap_sys_admin`；尝试 `ip link set tun0 down` 或 `nft flush ruleset` 必须返回 `Operation not permitted`。
+### DEP — 部署精简与配置统一
 
-### SEC — 同容器架构特有的安全断言（Phase 55）
+- [ ] **DEP-01**: docker-compose.yml 移除 postgres、admin、sing-box 三个服务及 cloudproxy-postgres volume
+- [ ] **DEP-02**: control-plane 服务改为 DATABASE_URL=file:/data/cloud-cli-proxy.db + ./data:/data volume
+- [ ] **DEP-03**: .env / .env.example 移除 POSTGRES_* 变量，DATABASE_URL 改为 SQLite 路径，CONTROL_PLANE_ADDR 统一为 :8080
+- [ ] **DEP-04**: Makefile 移除 db/db-stop/db-reset 目标，dev 目标不再检测 PostgreSQL
+- [ ] **DEP-05**: deploy/scripts/setup-env.sh 和 deploy/scripts/deploy.sh 移除 PostgreSQL 交互和检查
 
-- [x] **SEC-01**：用户进程**不能** kill sing-box。`docker exec -u <user> kill -9 $(pidof sing-box)` 必须失败（`Operation not permitted`），或 sing-box 作 PID 1 时 user 命名空间 PID 映射阻止此调用。
-- [x] **SEC-02**：用户进程**不能**读上游凭据。`docker exec -u <user> cat /etc/sing-box/config.json` 必须失败（`Permission denied` 或 `No such file or directory`，因启动后 rm）。该断言通过文件权限 0600 + 启动后 fs 删除双重保证。
-- [x] **SEC-03**：用户进程**不能**绕过路由。`getpcaps <user-shell-pid>` 输出空 cap，且 `unshare -n /bin/bash` 必须失败（无 `cap_sys_admin`）。
+### DOC — 文档同步
 
-### CTRL — 控制面单容器化（Phase 54）
+- [ ] **DOC-01**: README.md / README.en.md 更新架构图、环境变量表、访问地址
+- [ ] **DOC-02**: docs/zh/guide/ 和 docs/en/guide/ 更新 architecture、deployment、quickstart、configuration
+- [ ] **DOC-03**: docs/zh/reference/faq.md 和 docs/en/reference/faq.md 更新 PG 相关排障条目
 
-- [x] **CTRL-01**：`internal/network/container_proxy_provider.go` 删除 gw 容器创建与 teardownGateway 路径，`PrepareHost` 只管 user 容器的 `--device /dev/net/tun` / `--cap-add NET_ADMIN` / `--restart=on-failure` 与 sing-box config 注入。
-- [x] **CTRL-02**：`cloudproxy-net-<HostID>` 自定义 bridge 退役；user 容器只接 docker 默认网络获得 host 入向 SSH 端口转发，出方向流量由容器内 sing-box 接管。
-- [x] **CTRL-03**：host-agent 在 PrepareHost 时把 sing-box config（含出口 IP 对应的上游凭据）写入 user 容器内 `/etc/sing-box/config.json` 路径，root:root 0600；entrypoint 启动 sing-box 成功后立即 `rm` 该文件。
-- [x] **CTRL-04**：双绑互斥 pre-check（v3.6 51-09 落地的 `ErrCodeEgressIPAlreadyBound` + 409）保留功能、调整数据源到单容器路径，API 行为契约不变。
-- [x] **CTRL-05**：`deploy/docker/sing-box/` 与 Makefile `gateway-image` target 整体退役；镜像构建产物不再产出 gw 镜像。
+### TEST — 测试适配
 
-### E2E — 端到端测试重构（Phase 55）
+- [ ] **TEST-01**: internal/store/repository/*_test.go 从 testcontainers PG 切换到内存 SQLite
+- [ ] **TEST-02**: internal/controlplane/app/app_test.go 更新配置常量，确认编译和测试通过
 
-- [x] **E2E-V4-01**：`tests/e2e/harness/scenario.go` 的 builder 合并 `WithSingBoxGateway(...)` 进 `WithUser(...)`，单容器拓扑；旧 API 调用点全部迁移。
-- [x] **E2E-V4-02**：v3.6 LEAK-01..08 用例迁移到单容器架构，抓包视角统一改为 host eth0 + 容器 veth pair，断言语义保持不变；迁移完成后 8 条用例继续绿。
-- [x] **E2E-V4-03**：v3.6 KILL-01..04 用例迁移：`docker kill <gw>` 改为 `docker exec <user> kill -9 $(pidof sing-box)`；新增断言 "PID 1 死 → 容器死 → 出网立即断"。
-- [x] **E2E-V4-04**：v3.6 GoldenPath 与 MVS-01..10 用例迁移到单容器，所有出口 IP / DNS / default-deny / 错误码契约保持不变。
-- [x] **E2E-V4-05**：删除 v3.6 期间为 cross-container 协调写的辅助代码（gw 启动同步、network connect 等待等）。
-- [x] **E2E-V4-06**：新增 SEC-01..03 三条同容器安全断言为 e2e 用例（实现 IMG-04 / SEC-01 / SEC-02 / SEC-03 的验证）。
+## v2 Requirements
 
-### CI — CI / 本地一条命令入口（Phase 56）
-
-- [x] **CI-01**：`.github/workflows/e2e.yml` paths filter 扩面，新增 `internal/controlplane/http/**` / `internal/store/**` / `deploy/docker/**` / `Makefile` / `go.mod` / `go.sum`；这些路径被改动时 e2e 强制触发。
-- [x] **CI-02**：Makefile 新增 `e2e` target —— `make e2e` 等价于 `go test -tags=e2e ./tests/e2e/... -count=1 -v -timeout=15m`，本地一条命令即可跑 e2e 套件。
-- [x] **CI-03**：Makefile `e2e` target 内串入 `lint-no-bare-sleep` + `go vet -tags=e2e ./tests/e2e/...`，与 CI lint job 行为对齐；`make e2e` 出错语义与 CI 一致。
-
----
-
-## Future Requirements (deferred)
-
-- **F-V4-DID**：本地 Docker-in-Docker runner（`make e2e-linux` 在 Ubuntu 容器里跑 `make e2e`），让 macOS 一条命令复现 CI 全套 Linux 维度断言。**Deferred to v4.1**，因为 v4.0 主线已经大幅简化 e2e 拓扑，darwin 编译 + CI 真机维度的现有契约够用一段时间。
-- **F-V4-TMPFS**：sing-box config 走 tmpfs 注入而非 fs 写后删（更强凭据隔离）。**Deferred to v4.1**，rm 后内存常驻的方案已经满足核心威胁模型。
-
----
+None for this milestone.
 
 ## Out of Scope
 
-- ❌ **生产用户迁移机制**（D-V4-5）：v4.0 是 breaking change 大版本，存量容器直接重建即可，不实现 sidecar/inline 双模式共存。理由：维护双路径成本远大于收益；存量用户量级不需要无中断迁移。
-- ❌ **Restart GoldenPath e2e**（D-V4-6）：单容器架构消除了 "user 容器 default 路由不指向 gw" 这一回归 bug 类，stop/start 重启路径不再有跨容器协调，无需专门 e2e 覆盖。
-- ❌ **sing-box 协议层变更**：VMess / VLESS / Trojan / Shadowsocks / HTTP 等 outbound 协议沿用 v3.6 sing-box 原生实现，v4.0 不改协议层。
-- ❌ **9 项 v3.6 deferred-to-CI 真机签字**：与 v4.0 主线无关，可在 v4.0 ship 后或并行通过 V36-TD-3 路径推进。
+| Feature | Reason |
+|---------|--------|
+| managed-user 容器变更 | 用户容器架构不受影响 |
+| E2E 测试体系适配 | 本次仅保证单元测试通过，e2e 后续处理 |
+| 多宿主机支持 | v1 仅单宿主机 |
+| 数据迁移工具（PG → SQLite） | 新部署直接用 SQLite，不处理旧数据 |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DB-01 | 58 | Pending |
+| DB-02 | 58 | Pending |
+| DB-03 | 58 | Pending |
+| DB-04 | 58 | Pending |
+| DB-05 | 58 | Pending |
+| UI-01 | 59 | Pending |
+| UI-02 | 59 | Pending |
+| UI-03 | 59 | Pending |
+| UI-04 | 59 | Pending |
+| PRB-01 | 60 | Pending |
+| PRB-02 | 60 | Pending |
+| DEP-01 | 61 | Pending |
+| DEP-02 | 61 | Pending |
+| DEP-03 | 61 | Pending |
+| DEP-04 | 61 | Pending |
+| DEP-05 | 61 | Pending |
+| DOC-01 | 62 | Pending |
+| DOC-02 | 62 | Pending |
+| DOC-03 | 62 | Pending |
+| TEST-01 | 62 | Pending |
+| TEST-02 | 62 | Pending |
+
+**Coverage:**
+
+- v4.2.0 requirements: 21 total
+- Mapped to phases: 21
+- Unmapped: 0 ✓
 
 ---
-
-## Phase Mapping (Traceability)
-
-| REQ | Phase | Rationale |
-|---|---|---|
-| IMG-01..04 | 53 | 镜像基线，单 phase 内可独立验证 |
-| EP-01..04 | 53 | entrypoint 启动序列，与 IMG 一同验证 |
-| NET-01..04 | 53 | nft / DNS / cap 强约束，本地手工 `docker run` 即可断言 |
-| CTRL-01..05 | 54 | 控制面单容器化，依赖 Phase 53 镜像产物 |
-| SEC-01..03 | 55 | 同容器安全断言，依赖 Phase 54 控制面落地 |
-| E2E-V4-01..06 | 55 | e2e 重构，与 SEC-01..03 同 phase（同属 e2e 套件） |
-| CI-01..03 | 56 | CI 与本地入口收尾，与功能改造解耦 |
-
----
-
-## Summary
-
-**Total requirements:** 28
-- IMG: 4 / EP: 4 / NET: 4 / CTRL: 5 / SEC: 3 / E2E-V4: 6 / CI: 3
-- Phase 53: 12 REQ (IMG + EP + NET)
-- Phase 54: 5 REQ (CTRL)
-- Phase 55: 9 REQ (SEC + E2E-V4)
-- Phase 56: 3 REQ (CI)
-
-**Deferred:** 2（F-V4-DID / F-V4-TMPFS → v4.1 候选）
-**Out of scope:** 4 类（迁移机制 / Restart e2e / 协议层变更 / v3.6 历史 deferred）
-
-*Last updated: 2026-05-16 — v4.0 requirements initial draft (28 REQ across 4 phases).*
+*Requirements defined: 2026-06-01*
+*Last updated: 2026-06-01 after initial definition*
