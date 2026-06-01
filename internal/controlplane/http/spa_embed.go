@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	nethttp "net/http"
+	"strings"
 )
 
 func NewSPAHandler(assets embed.FS, root string) nethttp.Handler {
@@ -15,7 +16,9 @@ func NewSPAHandler(assets embed.FS, root string) nethttp.Handler {
 	fileServer := nethttp.FileServer(nethttp.FS(sub))
 
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		f, openErr := sub.Open(r.URL.Path)
+		// fs.FS.Open 要求路径不带前导 "/"，而 r.URL.Path 带有前导 "/"。
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		f, openErr := sub.Open(path)
 		if openErr == nil {
 			f.Close()
 			fileServer.ServeHTTP(w, r)
