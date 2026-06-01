@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 生产环境 .env 初始化脚本
-# 自动生成所有密码和密钥，支持内置 Docker PostgreSQL 或外部数据库
+# 自动生成所有密码和密钥，使用 SQLite 单文件数据库
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -24,79 +24,15 @@ if [[ -f "$ENV_FILE" ]]; then
   log "已备份旧文件"
 fi
 
-# ── 数据库选择 ──────────────────────────────────────────────
+# ── 数据库配置 ─────────────────────────────────────────────
 
 echo ""
 log "正在生成生产环境配置..."
 echo ""
-echo "  数据库方案:"
-echo "    1) 内置 Docker PostgreSQL（推荐，零配置）"
-echo "    2) 外部 PostgreSQL（已有数据库实例）"
-echo ""
-printf "请选择 [1]: "
-read -r DB_CHOICE
-DB_CHOICE="${DB_CHOICE:-1}"
 
-if [[ "$DB_CHOICE" == "1" ]]; then
-  # ── 内置 Docker PostgreSQL ────────────────────────────────
-  DB_MODE="docker"
-  POSTGRES_DB="cloudproxy"
-  POSTGRES_USER="cloudproxy"
-  POSTGRES_PASSWORD="$(rand_password 24)"
-  POSTGRES_PORT="5432"
-  DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
-  log "将使用内置 Docker PostgreSQL，密码已自动生成"
-else
-  # ── 外部 PostgreSQL ───────────────────────────────────────
-  DB_MODE="external"
-
-  if [[ -n "${DATABASE_URL:-}" ]]; then
-    log "使用环境变量中的 DATABASE_URL"
-  else
-    printf "PostgreSQL 主机地址: "
-    read -r PG_HOST
-    if [[ -z "$PG_HOST" ]]; then
-      err "主机地址不能为空"
-      exit 1
-    fi
-
-    printf "PostgreSQL 端口 [5432]: "
-    read -r PG_PORT
-    PG_PORT="${PG_PORT:-5432}"
-
-    printf "数据库名 [cloudproxy]: "
-    read -r PG_DB
-    PG_DB="${PG_DB:-cloudproxy}"
-
-    printf "数据库用户名 [cloudproxy]: "
-    read -r PG_USER
-    PG_USER="${PG_USER:-cloudproxy}"
-
-    printf "数据库密码: "
-    read -r -s PG_PASS
-    echo ""
-    if [[ -z "$PG_PASS" ]]; then
-      err "数据库密码不能为空"
-      exit 1
-    fi
-
-    printf "启用 SSL? [y/N]: "
-    read -r PG_SSL
-    if [[ "$PG_SSL" == "y" || "$PG_SSL" == "Y" ]]; then
-      SSL_MODE="require"
-    else
-      SSL_MODE="disable"
-    fi
-
-    DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=${SSL_MODE}"
-  fi
-
-  POSTGRES_DB=""
-  POSTGRES_USER=""
-  POSTGRES_PASSWORD=""
-  POSTGRES_PORT=""
-  log "将使用外部 PostgreSQL"
-fi
+# SQLite 单文件数据库，无需交互
+DATABASE_URL="${DATABASE_URL:-file:/data/cloud-cli-proxy.db}"
+log "使用 SQLite 数据库: ${DATABASE_URL}"
 
 # ── 镜像源检测 ──────────────────────────────────────────────
 
@@ -124,10 +60,6 @@ fi
 # ── 控制面和管理员 ──────────────────────────────────────────
 
 echo ""
-printf "管理后台端口 [3000]: "
-read -r ADMIN_PORT
-ADMIN_PORT="${ADMIN_PORT:-3000}"
-
 printf "管理员用户名 [admin]: "
 read -r ADMIN_USER
 ADMIN_USER="${ADMIN_USER:-admin}"
@@ -144,29 +76,11 @@ ADMIN_JWT_SECRET="$(rand_password 48)"
 # 由 setup-env.sh 自动生成于 $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 # ============================================================
 
-# Database Mode: ${DB_MODE}
-# docker   = 使用内置 Docker PostgreSQL（docker compose 自动管理）
-# external = 使用外部 PostgreSQL（仅需 DATABASE_URL）
-DB_MODE=${DB_MODE}
-EOF
-
-  if [[ "$DB_MODE" == "docker" ]]; then
-    cat <<EOF
-
-# PostgreSQL (Docker)
-POSTGRES_DB=${POSTGRES_DB}
-POSTGRES_USER=${POSTGRES_USER}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-EOF
-  fi
-
-  cat <<EOF
-
-# Database Connection
+# Database (SQLite, WAL 模式)
 DATABASE_URL=${DATABASE_URL}
 
-# Control Plane
-ADMIN_PORT=${ADMIN_PORT}
+# Control Plane (API + Admin UI + SSH Proxy 统一在 :8080)
+CONTROL_PLANE_ADDR=:8080
 ADMIN_USERNAME=${ADMIN_USER}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
@@ -189,13 +103,7 @@ log "========================================="
 log ".env 已生成: $ENV_FILE"
 log "========================================="
 echo ""
-if [[ "$DB_MODE" == "docker" ]]; then
-  echo "  数据库模式:     内置 Docker PostgreSQL"
-  echo "  数据库密码:     ${POSTGRES_PASSWORD}"
-else
-  echo "  数据库模式:     外部 PostgreSQL"
-  echo "  DATABASE_URL:   ${DATABASE_URL%@*}@*** (已写入 .env)"
-fi
+echo "  数据库:   SQLite (${DATABASE_URL})"
 echo "  管理员用户名:   ${ADMIN_USER}"
 echo "  管理员密码:     ${ADMIN_PASSWORD}"
 echo "  JWT Secret:     ${ADMIN_JWT_SECRET:0:12}... (已写入 .env)"
@@ -203,9 +111,5 @@ echo ""
 warn "请立即保存以上密码，此处仅显示一次！"
 echo ""
 log "下一步:"
-if [[ "$DB_MODE" == "docker" ]]; then
-  log "  docker compose up -d --build"
-else
-  log "  docker compose --profile no-db up -d --build"
-  log "  （跳过内置 PostgreSQL，仅启动 control-plane 和 admin）"
-fi
+log "  docker compose up -d --build"
+log "  管理后台: http://YOUR_HOST:8080"

@@ -7,7 +7,7 @@ Cloud CLI Proxy consists of four core components: Control Plane, Host Agent, use
 ```
 User ──curl──> Control Plane (:8080) ──Docker──> │ User Container           │
                     │                              │  SSH + Claude + VNC      │
-               PostgreSQL                          │  sing-box tun tunnel     │
+               SQLite (WAL)                        │  sing-box tun tunnel     │
                     │                              │       ↓                  │
               Admin UI (embed)                    │  Designated egress IP    │
                     │                              └──────────────────────────┘
@@ -53,11 +53,9 @@ A Go CLI installed on the user's laptop, bridging the local terminal and the rem
 - `explain` error code lookup
 - `proxy_commands` to run commands like `git` on the local machine
 
-### PostgreSQL
+### SQLite
 
-Persists all system state: users, hosts, egress IP configs, bindings, async tasks, and audit events.
-
-## Network Model
+The control plane uses a SQLite single-file database (WAL mode), specified via the `DATABASE_URL` environment variable. The database file is stored at `/data/cloud-cli-proxy.db`, persisted by a Docker Compose named volume.
 
 ### Container Network Isolation
 
@@ -180,7 +178,7 @@ cloud-cli-proxy/
 |-------|-----------|
 | Backend | Go 1.26, net/http, pgx v5 |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS |
-| Database | PostgreSQL 18 |
+| Database | SQLite (WAL mode) |
 | Containers | Docker Engine 28, Ubuntu 24.04 |
 | Networking | sing-box tun + Linux netns, nftables |
 | Desktop | KasmVNC + Chromium |

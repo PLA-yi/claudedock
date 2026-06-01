@@ -93,7 +93,7 @@ First-time setup: log into admin dashboard → add egress IPs → create users �
 
 - Docker Engine 28.x+
 - Docker Compose v2
-- PostgreSQL 18.x (or the built-in Docker PostgreSQL)
+
 
 ### Docker Compose (recommended)
 
@@ -115,7 +115,7 @@ Creates a `cloudproxy` system user, builds binaries and images, installs systemd
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `DATABASE_URL` | SQLite database path | `file:/data/cloud-cli-proxy.db` |
 | `ADMIN_USERNAME` | Admin username | `admin` |
 | `ADMIN_PASSWORD` | Admin password (bcrypt) | Required |
 | `ADMIN_JWT_SECRET` | JWT signing secret | Required |
@@ -148,7 +148,7 @@ Beyond spoofing and IP isolation, the platform includes full governance:
                                                     ┌───────────────────────────────────┐
 User ──curl──> Control Plane (:8080) ──Docker──>    │ User Container                    │
                     │                                │  SSH + Claude Code + VNC          │
-               PostgreSQL                            │  sshfs ← same path as local cwd  │
+               SQLite                              │  sshfs ← same path as local cwd  │
                     │                                │  sing-box tun tunnel              │
               Admin UI (embed)                      │       ↓                           │
                     │                                │  Designated Exit IP               │
@@ -160,7 +160,7 @@ User ──curl──> Control Plane (:8080) ──Docker──>    │ User Con
 | **Control Plane** | Go API — auth, user management, task orchestration, SSH proxy |
 | **Host Agent** | Privileged agent — manages Docker containers, network namespaces, and tunnels |
 | **User Container** | Ubuntu 24.04 — OpenSSH + Claude Code + sshfs + KasmVNC + Chromium |
-| **PostgreSQL** | Persists users, hosts, egress IPs, tasks, events, audit logs |
+| **SQLite** | Persists users, hosts, egress IPs, tasks, events, audit logs (WAL mode) |
 | **Admin SPA** | React 19 + TypeScript + Vite + Tailwind CSS |
 
 ---
@@ -179,7 +179,6 @@ Local dev environment:
 
 ```bash
 make setup    # Install dependencies
-make db       # Start PostgreSQL
 make dev      # Backend + frontend hot-reload (API :8080, frontend localhost:2568)
 make test     # Run tests
 ```

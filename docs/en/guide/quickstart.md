@@ -23,8 +23,7 @@ bash deploy/scripts/setup-env.sh
 
 The script supports two database modes:
 
-- **Built-in Docker PostgreSQL**: auto-generates database password, managed by Docker Compose.
-- **External PostgreSQL**: interactively enter host, port, username, password, with SSL support.
+- **SQLite single-file database**: auto-created, zero config, managed by Docker Compose with `/data` persistence.
 
 Both modes auto-generate an admin password (20 chars) and JWT secret (48 chars).
 
@@ -35,13 +34,11 @@ The script displays the admin password once. Save it immediately.
 ### 3. Start Services
 
 ```bash
-# Built-in PostgreSQL
+# Start
 docker compose pull
 docker compose up -d
 
-# External PostgreSQL (skip built-in database)
-docker compose pull control-plane admin
-docker compose up -d control-plane admin
+
 ```
 
 If prebuilt images are unavailable, build from source:
@@ -334,7 +331,6 @@ git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
 cd cloud-cli-proxy
 
 make setup    # install frontend deps, generate .env
-make db       # start PostgreSQL
 make dev      # backend + frontend hot reload
 ```
 
@@ -355,8 +351,6 @@ make test
 ```bash
 make dev-api   # backend only
 make dev-web   # frontend only
-make db-stop   # stop PostgreSQL
-make db-reset  # recreate database
 make help      # list all commands
 ```
 

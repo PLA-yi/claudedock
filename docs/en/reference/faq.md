@@ -14,7 +14,7 @@
 4. `sqlite3 /data/cloud-cli-proxy.db "PRAGMA integrity_check"` — check database integrity
 4. `ss -tlnp | grep 8080`
 
-**Causes and fixes:** If the database is unreachable, check PostgreSQL status and fix the connection string. If the port is in use, stop the conflicting process or change `CONTROL_PLANE_ADDR`. If there are permission issues, verify the `cloudproxy` user has database access.
+**Causes and fixes:** If the database is unreachable, check the SQLite file path and permissions. If the port is in use, stop the conflicting process or change `CONTROL_PLANE_ADDR`. Verify the `cloudproxy` user has write access to `/data/`.
 
 ### User Can't Log In
 

@@ -7,7 +7,7 @@ Cloud CLI Proxy 由四个核心组件组成：Control Plane（控制面）、Hos
 ```
 用户 ──curl──> Control Plane (:8080) ──Docker──> │ 用户容器                 │
                     │                            │  SSH + Claude + VNC      │
-               PostgreSQL                        │  sing-box tun 隧道       │
+               SQLite (WAL)                      │  sing-box tun 隧道       │
                     │                            │       ↓                  │
               Admin UI (embed)                  │  指定出口 IP              │
                     │                            └──────────────────────────┘
@@ -53,11 +53,9 @@ Go 编写的 API 服务，是系统的中央调度器：
 - `explain` 错误码查询
 - `proxy_commands` 将 git 等命令代理到本机执行
 
-### PostgreSQL
+### SQLite
 
-持久化所有系统状态：用户、主机、出口 IP 配置、绑定关系、异步任务、审计事件。
-
-## 网络模型
+控制面使用 SQLite 单文件数据库（WAL 模式），通过 `DATABASE_URL` 环境变量指定路径。数据库文件存放于 `/data/cloud-cli-proxy.db`，由 Docker Compose 的 named volume 持久化。
 
 ### 容器网络隔离
 
@@ -180,7 +178,7 @@ cloud-cli-proxy/
 |----|------|
 | 后端 | Go 1.26, net/http, pgx v5 |
 | 前端 | React 19, TypeScript, Vite, Tailwind CSS |
-| 数据库 | PostgreSQL 18 |
+| 数据库 | SQLite (WAL 模式) |
 | 容器 | Docker Engine 28, Ubuntu 24.04 |
 | 网络 | sing-box tun + Linux netns, nftables |
 | 桌面 | KasmVNC + Chromium |

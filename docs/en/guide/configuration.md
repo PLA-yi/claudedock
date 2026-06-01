@@ -50,7 +50,7 @@ Create `/etc/cloud-cli-proxy/env` (systemd deployment) or `.env` (Docker Compose
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `DATABASE_URL` | No | `file:/data/cloud-cli-proxy.db` | SQLite database file path |
 | `CONTROL_PLANE_ADDR` | No | `:8080` | HTTP API listen address |
 | `ADMIN_USERNAME` | No | `admin` | Admin username |
 | `ADMIN_PASSWORD` | Yes | — | Admin password (seed on first startup) |
@@ -192,7 +192,7 @@ nft add rule inet filter input ct state established,related accept
 nft add rule inet filter input iif lo accept
 nft add rule inet filter input tcp dport 22 accept
 nft add rule inet filter input tcp dport 8080 accept
-nft add rule inet filter input tcp dport 3000 accept
+# Admin UI is now embedded in control-plane, no separate port needed
 nft add rule inet filter input tcp dport 2222 accept
 ```
 
@@ -203,7 +203,6 @@ All images are built via GitHub Actions for `linux/amd64` and `linux/arm64`.
 | Image | Registry |
 |-------|----------|
 | control-plane | `ghcr.io/zanel1u/cloud-cli-proxy/control-plane` |
-| admin | `ghcr.io/zanel1u/cloud-cli-proxy/admin` |
 | managed-user | `ghcr.io/zanel1u/cloud-cli-proxy/managed-user` |
 
 Tag convention:

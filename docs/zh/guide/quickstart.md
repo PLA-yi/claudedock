@@ -23,8 +23,7 @@ bash deploy/scripts/setup-env.sh
 
 脚本支持两种数据库方案：
 
-- **内置 Docker PostgreSQL**：自动生成数据库密码，Docker Compose 统一管理。
-- **外部 PostgreSQL**：交互式填入地址、端口、用户名、密码，支持 SSL。
+- **SQLite 单文件数据库**：自动创建，零配置，Docker Compose 统一管理 `/data` 持久化。
 
 两种方案都会自动生成管理员密码（20 位）和 JWT 密钥（48 位）。
 
@@ -35,13 +34,11 @@ bash deploy/scripts/setup-env.sh
 ### 3. 启动服务
 
 ```bash
-# 内置 PostgreSQL
+# 启动
 docker compose pull
 docker compose up -d
 
-# 外部 PostgreSQL（跳过内置数据库）
-docker compose pull control-plane admin
-docker compose up -d control-plane admin
+
 ```
 
 如果预构建镜像不可用，可以从源码构建：
@@ -334,7 +331,6 @@ git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
 cd cloud-cli-proxy
 
 make setup    # 安装前端依赖，生成 .env
-make db       # 启动 PostgreSQL
 make dev      # 后端 + 前端热重载
 ```
 
@@ -355,8 +351,6 @@ make test
 ```bash
 make dev-api   # 仅启动后端
 make dev-web   # 仅启动前端
-make db-stop   # 停止 PostgreSQL
-make db-reset  # 重建数据库
 make help      # 查看全部命令
 ```
 

@@ -1,6 +1,6 @@
 # 部署指南
 
-推荐使用 Docker Compose 一键部署，无需手动安装 PostgreSQL、Go 或编译源码。
+推荐使用 Docker Compose 一键部署，无需手动安装数据库、Go 或编译源码。SQLite 内嵌。
 
 ## 1. 安装 Docker
 
@@ -42,8 +42,6 @@ docker compose up -d
 
 `setup-env.sh` 交互式生成所有密码和密钥。支持：
 
-- **内置 PostgreSQL（推荐）**：自动创建，Docker Compose 统一管理，零配置
-- **外部 PostgreSQL**：填入已有数据库的连接信息
 
 启动后：
 

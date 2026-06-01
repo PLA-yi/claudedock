@@ -49,8 +49,7 @@ sudo apparmor_parser -r /etc/apparmor.d/fusermount3
 
 `deploy/scripts/setup-env.sh` 交互式生成所有密码和密钥，支持：
 
-- 内置 Docker PostgreSQL（零配置，推荐）
-- 外部 PostgreSQL（手动填入连接信息）
+- SQLite 单文件数据库（零配置，WAL 模式，`/data` 持久化）
 
 两种方案都会自动生成管理员密码（20 位）和 JWT 密钥（48 位）。脚本执行完毕后会显示管理员密码，请立即保存，仅显示一次。
 

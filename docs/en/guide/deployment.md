@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Docker Compose is the recommended way to deploy. No need to install PostgreSQL, Go, or compile from source.
+Docker Compose is the recommended way to deploy. No need to install a database, Go, or compile from source. SQLite is embedded.
 
 ## 1. Install Docker
 
@@ -42,8 +42,7 @@ docker compose up -d
 
 `setup-env.sh` interactively generates all passwords and secrets. It supports:
 
-- **Built-in PostgreSQL (recommended)**: auto-created, managed by Docker Compose, zero config
-- **External PostgreSQL**: provide your existing database connection details
+- SQLite single-file database, Docker Compose managed `/data` persistence, zero config
 
 After startup:
 
