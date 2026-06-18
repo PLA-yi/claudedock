@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 <!-- release-entries -->
 
+## v4.2.9 - 2026-06-18
+## What's Changed
+
+### Backend (Go / API)
+- fix(runtime): keep prepare host status unchanged (546a323)
+
+**Full Changelog:** https://github.com/ZaneL1u/cloud-cli-proxy/compare/v4.2.8...v4.2.9
+
+
 ## v4.2.8 - 2026-06-18
 ## What's Changed
 
