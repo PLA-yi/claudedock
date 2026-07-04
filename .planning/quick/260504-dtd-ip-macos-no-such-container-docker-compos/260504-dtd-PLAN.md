@@ -55,8 +55,8 @@ Output:
 </objective>
 
 <execution_context>
-@/workspace/Desktop/cloud-cli-proxy/.claude/get-shit-done/workflows/execute-plan.md
-@/workspace/Desktop/cloud-cli-proxy/.claude/get-shit-done/templates/summary.md
+@/workspace/Desktop/claudedock/.claude/get-shit-done/workflows/execute-plan.md
+@/workspace/Desktop/claudedock/.claude/get-shit-done/templates/summary.md
 </execution_context>
 
 <context>
@@ -82,7 +82,7 @@ func buildSingBoxConfig(proxyConfig json.RawMessage, listenAddr string, listenPo
 // 现有调用：buildSingBoxConfig(proxyConfig, "0.0.0.0", port)  ← 不需要改
 
 // 镜像引用
-import "github.com/zanel1u/cloud-cli-proxy/internal/network"
+import "github.com/claudedock/claudedock/internal/network"
 network.GatewayImage()  // 返回 ghcr.io/.../sing-box-gateway:latest
 ```
 
@@ -91,7 +91,7 @@ network.GatewayImage()  // 返回 ghcr.io/.../sing-box-gateway:latest
 ```yaml
 managed-user-image:
   build: { context: ., dockerfile: deploy/docker/managed-user/Dockerfile }
-  image: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
+  image: ghcr.io/claudedock/claudedock/managed-user:latest
   pull_policy: never
   command: ["true"]
   profiles:
@@ -157,7 +157,7 @@ managed-user-image:
        - 最终块形如：
          ```yaml
          sing-box-gateway:
-           image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
+           image: ghcr.io/claudedock/claudedock/sing-box-gateway:latest
            pull_policy: always
            restart: "no"
            command: ["true"]
@@ -171,7 +171,7 @@ managed-user-image:
            build:
              context: .
              dockerfile: deploy/docker/sing-box-gateway/Dockerfile
-           image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
+           image: ghcr.io/claudedock/claudedock/sing-box-gateway:latest
            pull_policy: never
            command: ["true"]
            profiles:

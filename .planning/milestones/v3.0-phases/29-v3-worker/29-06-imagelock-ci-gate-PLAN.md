@@ -63,7 +63,7 @@ must_haves:
 
 ### Out
 - `deploy/scripts/build-managed-image.sh` 任何改动（D-30 禁区）
-- `image.lock` 字段的**消费者**（Phase 30 Entry API 通过 `docker exec cat /etc/cloud-claude/*.version` 读取运行时版本）
+- `image.lock` 字段的**消费者**（Phase 30 Entry API 通过 `docker exec cat /etc/claudedock/*.version` 读取运行时版本）
 - 其他 image（scheduler-api / backend）的 size gate（只管 managed-user）
 - Dockerfile/entrypoint 的改动（Plan 01-03 职责）
 
@@ -133,7 +133,7 @@ grep -n 'docker/build-push-action' .github/workflows/build-images.yml
         run: |
           set -euo pipefail
           # D-27 / BASE-04：已构建 image 必须 ≤ 700MB（734003200 bytes）
-          IMG="${MANAGED_USER_IMAGE_TAG:-ghcr.io/${{ github.repository_owner }}/cloud-cli-proxy-managed-user:latest}"
+          IMG="${MANAGED_USER_IMAGE_TAG:-ghcr.io/${{ github.repository_owner }}/claudedock-managed-user:latest}"
           SIZE_BYTES=$(docker image inspect --format='{{.Size}}' "${IMG}")
           SIZE_MB=$(( SIZE_BYTES / 1048576 ))
           echo "managed-user image size: ${SIZE_BYTES} bytes (${SIZE_MB} MiB)"

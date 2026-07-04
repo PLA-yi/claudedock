@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/app"
-	cphttp "github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http"
+	"github.com/claudedock/claudedock/internal/controlplane/app"
+	cphttp "github.com/claudedock/claudedock/internal/controlplane/http"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 		SSHProxyAddr:              envOrDefault("SSH_PROXY_ADDR", ":2222"),
 		SSHProxyContainerUser:     envOrDefault("SSH_PROXY_CONTAINER_USER", "workspace"),
 		SSHProxyContainerPassword: envOrDefault("SSH_PROXY_CONTAINER_PASSWORD", "workspace"),
-		SSHProxyHostKeyPath:       envOrDefault("SSH_PROXY_HOST_KEY_PATH", "/var/lib/cloud-cli-proxy/ssh_host_ed25519_key"),
+		SSHProxyHostKeyPath:       envOrDefault("SSH_PROXY_HOST_KEY_PATH", "/var/lib/claudedock/ssh_host_ed25519_key"),
 		AdminUIHandler:            cphttp.NewSPAHandler(adminDist, "dist"),
 	}
 

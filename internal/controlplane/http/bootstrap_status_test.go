@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type stubTaskGetter struct {
@@ -121,7 +121,7 @@ func TestBootstrapStatusHandler(t *testing.T) {
 				Kind:             "start_host",
 				Status:           repository.TaskStatusFailed,
 				ErrorCode:        "ssh_not_ready",
-				LastErrorSummary: "ssh not ready on container cloudproxy-host-1 after 30s",
+				LastErrorSummary: "ssh not ready on container claudedock-host-1 after 30s",
 			},
 			events:         nil,
 			wantStatus:     nethttp.StatusOK,

@@ -33,9 +33,9 @@ key-files:
   created:
     - ".planning/phases/32-ssh-tmux/plans/05-bufferedstdin-reconnect-wiring/SUMMARY.md"
   modified:
-    - "internal/cloudclaude/input_buffer.go (echoMu + closeGrayIfOpenLocked + Flush 嵌套两锁)"
-    - "internal/cloudclaude/session.go (runClaudePTYWithReconnect 外层单例 + pTYAttachOnce 新增 bufferedPipeR 参数 + 删除 sync/atomic import)"
-    - "internal/cloudclaude/session_test.go (TestPTYReconnect_BufferedInputFlush + syncBuffer helper)"
+    - "internal/claudedock/input_buffer.go (echoMu + closeGrayIfOpenLocked + Flush 嵌套两锁)"
+    - "internal/claudedock/session.go (runClaudePTYWithReconnect 外层单例 + pTYAttachOnce 新增 bufferedPipeR 参数 + 删除 sync/atomic import)"
+    - "internal/claudedock/session_test.go (TestPTYReconnect_BufferedInputFlush + syncBuffer helper)"
 
 key-decisions:
   - "采纳 missing#1 路径（共享 reconnector.StateAddr()）而非 missing#2（补 RegisterStateListener 接口）—— 前者改动更小，且 Plan 01 已暴露 StateAddr getter，无需改 Plan 01 公开 API"
@@ -89,9 +89,9 @@ completed: 2026-04-20
 
 ## Files Created/Modified
 
-- **`internal/cloudclaude/input_buffer.go`** — BufferedStdin 新增 `echoMu sync.Mutex` 字段；Run-Connected / handleReconnecting / Flush 三条路径全部在 echoMu 保护下；`closeGrayIfOpen` 拆为公开 API（自管锁）+ `closeGrayIfOpenLocked`（已持锁内部版）。Diff: +35 / -10 行。
-- **`internal/cloudclaude/session.go`** — `runClaudePTYWithReconnect` 循环外一次性创建 Reconnector + BufferedStdin 单例；`pTYAttachOnce` 函数签名新增 `bufferedPipeR io.Reader` 参数，删除局部 `var state atomic.Int32` 块；删除 `sync/atomic` import；`runClaudeWithSession` zero diff。Diff: +52 / -30 行。
-- **`internal/cloudclaude/session_test.go`** — 新增 `TestPTYReconnect_BufferedInputFlush`（116 行，6 条断言）+ `syncBuffer` 测试 helper（25 行，sync.Mutex 包装 bytes.Buffer 用于并发访问）。Diff: +144 行。
+- **`internal/claudedock/input_buffer.go`** — BufferedStdin 新增 `echoMu sync.Mutex` 字段；Run-Connected / handleReconnecting / Flush 三条路径全部在 echoMu 保护下；`closeGrayIfOpen` 拆为公开 API（自管锁）+ `closeGrayIfOpenLocked`（已持锁内部版）。Diff: +35 / -10 行。
+- **`internal/claudedock/session.go`** — `runClaudePTYWithReconnect` 循环外一次性创建 Reconnector + BufferedStdin 单例；`pTYAttachOnce` 函数签名新增 `bufferedPipeR io.Reader` 参数，删除局部 `var state atomic.Int32` 块；删除 `sync/atomic` import；`runClaudeWithSession` zero diff。Diff: +52 / -30 行。
+- **`internal/claudedock/session_test.go`** — 新增 `TestPTYReconnect_BufferedInputFlush`（116 行，6 条断言）+ `syncBuffer` 测试 helper（25 行，sync.Mutex 包装 bytes.Buffer 用于并发访问）。Diff: +144 行。
 
 ## 重构前后时序对比
 
@@ -161,13 +161,13 @@ runClaudePTYWithReconnect:
 
 | 断言 | 命令 | 结果 |
 |------|------|------|
-| 局部 atomic.Int32 已删除 | `rg "var state atomic\.Int32" internal/cloudclaude/session.go` | **0 hits** |
-| 共享 atomic 路径生效 | `rg "reconnector\.StateAddr\(\)" internal/cloudclaude/session.go` | 2 hits（1 注释 + 1 调用 line 646） |
-| Flush 在 onReconnected 调用 | `rg "bs\.Flush\(\)" internal/cloudclaude/session.go` | 2 hits（1 注释 + 1 调用 line 641） |
-| BufferedStdin 单例 | `rg -c "NewBufferedStdin\(" internal/cloudclaude/session.go` | **1 hit** |
-| Reconnector 单例 | `rg -c "NewReconnector\(" internal/cloudclaude/session.go` | **1 hit** |
-| bs.Run 单 goroutine | `rg "go func\(\) \{ _ = bs\.Run" internal/cloudclaude/session.go` | **1 hit** |
-| pTYAttachOnce 新签名 | `rg "bufferedPipeR io\.Reader" internal/cloudclaude/session.go` | 1 hit（line 708） |
+| 局部 atomic.Int32 已删除 | `rg "var state atomic\.Int32" internal/claudedock/session.go` | **0 hits** |
+| 共享 atomic 路径生效 | `rg "reconnector\.StateAddr\(\)" internal/claudedock/session.go` | 2 hits（1 注释 + 1 调用 line 646） |
+| Flush 在 onReconnected 调用 | `rg "bs\.Flush\(\)" internal/claudedock/session.go` | 2 hits（1 注释 + 1 调用 line 641） |
+| BufferedStdin 单例 | `rg -c "NewBufferedStdin\(" internal/claudedock/session.go` | **1 hit** |
+| Reconnector 单例 | `rg -c "NewReconnector\(" internal/claudedock/session.go` | **1 hit** |
+| bs.Run 单 goroutine | `rg "go func\(\) \{ _ = bs\.Run" internal/claudedock/session.go` | **1 hit** |
+| pTYAttachOnce 新签名 | `rg "bufferedPipeR io\.Reader" internal/claudedock/session.go` | 1 hit（line 708） |
 
 ## echoMu 锁顺序表（WR-04 co-fix）
 
@@ -230,9 +230,9 @@ runClaudePTYWithReconnect:
 - `[ ] .planning/phases/32-ssh-tmux/plans/05-bufferedstdin-reconnect-wiring/SUMMARY.md` — FOUND（本文件）
 
 **2. Modified files：**
-- `[x] internal/cloudclaude/input_buffer.go` — git diff HEAD~3 verified
-- `[x] internal/cloudclaude/session.go` — git diff HEAD~2 verified
-- `[x] internal/cloudclaude/session_test.go` — git diff HEAD~1 verified
+- `[x] internal/claudedock/input_buffer.go` — git diff HEAD~3 verified
+- `[x] internal/claudedock/session.go` — git diff HEAD~2 verified
+- `[x] internal/claudedock/session_test.go` — git diff HEAD~1 verified
 
 **3. Commits exist：**
 - `9aa1bd3` Task 5.1 — FOUND
@@ -241,9 +241,9 @@ runClaudePTYWithReconnect:
 
 **4. PLAN success criteria：**
 - [x] go build ./... PASS
-- [x] go vet ./internal/cloudclaude/... PASS
-- [x] go test ./internal/cloudclaude/... -count=1 -short PASS
-- [x] go test ./internal/cloudclaude/... -count=1 -race -short PASS（含新增 TestPTYReconnect_BufferedInputFlush + 5 个 input_buffer_test + 22+ 个 session_test 用例零 regression）
+- [x] go vet ./internal/claudedock/... PASS
+- [x] go test ./internal/claudedock/... -count=1 -short PASS
+- [x] go test ./internal/claudedock/... -count=1 -race -short PASS（含新增 TestPTYReconnect_BufferedInputFlush + 5 个 input_buffer_test + 22+ 个 session_test 用例零 regression）
 - [x] grep `reconnector\.StateAddr\(\)` ≥ 1 hit（实际 2 hits）
 - [x] grep `bs\.Flush\(\)` ≥ 1 hit（实际 2 hits）
 - [x] grep `var state atomic\.Int32` = 0 hits

@@ -8,11 +8,11 @@ provides:
   - "ColdPromoter inotify watcher + PromotionEngine async SFTP promotion"
   - "4 条核心单测覆盖 dedup/retry-backoff/circuit-breaker/start-stop"
 affects:
-  - "internal/cloudclaude/cold_promoter.go"
-  - "internal/cloudclaude/cold_promoter_test.go"
-  - "internal/cloudclaude/errcodes/codes.go"
-  - "internal/cloudclaude/errcodes/mount.go"
-  - "internal/cloudclaude/errcodes/explanations.go"
+  - "internal/claudedock/cold_promoter.go"
+  - "internal/claudedock/cold_promoter_test.go"
+  - "internal/claudedock/errcodes/codes.go"
+  - "internal/claudedock/errcodes/mount.go"
+  - "internal/claudedock/errcodes/explanations.go"
 tech-stack:
   added:
     - "golang.org/x/sys/unix (inotify, Linux only)"
@@ -23,14 +23,14 @@ tech-stack:
     - "build tag separation (linux / !linux) for platform-specific inotify"
 key-files:
   created:
-    - "internal/cloudclaude/cold_promoter.go (ColdPromoter + PromotionEngine)"
-    - "internal/cloudclaude/cold_promoter_linux.go (real inotify, build tag: linux)"
-    - "internal/cloudclaude/cold_promoter_notlinux.go (stubs, build tag: !linux)"
-    - "internal/cloudclaude/cold_promoter_test.go (4 tests, mock injection)"
+    - "internal/claudedock/cold_promoter.go (ColdPromoter + PromotionEngine)"
+    - "internal/claudedock/cold_promoter_linux.go (real inotify, build tag: linux)"
+    - "internal/claudedock/cold_promoter_notlinux.go (stubs, build tag: !linux)"
+    - "internal/claudedock/cold_promoter_test.go (4 tests, mock injection)"
   modified:
-    - "internal/cloudclaude/errcodes/codes.go (MOUNT_PROMOTER_FAILED constant)"
-    - "internal/cloudclaude/errcodes/mount.go (MOUNT_PROMOTER_FAILED registration)"
-    - "internal/cloudclaude/errcodes/explanations.go (>=200 char explanation)"
+    - "internal/claudedock/errcodes/codes.go (MOUNT_PROMOTER_FAILED constant)"
+    - "internal/claudedock/errcodes/mount.go (MOUNT_PROMOTER_FAILED registration)"
+    - "internal/claudedock/errcodes/explanations.go (>=200 char explanation)"
 decisions:
   - "选择 golang.org/x/sys/unix 手写 inotify 循环，不引入 fsnotify 新依赖"
   - "使用 package-level var 注入（promoterCopyFileFn / promoterInitInotifyFn）替代真实 SSH/SFTP fixture 做单测，避免跨平台死锁"
@@ -143,7 +143,7 @@ metrics:
 ## 七、Self-Check
 
 - [x] `go build ./...` — PASS
-- [x] `go vet ./internal/cloudclaude/...` — PASS
-- [x] `go test -race ./internal/cloudclaude/... -run "TestPromotion|TestPromoter" -v` — 4/4 PASS
-- [x] `go test ./internal/cloudclaude/errcodes/...` — 9/9 PASS
+- [x] `go vet ./internal/claudedock/...` — PASS
+- [x] `go test -race ./internal/claudedock/... -run "TestPromotion|TestPromoter" -v` — 4/4 PASS
+- [x] `go test ./internal/claudedock/errcodes/...` — 9/9 PASS
 - [x] 所有既有测试无回归

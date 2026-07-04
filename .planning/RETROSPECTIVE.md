@@ -94,20 +94,20 @@
 
 ---
 
-## Milestone: v2.0 — cloud-claude 透明远程 CLI
+## Milestone: v2.0 — claudedock 透明远程 CLI
 
 **Shipped:** 2026-04-15
 **Phases:** 5 | **Plans:** 7 | **Timeline:** 1 天 (2026-04-15，Phase 24 前一天开始)
 
 ### What Was Built
-- Go 单一二进制 `cloud-claude`：cobra 入口 + init 配置持久化 + Entry API 认证轮询 + SSH PTY 远程 claude 会话
+- Go 单一二进制 `claudedock`：cobra 入口 + init 配置持久化 + Entry API 认证轮询 + SSH PTY 远程 claude 会话
 - sshfs slave + 嵌入式 SFTP server 实现本地目录到容器 /workspace 实时双向映射
 - shellescape 安全命令构建 + 非 TTY 管道模式 + claude 参数原样透传
 - TTY/信号/窗口大小/退出码完全透传，体验与本地 claude 无差异
 - 受管镜像预装 sshfs/fuse3 + AppArmor unconfined + FUSE 兼容性验证脚本 + 部署文档补充
 
 ### What Worked
-- **SSH Proxy 零改造**：Phase 24 代码审查确认现有多 session channel + 全类型转发天然支持 cloud-claude，服务端无需任何修改
+- **SSH Proxy 零改造**：Phase 24 代码审查确认现有多 session channel + 全类型转发天然支持 claudedock，服务端无需任何修改
 - **三阶段生命周期**：sshConnect → mountWorkspace → runClaude 的拆分使每个阶段可独立测试和替换
 - **可注入轮询模式**：waitForMount 与 WaitForSSHReady 共享 timer+ticker+select 结构，纯单元测试无需真实 SSH 连接
 - **退出码返回值上浮**：禁止 os.Exit 确保 defer term.Restore 始终执行，从架构层面修复终端恢复缺陷
@@ -118,7 +118,7 @@
 - **人工验证项较多**：Phase 25-28 均为 human_needed 状态，代码层面完备但端到端验证依赖运行环境，无法在开发阶段全部覆盖
 
 ### Patterns Established
-- **internal/cloudclaude 包结构**：所有客户端逻辑集中在一个包内（config/entry/ssh/mount），cmd 仅做入口编排
+- **internal/claudedock 包结构**：所有客户端逻辑集中在一个包内（config/entry/ssh/mount），cmd 仅做入口编排
 - **cobra-flag-passthrough**：DisableFlagParsing + ArbitraryArgs 透传远程 CLI 参数，init 子命令路由不受影响
 - **SSH session pipe 适配模式**：channelRWC 将 session stdin/stdout 包装为 io.ReadWriteCloser 供协议库使用
 - **verify-*.sh 结构化输出**：[PASS]/[FAIL]/[WARN] 前缀 + 汇总计数 + 非零退出码
@@ -146,10 +146,10 @@
 - 三层文件系统架构：Mutagen 热同步白名单（≤50MB + ignore） + sshfs 冷兜底全量懒拉 + mergerfs 单一 `/workspace` 视图，替换 v2.0 sshfs 性能天花板
 - `--mount-mode=auto|full|mutagen-only|sshfs-only` 四档降级状态机：12 降级矩阵单测覆盖 + last-session.json downgrade_chain 留痕 + banner 彩色 mount 模式标签
 - SSH 弱网容忍：KeepAlive 15s/4 强制下限校验 + Reconnector 退避 1/2/4/8/30s + token 复用 + BufferedStdin 灰色未确认本地 echo + ringBuf 按序回放（Plan 04/05 gap-closure 闭合 SC5/SC11）
-- tmux 默认包装 + 多端共享 attach + `cloud-claude sessions ls/attach` + `--new-session`/`--take-over` + 账号级 Mutagen 单例锁（远程 flock + ErrSyncLocked 降级 sshfs-only + IsSecondaryClient=true）
+- tmux 默认包装 + 多端共享 attach + `claudedock sessions ls/attach` + `--new-session`/`--take-over` + 账号级 Mutagen 单例锁（远程 flock + ErrSyncLocked 降级 sshfs-only + IsSecondaryClient=true）
 - Claude Code OAuth 持久化：单 Docker named volume `claude-state-{claude_account_id}` + label + entrypoint symlink + chown 1000:1000 兜底；admin DELETE 双路径（强一致 10s + force 30s）+ 错误码 STATE_VOLUME_IN_USE_001 + 6 类 audit 事件
-- `cloud-claude doctor` 5 维度 18 项 check + 6 类自动 fix + JSON schema_v1 + 退出码 0/1/2 + 第一屏降级历史 banner + scripts/ci-doctor-grep.sh M14 闸门
-- 错误码统一 `<DOMAIN>_<KIND>_<NUM>` 4 段：42 条 8 域 Registry + 38 条 ≥200 字符 ExtendedExplanations + `cloud-claude explain <code>` rustc 风格
+- `claudedock doctor` 5 维度 18 项 check + 6 类自动 fix + JSON schema_v1 + 退出码 0/1/2 + 第一屏降级历史 banner + scripts/ci-doctor-grep.sh M14 闸门
+- 错误码统一 `<DOMAIN>_<KIND>_<NUM>` 4 段：42 条 8 域 Registry + 38 条 ≥200 字符 ExtendedExplanations + `claudedock explain <code>` rustc 风格
 - 受管镜像 v3.0.0：mergerfs 2.41.1（GitHub static `.deb`） + mutagen-agent v0.18.1 tarball + tmux 3.6a + libfuse3 3.18.x + image.lock + CI ≤ 700MB gate
 - 5 章 docs/runbooks/v3-* 升级手册（升级 / AppArmor / doctor 排障 / 持久卷 / 错误码索引）+ scripts/v3-acceptance-checklist.sh 聚合脚本
 - v2.0 GetHost entry_password P0 hotfix（Phase 29.1 INSERTED）：仓储 6 个 Host 读 SQL 全补 entry_password + runtime fail-fast + entrypoint passwd -S 自检 + admin batch resync 端点
@@ -157,10 +157,10 @@
 ### What Worked
 
 - **Critical Pitfalls 前置研究 + phase-level 防御任务**：研究阶段识别 C1-C8 + M13/M14 共 10 个陷阱，每个 phase PLAN.md 显式列出"防御任务"+ verification 段验证手段；最终全部覆盖且无生产事故
-- **Mutagen 二进制 go:embed 集成（Q1 (a)）**：用户体验"一条命令" — 4 平台二进制 ~49MB 嵌入 cloud-claude，CI build-images workflow 拉取真实文件；首次冷启动 ≤8s 验收（除真机签字外）
+- **Mutagen 二进制 go:embed 集成（Q1 (a)）**：用户体验"一条命令" — 4 平台二进制 ~49MB 嵌入 claudedock，CI build-images workflow 拉取真实文件；首次冷启动 ≤8s 验收（除真机签字外）
 - **后置 gap-closure plans（Phase 32 Plan 04/05）**：第一轮 verify 发现 Gap #1 (SC5) + Gap #2 (SC11) 后通过追加 Plan 04/05 精准补漏，避免重写整个 mount/session 模块；TestPTYReconnect_BufferedInputFlush + TestMountWorkspace_SyncLocked 三测试 PASS
 - **Phase 33 post-execution patches**：UAT 过程发现 dispatcher 漏注 ClaudeAccountID + EmbeddedDispatcher 漏 wire 后追加 3 个 commit (3e2ba6b/27ab2d7/c09a4d0) 闭合，未触发新一轮 phase；Plan 02 ship + 用户 "成了" 双闸门
-- **gsd-integration-checker 在 audit 阶段补强**：4 条 E2E flow 全闭环验证（cloud-claude 启动 / 网络抖动重连 / admin DELETE volume rm / doctor + ApplyFixes），暴露 SupportsMutagen 字段 spec 漂移
+- **gsd-integration-checker 在 audit 阶段补强**：4 条 E2E flow 全闭环验证（claudedock 启动 / 网络抖动重连 / admin DELETE volume rm / doctor + ApplyFixes），暴露 SupportsMutagen 字段 spec 漂移
 - **Plan-level wave 化 + 依赖注入测试 hooks**：mountMutagenDeps + strategyHooks + EmbeddedDispatcher 接口适配让 12 降级矩阵 + 6 admin handler 用例全部纯单测覆盖
 - **Phase 35 skip-real-hardware 路径**：自动化 PASS 即可走 ship 闸门，3 项真机签字降级为 ship 前补签，避免被物理环境阻塞
 - **TDD RED→GREEN 双 commit 模式**：Phase 31 exitcodes / Phase 34 errcodes / Phase 32 reconnect 退避序列均先证伪后实现，commit 历史清晰
@@ -201,7 +201,7 @@
 - **Model mix**: balanced profile（model_profile = "balanced"）；planning/research 用默认 + Opus 多模型组合，execution 用 fast model
 - **Sessions**: 约 30+ 次会话完成全部 8 个 phase + audit；Phase 32/33 各占 ~6-8 次（gap-closure + post-fix 多轮迭代）
 - **Notable**: Phase 33 是最复杂 phase（control plane + image + admin GC 三层联动 + UAT 用户 "成了" 双闸门），耗时 2 天；Phase 35 自动化部分 5 plan 在 1 天内完成
-- **Mutagen go:embed 增加 binary size**：cloud-claude 二进制从 ~15MB 涨到 ~64MB（4 平台 ~49MB），用户分发体积较大但消除 brew install 依赖
+- **Mutagen go:embed 增加 binary size**：claudedock 二进制从 ~15MB 涨到 ~64MB（4 平台 ~49MB），用户分发体积较大但消除 brew install 依赖
 
 ---
 
@@ -272,7 +272,7 @@
 
 ### What Was Inefficient
 
-- **Phase 36-06 4 个 Rule 1 / Rule 2 auto-fix**：plan 字面量与 helper 实际签名/语义对齐的局部修订（newFail 占位符双重 Sprintf / newWarn 缺 args 导致 `%s` 字面量 / mount.go 缺 cloudclaude import / mount_test.go 缺 4 个 import）；虽全部 auto-fixed 且行为契约不变，但说明 plan 中代码示例需要更严格的编译期验证
+- **Phase 36-06 4 个 Rule 1 / Rule 2 auto-fix**：plan 字面量与 helper 实际签名/语义对齐的局部修订（newFail 占位符双重 Sprintf / newWarn 缺 args 导致 `%s` 字面量 / mount.go 缺 claudedock import / mount_test.go 缺 4 个 import）；虽全部 auto-fixed 且行为契约不变，但说明 plan 中代码示例需要更严格的编译期验证
 - **Phase 36-03 `effectiveHotSyncMaxFileMB()` 是 plan 范围外兜底**：plan 字面量引用 `Config.EffectiveHotSyncMaxFileMB()` 但 `MountConfig` 无此方法；main.go 不在 plan 范围，必须新增 accessor 避免 SC#2 失效；plan 应在 action 段显式标注"若 cfg 为 MountConfig 需自有 accessor"
 - **Phase 37-02 promotion stats 刚启动 = 0 的语义需要 plan 显式接受**：mount 就绪时 promoter 刚启动，Stats() 返回 (0,0,0)；若用户期望"首次 mount 就有统计"会困惑；plan 明确记录此语义但文档侧未同步到 runbook
 - **Phase 37 5 项人工验证 deferred-to-ship**：与 v3.0 同样模式 — 自动化 PASS 后真机签字 ship 前补签；cold-promoter 需要 Linux 容器环境，macOS 开发机无法本地验证完整链路
@@ -313,7 +313,7 @@
 ### What Was Built
 
 - SSH Proxy 端口转发：direct-tcpip + tcpip-forward/forwarded-tcpip 全通道，管理网段/Docker socket/metadata 安全拦截
-- `cloud-claude local up/down/status`：本地 Dev Containers 支持 + entrypoint `MODE=local` + sing-box tun/proxy 出网
+- `claudedock local up/down/status`：本地 Dev Containers 支持 + entrypoint `MODE=local` + sing-box tun/proxy 出网
 - VS Code Remote-SSH E2E 验证：端到端连接 + 端口转发 + 出口 IP 强约束
 - Doctor remote-ssh 维度：5 项检查 + 6 个新错误码 + 20 个单元测试
 - doctor sshd_config 主动验证：parseSSHDForwarding + 3 个错误码 + 13 个单元测试

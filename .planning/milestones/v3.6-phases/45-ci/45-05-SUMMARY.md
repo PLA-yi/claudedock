@@ -23,7 +23,7 @@ tech-stack:
   patterns:
     - "双层守护：ci.yml lint-no-bare-sleep（永远跑，无 paths 过滤） + e2e.yml lint job（paths 过滤后强制守护）"
     - "失败时 PR 评论：actions/github-script@v7 + pull-requests: write 权限"
-    - "环境变量传递 artifact 路径：CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR=./out/e2e-artifacts → 与 Plan 04 DefaultArtifactBaseDir 字面量对齐"
+    - "环境变量传递 artifact 路径：CLAUDEDOCK_E2E_ARTIFACT_DIR=./out/e2e-artifacts → 与 Plan 04 DefaultArtifactBaseDir 字面量对齐"
 key-files:
   created:
     - .github/workflows/e2e.yml

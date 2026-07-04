@@ -45,10 +45,10 @@ Three modes:
 </flags>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/progress.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/next.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/do.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ui-brand.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/progress.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/next.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/do.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <process>

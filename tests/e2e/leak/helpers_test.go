@@ -13,14 +13,14 @@ import (
 	"errors"
 	"strings"
 
-	e2e "github.com/zanel1u/cloud-cli-proxy/tests/e2e"
+	e2e "github.com/claudedock/claudedock/tests/e2e"
 )
 
 // workerInspectName 反推 worker 容器名。
 //
 // 优先级：
 //   - g.Host.ContainerName 非空 → 直接用。
-//   - g.Host.ID 非空 → "cloudproxy-" + ID（与 internal/network/container_proxy_provider.go
+//   - g.Host.ID 非空 → "claudedock-" + ID（与 internal/network/container_proxy_provider.go
 //     workerContainerName 命名约定一致）。
 //   - 都为空 → 返回 err，调用方 t.Skip。
 func workerInspectName(_ context.Context, g *e2e.GoldenPath) (string, error) {
@@ -31,7 +31,7 @@ func workerInspectName(_ context.Context, g *e2e.GoldenPath) (string, error) {
 		return name, nil
 	}
 	if g.Host.ID != "" {
-		return "cloudproxy-" + g.Host.ID, nil
+		return "claudedock-" + g.Host.ID, nil
 	}
 	return "", errors.New("worker container name: host.ID empty (scenario step 7 未实现)")
 }

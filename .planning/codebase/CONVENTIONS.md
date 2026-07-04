@@ -74,8 +74,8 @@ import (
 
     "github.com/jackc/pgx/v5/pgxpool"
 
-    "github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-    "github.com/zaneliu/cloud-cli-proxy/internal/store/repository"
+    "github.com/claudedock/claudedock/internal/agentapi"
+    "github.com/zaneliu/claudedock/internal/store/repository"
 )
 ```
 

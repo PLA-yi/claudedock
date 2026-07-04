@@ -16,7 +16,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| go:embed 多平台二进制 | darwin/linux × amd64/arm64 共 4 个 ~3MB，首次运行 extract 到 `~/.cloud-claude/bin/mutagen` | ✓ |
+| go:embed 多平台二进制 | darwin/linux × amd64/arm64 共 4 个 ~3MB，首次运行 extract 到 `~/.claudedock/bin/mutagen` | ✓ |
 | 检测本机 brew install / 提示用户安装 | 增加用户摩擦，违背"零增量摩擦"承诺 | |
 | 首次运行从 GitHub release 下载 | 需出网且全隧道下可能受出口 IP 影响，违背"零增量特权"目标 | |
 
@@ -27,18 +27,18 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| cloud-claude 启动时 daemon start，退出不停（长期复用） | 避免每次启动 ~500ms 开销，符合 ≤8s 基线 | ✓ |
+| claudedock 启动时 daemon start，退出不停（长期复用） | 避免每次启动 ~500ms 开销，符合 ≤8s 基线 | ✓ |
 | 每次 session 起停 daemon | 资源最小，但首连耗时增加 | |
 
 **[auto] 选择：** 长期复用
-**理由：** Q2 ROADMAP 倾向 (a)；多 cloud-claude 共享同一 daemon（`MUTAGEN_DATA_DIRECTORY=~/.cloud-claude/mutagen`）；session 命名 `cloud-claude-{claude_account_id}-{cwd_hash8}` 唯一化
+**理由：** Q2 ROADMAP 倾向 (a)；多 claudedock 共享同一 daemon（`MUTAGEN_DATA_DIRECTORY=~/.claudedock/mutagen`）；session 命名 `claudedock-{claude_account_id}-{cwd_hash8}` 唯一化
 
-### Q1.3 — 多 cloud-claude 并发对同一 daemon 写竞争？
+### Q1.3 — 多 claudedock 并发对同一 daemon 写竞争？
 
 | Option | Description | Selected |
 |--------|-------------|----------|
 | 共享同一 daemon + session 命名唯一化 | Mutagen daemon 自身天然单实例，session 命名约定避免碰撞 | ✓ |
-| 每 cloud-claude 独立 daemon（多 data dir） | 违背 Q2 决策，资源开销大 | |
+| 每 claudedock 独立 daemon（多 data dir） | 违背 Q2 决策，资源开销大 | |
 
 **[auto] 选择：** 共享 daemon + session 命名唯一化
 **理由：** 账号级单例锁 REQ-F5-D 在 Phase 32 落地，本阶段只需保证 session 名不冲突
@@ -123,7 +123,7 @@
 | 仅 `.git/` `node_modules/` | 太窄，会触发 50MB 拒绝 | |
 | 让用户自配置 `.mutagen.yml` | 首次使用零成本不可达成 | |
 
-**[auto] 选择：** 11 条默认 ignore（写入 `~/.cloud-claude/mutagen-defaults.yml`）
+**[auto] 选择：** 11 条默认 ignore（写入 `~/.claudedock/mutagen-defaults.yml`）
 **理由：** ROADMAP scope 字面列出 5 条 + 研究 PITFALLS 推荐扩展；用户工程级 `.mutagen.yml` 优先级仍最高
 
 ---
@@ -155,7 +155,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| 写入 `~/.cloud-claude/last-session.json` 含 intended_mode / actual_mode / downgrade_chain | 给 Phase 34 doctor 第一屏读取（M13 终验数据源） | ✓ |
+| 写入 `~/.claudedock/last-session.json` 含 intended_mode / actual_mode / downgrade_chain | 给 Phase 34 doctor 第一屏读取（M13 终验数据源） | ✓ |
 | 仅 stderr 输出，不持久化 | doctor 无法回放降级历史，违背 M13 验收预期 | |
 
 **[auto] 选择：** 持久化 last-session.json
@@ -215,7 +215,7 @@
 |--------|-------------|----------|
 | 远程 `cat /home/claude/.claude/.credentials.json`，三态：not_found / expired / expiring_soon (<5min) | 简单且准确；`expiresAt` 是 Mutagen 标准字段 | ✓ |
 | host-agent 新 endpoint 探测 | 违背 D-04 "不扩展 host-agent" 决策 | |
-| 容器 entrypoint 启动时 export env var | 镜像侧改动违背"零增量特权"且非 cloud-claude 自治 | |
+| 容器 entrypoint 启动时 export env var | 镜像侧改动违背"零增量特权"且非 claudedock 自治 | |
 
 **[auto] 选择：** 远程 cat + 三态分支
 **理由：** D-04（不扩展 host-agent）+ REQ-F7-C 字面要求；2s 超时保护
@@ -257,7 +257,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| 启动 banner 之后立即输出 + `cloud-claude sync conflicts` 子命令查看清单 | 接近 REQ-F1-E "下次回车前"语义；PTY 拦截留 v3.1 | ✓ |
+| 启动 banner 之后立即输出 + `claudedock sync conflicts` 子命令查看清单 | 接近 REQ-F1-E "下次回车前"语义；PTY 拦截留 v3.1 | ✓ |
 | 完整 PTY 拦截「下次回车前」严格语义 | 复杂度高（需拦截 stdin），留 v3.1 | |
 | 仅写日志，不在 banner 区显示 | 用户感知不到，违背 REQ-F1-E | |
 
@@ -271,7 +271,7 @@
 由 planner / executor 自由选择的实现细节（详见 CONTEXT.md `<decisions>` § Claude's Discretion）：
 
 - 二进制 fetch 脚本是否纳入 CI
-- `cloud-claude sync conflicts` 的 cobra 注册位置
+- `claudedock sync conflicts` 的 cobra 注册位置
 - `errcodes` 包的中文 i18n 形态（本阶段硬编码即可）
 - watcher goroutine 的退出协议（context cancel 标准实现）
 - macOS APFS 检测 `diskutil` 不可用时的 fallback
@@ -283,7 +283,7 @@
 详见 CONTEXT.md `<deferred>` 段。要点：
 
 - `--mutagen-force` flag 覆盖 50MB（v3.1）
-- `cloud-claude sync resolve <pattern>` 自动解决冲突（v3.1）
+- `claudedock sync resolve <pattern>` 自动解决冲突（v3.1）
 - 「下次回车前 prompt 上方插入」严格 PTY 拦截（v3.1）
 - Mutagen daemon 退出 GC（v3.1）
 - 错误码 i18n 英文版本（v3.1）

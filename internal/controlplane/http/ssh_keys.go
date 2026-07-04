@@ -19,8 +19,8 @@ import (
 	"database/sql"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type SSHKeyStore interface {
@@ -82,7 +82,7 @@ func (h *SSHKeyHandler) List() nethttp.Handler {
 		containerFingerprints := make(map[string]bool)
 		hosts, _ := h.store.ListRunningHostsByUserID(r.Context(), userID)
 		if len(hosts) > 0 {
-			containerName := "cloudproxy-" + hosts[0].ID
+			containerName := "claudedock-" + hosts[0].ID
 			containerFingerprints = readContainerAuthorizedKeyFingerprints(r.Context(), containerName)
 		}
 
@@ -283,7 +283,7 @@ func (h *SSHKeyHandler) syncKeysToRunningHosts(userID string) {
 	}
 
 	for _, host := range hosts {
-		containerName := "cloudproxy-" + host.ID
+		containerName := "claudedock-" + host.ID
 		syncInboundKeysToContainer(ctx, containerName, user, allKeys)
 		syncOutboundKeysToContainer(ctx, containerName, user, allKeys)
 		h.logger.Info("synced ssh keys to container", "host_id", host.ID, "container", containerName)
@@ -385,7 +385,7 @@ func readContainerAuthorizedKeys(ctx context.Context, hosts []repository.Host) [
 	if len(hosts) == 0 {
 		return nil
 	}
-	containerName := "cloudproxy-" + hosts[0].ID
+	containerName := "claudedock-" + hosts[0].ID
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -437,7 +437,7 @@ func readContainerAuthorizedKeyFingerprints(ctx context.Context, containerName s
 func loadProxyPublicKey() string {
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
-		dataDir = "/var/lib/cloud-cli-proxy"
+		dataDir = "/var/lib/claudedock"
 	}
 	pubKeyPath := dataDir + "/ssh_host_ed25519_key.pub"
 	data, err := os.ReadFile(pubKeyPath)

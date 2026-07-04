@@ -1,4 +1,4 @@
-module github.com/zanel1u/cloud-cli-proxy
+module github.com/claudedock/claudedock
 
 go 1.25.7
 

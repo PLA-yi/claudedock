@@ -18,14 +18,14 @@ commits:
 ## Key Files
 
 ### Created
-- `internal/cloudclaude/errcodes/remote_ssh.go` — 6 条 MustRegister 注册
-- `internal/cloudclaude/doctor/remote_ssh.go` — 5 个 check 函数
+- `internal/claudedock/errcodes/remote_ssh.go` — 6 条 MustRegister 注册
+- `internal/claudedock/doctor/remote_ssh.go` — 5 个 check 函数
 
 ### Modified
-- `internal/cloudclaude/errcodes/codes.go` — 6 个新 Code 常量
-- `internal/cloudclaude/errcodes/explanations.go` — 4 条 registerExplanation + 2 条 ExplainExempt
-- `internal/cloudclaude/doctor/doctor.go` — RunDoctor() 插入 remote-ssh 维度块
-- `cmd/cloud-claude/doctor.go` — ValidArgs 加入 remote-ssh，描述更新
+- `internal/claudedock/errcodes/codes.go` — 6 个新 Code 常量
+- `internal/claudedock/errcodes/explanations.go` — 4 条 registerExplanation + 2 条 ExplainExempt
+- `internal/claudedock/doctor/doctor.go` — RunDoctor() 插入 remote-ssh 维度块
+- `cmd/claudedock/doctor.go` — ValidArgs 加入 remote-ssh，描述更新
 
 ## Self-Check: PASSED
 
@@ -37,8 +37,8 @@ commits:
 - [x] doctor.go 集成正确
 - [x] cobra ValidArgs 包含 remote-ssh
 - [x] go vet 无错误
-- [x] go test ./internal/cloudclaude/doctor/... 通过
-- [x] go test ./internal/cloudclaude/errcodes/... 通过
+- [x] go test ./internal/claudedock/doctor/... 通过
+- [x] go test ./internal/claudedock/errcodes/... 通过
 
 ## Deviations
 

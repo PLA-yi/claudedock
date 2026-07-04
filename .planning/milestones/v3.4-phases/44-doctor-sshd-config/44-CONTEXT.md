@@ -57,13 +57,13 @@ doctor remote-ssh 维度主动检查 sshd_config 中端口转发相关指令（`
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Doctor 检查基础设施
-- `internal/cloudclaude/doctor/ssh.go` — 现有 sshd_config 解析模式（checkSSHDKeepaliveDrift + parseSSHDKeepalive）
-- `internal/cloudclaude/doctor/check.go` — Check 结构体、构造函数（newPass/newWarn/newFail/newSkip）、runWithTimeout
-- `internal/cloudclaude/doctor/doctor.go` — RunDoctor 入口、维度注册模式
+- `internal/claudedock/doctor/ssh.go` — 现有 sshd_config 解析模式（checkSSHDKeepaliveDrift + parseSSHDKeepalive）
+- `internal/claudedock/doctor/check.go` — Check 结构体、构造函数（newPass/newWarn/newFail/newSkip）、runWithTimeout
+- `internal/claudedock/doctor/doctor.go` — RunDoctor 入口、维度注册模式
 
 ### 错误码
-- `internal/cloudclaude/errcodes/codes.go` — SSH_* 错误码声明模式
-- `internal/cloudclaude/errcodes/explanations.go` — registerExplanation 长说明注册模式
+- `internal/claudedock/errcodes/codes.go` — SSH_* 错误码声明模式
+- `internal/claudedock/errcodes/explanations.go` — registerExplanation 长说明注册模式
 
 ### 镜像基线
 - `deploy/docker/managed-user/sshd_config` — 端口转发配置基准（AllowTcpForwarding yes / AllowStreamLocalForwarding yes / GatewayPorts no）
@@ -90,10 +90,10 @@ doctor remote-ssh 维度主动检查 sshd_config 中端口转发相关指令（`
 - 测试模式：`parseXxx` 函数单独测试 + check 函数用 mock runner 测试
 
 ### Integration Points
-- `internal/cloudclaude/doctor/ssh.go` — 新增 `checkSSHDForwarding` 和 `parseSSHDForwarding`
-- `internal/cloudclaude/doctor/ssh_test.go` — 新增 table-driven 测试用例
-- `internal/cloudclaude/errcodes/codes.go` — 新增 3 个 SSH_* 错误码常量
-- `internal/cloudclaude/errcodes/explanations.go` — 新增 3 条 registerExplanation 长说明
+- `internal/claudedock/doctor/ssh.go` — 新增 `checkSSHDForwarding` 和 `parseSSHDForwarding`
+- `internal/claudedock/doctor/ssh_test.go` — 新增 table-driven 测试用例
+- `internal/claudedock/errcodes/codes.go` — 新增 3 个 SSH_* 错误码常量
+- `internal/claudedock/errcodes/explanations.go` — 新增 3 条 registerExplanation 长说明
 
 </code_context>
 

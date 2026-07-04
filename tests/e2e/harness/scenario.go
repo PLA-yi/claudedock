@@ -71,7 +71,7 @@ type ControlPlaneHandle struct {
 type HostHandle struct {
 	ID            string // DB row id（Step 3 后填充）
 	Name          string // logical name（builder 阶段填充）
-	ContainerName string // cloudproxy-<host_id>（Step 7 后填充）
+	ContainerName string // claudedock-<host_id>（Step 7 后填充）
 }
 
 // UserHandle 由访问器返回。
@@ -250,7 +250,7 @@ func (s *Scenario) Start(ctx context.Context) (retErr error) {
 
 // startSQLite 是 Start 的 Step 1：创建临时 SQLite 数据库并通过 DATABASE_URL 传给子进程。
 func (s *Scenario) startSQLite(ctx context.Context) error {
-	dbPath := filepath.Join(os.TempDir(), "cloud-cli-proxy-e2e-"+s.scenarioID+".db")
+	dbPath := filepath.Join(os.TempDir(), "claudedock-e2e-"+s.scenarioID+".db")
 
 	// 创建 SQLite 数据库文件并验证连通性。
 	db, err := sql.Open("sqlite", "file:"+dbPath+"?_texttotime=true")

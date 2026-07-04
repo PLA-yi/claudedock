@@ -13,7 +13,7 @@ score: 5/5
 
 | # | 需求 | 覆盖 Plan | 状态 |
 |---|------|----------|------|
-| CTRL-01 | 创建 host 后只生成一个容器，无 cloudproxy-net-* bridge | 54-01 | ✓ |
+| CTRL-01 | 创建 host 后只生成一个容器，无 claudedock-net-* bridge | 54-01 | ✓ |
 | CTRL-02 | container_proxy_provider.go 净行数减少 ≥ 300 行，teardownGateway 删除 | 54-01 | ✓ |
 | CTRL-03 | sing-box config 注入 + root:singbox 0640 | 54-02 | ✓ |
 | CTRL-04 | 双绑互斥契约保持不变（ErrCodeEgressIPAlreadyBound + 409 + 双语 message） | 54-03 | ✓ |
@@ -37,7 +37,7 @@ score: 5/5
 
 ## Success Criteria
 
-1. ✓ 创建 host 只生成一个容器（cloudproxy-<id>），无 cloudproxy-net-* bridge — 54-01 已删除 PrepareGateway gw 启动 + bridge 创建
+1. ✓ 创建 host 只生成一个容器（claudedock-<id>），无 claudedock-net-* bridge — 54-01 已删除 PrepareGateway gw 启动 + bridge 创建
 2. ✓ container_proxy_provider.go 净行数减少 ≥ 300 行 — 54-01 从 519 行减至 ~155 行（净减少 ~364 行）
 3. ✓ sing-box config root:singbox 0640 — 54-02 已实装 writeContainerSingBoxConfig + entrypoint hard-assert
 4. ✓ 双绑互斥契约保持 — 54-03 已加固 ErrCodeEgressIPAlreadyBound + 409 + 双语 message 测试

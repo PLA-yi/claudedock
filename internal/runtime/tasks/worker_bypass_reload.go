@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/network"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // ErrBypassReloadInvalidInput 表示调用方未透传 BypassSnapshotID。

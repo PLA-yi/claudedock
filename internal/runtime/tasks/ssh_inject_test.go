@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // fakeContainer 模拟容器内的文件系统，供 execInContainer 的 fake 实现使用。

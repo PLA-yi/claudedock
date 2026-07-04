@@ -7,7 +7,7 @@ tags: [verification, docker, local-dev, sing-box, devcontainer]
 # Dependency graph
 requires:
   - phase: 39-dev-containers
-    provides: "cloud-claude local 子命令组 + entrypoint MODE=local + devcontainer.json + egress 注入"
+    provides: "claudedock local 子命令组 + entrypoint MODE=local + devcontainer.json + egress 注入"
   - phase: 40-vscode-remote-ssh
     provides: "VS Code Remote-SSH 端到端验证 + 安全流量校验"
 provides:

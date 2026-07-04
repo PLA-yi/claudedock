@@ -20,7 +20,7 @@ human_verification_needed:
   - "Phase 45 Plan 02 Scenario.Start Step 2..7 真实实现接入（控制面子进程 / admin login / fixture 三件套 / PrepareGateway / PrepareHost）"
   - "tests/e2e/fixtures/error-codes.sql bcrypt hash 由 CI 接通后由 helper 函数动态生成填充"
 roadmap_deviations:
-  - "MVS-05 被测 binary 从 cloud-claude 改为 deploy/bootstrap/cloud-bootstrap.sh（按 CONTEXT §Area 3「以源码为准」原则；详见 46-05-SUMMARY.md）"
+  - "MVS-05 被测 binary 从 claudedock 改为 deploy/bootstrap/cloud-bootstrap.sh（按 CONTEXT §Area 3「以源码为准」原则；详见 46-05-SUMMARY.md）"
 ---
 
 # Phase 46 Verification: MVS 黄金路径与出口 IP 验证
@@ -59,7 +59,7 @@ ROADMAP §Phase 46 §Details 5 条 success criteria：
 
 | 项 | ROADMAP 描述 | 实际落地 | 决策依据 |
 |----|--------------|----------|----------|
-| MVS-05 被测 binary | 真实 cloud-claude binary | deploy/bootstrap/cloud-bootstrap.sh | grep `cmd/cloud-claude/main.go` 实际 exit 1-5，错误码 10-13 由 bootstrap.sh `case "$error_code"` 映射；CONTEXT §Area 3「以源码为准」 |
+| MVS-05 被测 binary | 真实 claudedock binary | deploy/bootstrap/cloud-bootstrap.sh | grep `cmd/claudedock/main.go` 实际 exit 1-5，错误码 10-13 由 bootstrap.sh `case "$error_code"` 映射；CONTEXT §Area 3「以源码为准」 |
 
 ## 全套件回归验证（darwin / 无 docker）
 
@@ -90,7 +90,7 @@ package e2e
 import (
     "testing"
     "github.com/stretchr/testify/suite"
-    "github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+    "github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 type MyFeatureSuite struct {

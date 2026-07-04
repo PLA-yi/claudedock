@@ -35,19 +35,19 @@ function DashboardLayout() {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar onHelpClick={guide.openGuide} />
-        <main className="flex-1 overflow-y-auto bg-muted/40 p-6">
+        <main className="flex-1 overflow-y-auto bg-transparent p-6">
           <div className="min-h-[calc(100%-3rem)]">
             <Outlet />
           </div>
           <footer className="mt-8 border-t pt-4 pb-2 text-center text-xs text-muted-foreground">
             Powered by{" "}
             <a
-              href="https://github.com/zanel1u/cloud-cli-proxy"
+              href="https://github.com/claudedock/claudedock"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline"
             >
-              cloud-cli-proxy
+              claudedock
             </a>
           </footer>
         </main>

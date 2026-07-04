@@ -1,14 +1,14 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'Cloud CLI Proxy',
+  title: 'ClaudeDock',
   description: '一条命令获取预装 Claude Code 的云主机，所有流量走指定出口 IP，零泄漏',
 
-  base: '/cloud-cli-proxy/',
+  base: '/claudedock/',
 
   head: [
     ['meta', { name: 'keywords', content: 'cloud cli proxy, ssh, docker, sing-box, claude code, egress ip, proxy, containerized' }],
-    ['link', { rel: 'icon', href: '/cloud-cli-proxy/logo.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: '/claudedock/logo.svg', type: 'image/svg+xml' }],
   ],
 
   locales: {
@@ -31,7 +31,7 @@ export default defineConfig({
                 { text: '配置参考', link: '/zh/guide/configuration' },
                 { text: '架构说明', link: '/zh/guide/architecture' },
                 { text: '实时推送（SSE）', link: '/zh/guide/sse-realtime' },
-                { text: '本地 Dev Containers', link: '/zh/guide/cloud-claude-local' },
+                { text: '本地 Dev Containers', link: '/zh/guide/claudedock-local' },
               ],
             },
           ],
@@ -69,7 +69,7 @@ export default defineConfig({
                 { text: 'Configuration', link: '/en/guide/configuration' },
                 { text: 'Architecture', link: '/en/guide/architecture' },
                 { text: 'Real-time Push (SSE)', link: '/en/guide/sse-realtime' },
-                { text: 'Local Dev Containers', link: '/en/guide/cloud-claude-local' },
+                { text: 'Local Dev Containers', link: '/en/guide/claudedock-local' },
               ],
             },
           ],
@@ -94,7 +94,7 @@ export default defineConfig({
   themeConfig: {
     logo: '/logo.svg',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/ZaneL1u/cloud-cli-proxy' },
+      { icon: 'github', link: 'https://github.com/claudedock/claudedock' },
     ],
     search: {
       provider: 'local',

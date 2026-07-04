@@ -14,7 +14,7 @@
 
 CONTEXT.md 已对本阶段所有 gray area 锁定决策（`--auto` 模式），planner **必须**遵循以下要点（完整定义见 32-CONTEXT.md `<decisions>` 段）：
 
-- **D-01 文件结构**：新增 `session.go` / `reconnect.go` / `input_buffer.go` / `keepalive.go` / `sync_lock.go` / `errcodes/session.go` / `cmd/cloud-claude/sessions.go`；追加 `errcodes/net.go`；改造 `ssh.go` / `mount_strategy.go` / `last_session.go` / `colors.go` / `cmd/cloud-claude/main.go`
+- **D-01 文件结构**：新增 `session.go` / `reconnect.go` / `input_buffer.go` / `keepalive.go` / `sync_lock.go` / `errcodes/session.go` / `cmd/claudedock/sessions.go`；追加 `errcodes/net.go`；改造 `ssh.go` / `mount_strategy.go` / `last_session.go` / `colors.go` / `cmd/claudedock/main.go`
 - **D-02 不**对 `mount_strategy.go` 做结构改动；通过 `MountConfig.SyncSessionLock` / `KeepAliveInterval` / `KeepAliveCountMax` 三个 Phase 31 已预留字段注入
 - **D-03 SSH KeepAlive**：自实现 `SendRequest("keepalive@openssh.com", true, nil)` + 每 15s 一次 + 连续 4 次失败关闭 conn；CLI 启动期校验 `keepalive_interval >= 15s`，否则 `ExitConfigError` + `SESSION_KEEPALIVE_TOO_AGGRESSIVE`
 - **D-04 TCP KeepAlive**：`SetKeepAlive(true)` + `SetKeepAlivePeriod(15s)`；Linux 追加 `TCP_USER_TIMEOUT=30000`（build tag）；macOS 追加 `TCP_KEEPALIVE=15`（build tag）；失败仅 warning
@@ -26,7 +26,7 @@ CONTEXT.md 已对本阶段所有 gray area 锁定决策（`--auto` 模式），p
 - **D-12 第二端 banner**：`✓ 已 attach 到会话 X（另 N 个会话正在共享：source / 时间）`
 - **D-13 / D-14 sessions ls/attach**：纯客户端逻辑，零控制面改造（OOS-A20）
 - **D-15 / D-16 tmux 探测降级**：`command -v tmux && tmux -V`，失败 → `runClaude` 走 v2.0 裸路径 + `[!]` banner，**不**阻塞启动
-- **D-17 单例锁**：容器侧 `flock -n -E 99 -F /var/lock/cloud-claude/sync-<account_id>.lock`，后端拿不到锁 → `errSyncLocked` → `MountWorkspace` 降级 sshfs-only
+- **D-17 单例锁**：容器侧 `flock -n -E 99 -F /var/lock/claudedock/sync-<account_id>.lock`，后端拿不到锁 → `errSyncLocked` → `MountWorkspace` 降级 sshfs-only
 - **D-18 / D-19 锁注入**：实现 `acquireSyncLock(conn, accountID) (release func(), err error)` 注入 `MountConfig.SyncSessionLock`；anon 路径跳过锁
 - **D-20 错误码**：注册 10 条新码（7 SESSION_* + 3 NET_*）
 - **D-22 / D-23 三态 UX**：`>1.5s` 灰 `…`、`>8s` 黄 `网络抖动中（N 秒）`、`>30s` 红 `网络已断 N 秒`，`NO_COLOR` 时降级纯文本
@@ -71,7 +71,7 @@ planner / executor 可按实现便利性决定（不需要再回 discuss）：ke
 
 技术风险集中在三处：
 - **SSH SendRequest 阻塞语义**（§1）— 心跳本身可能因网络问题挂起，需要 select + timeout 包裹
-- **tmux client 识别**（§5.2）— CONTEXT D-12 设想用 `client_name` + 注入环境变量识别"另一端来自哪"，**实测 tmux 没有 per-client 自定义名 API**，需用 client_user/client_termname 兜底或 cloud-claude 自维护文件注册表
+- **tmux client 识别**（§5.2）— CONTEXT D-12 设想用 `client_name` + 注入环境变量识别"另一端来自哪"，**实测 tmux 没有 per-client 自定义名 API**，需用 client_user/client_termname 兜底或 claudedock 自维护文件注册表
 - **flock -F 语义 + sleep infinity 收割**（§6）— `-F` 是 "no fork" 而非 "filename"；后者已经是 positional；`sleep infinity` 通过 SSH session 关闭收割，最坏 SIGHUP 必然到达
 
 **Primary recommendation**：按 CONTEXT.md 全部决策实现，但 planner 必须在切分 plan 时单独留一个 sub-task 处理 §5.2 提的 tmux client 识别 fallback 策略——因为这是 REQ-F5-B `<source> / <活跃时间>` 唯一的实现门槛。
@@ -93,15 +93,15 @@ planner / executor 可按实现便利性决定（不需要再回 discuss）：ke
 
 | Capability | Primary Tier | Secondary Tier | Rationale |
 |------------|-------------|----------------|-----------|
-| SSH 心跳（应用层） | cloud-claude（Go x/crypto/ssh） | — | v2.0 用 ssh.Client，自实现 SendRequest 是最低侵入 |
-| TCP keepalive（传输层） | cloud-claude（syscall + build tag） | OS 内核 | 必须客户端主动 setsockopt；Linux/macOS 常量不同 |
-| 断线检测 + 重连 | cloud-claude（reconnect.go） | — | 容器侧无能力感知客户端状态 |
-| 输入缓冲 + 灰色 echo | cloud-claude（input_buffer.go） | 本地 stdout | 唯一可行位置（远端断线就是断了） |
-| tmux 进程持久化 | 容器内（tmux 3.4+ 已就位） | cloud-claude 包远程命令 | Phase 29 D-06 已 ship；本阶段只调用 |
-| tmux 多端共享 | tmux server（容器内） | cloud-claude banner 渲染 | tmux new-session -A 原生支持 |
-| Mutagen 单例锁 | 容器内（util-linux flock） | cloud-claude 通过 SSH 注入 | 必须容器侧强制（多 cloud-claude 进程跨主机检测不到对方） |
-| 错误码注册 | cloud-claude 包级 init() | Phase 34 doctor 复用 | 与 Phase 31 errcodes/{mount,net}.go 一致模式 |
-| `sessions ls/attach` 子命令 | cloud-claude（cmd 层） | 容器内 tmux | OOS-A20 明令禁止控制面新增 endpoint |
+| SSH 心跳（应用层） | claudedock（Go x/crypto/ssh） | — | v2.0 用 ssh.Client，自实现 SendRequest 是最低侵入 |
+| TCP keepalive（传输层） | claudedock（syscall + build tag） | OS 内核 | 必须客户端主动 setsockopt；Linux/macOS 常量不同 |
+| 断线检测 + 重连 | claudedock（reconnect.go） | — | 容器侧无能力感知客户端状态 |
+| 输入缓冲 + 灰色 echo | claudedock（input_buffer.go） | 本地 stdout | 唯一可行位置（远端断线就是断了） |
+| tmux 进程持久化 | 容器内（tmux 3.4+ 已就位） | claudedock 包远程命令 | Phase 29 D-06 已 ship；本阶段只调用 |
+| tmux 多端共享 | tmux server（容器内） | claudedock banner 渲染 | tmux new-session -A 原生支持 |
+| Mutagen 单例锁 | 容器内（util-linux flock） | claudedock 通过 SSH 注入 | 必须容器侧强制（多 claudedock 进程跨主机检测不到对方） |
+| 错误码注册 | claudedock 包级 init() | Phase 34 doctor 复用 | 与 Phase 31 errcodes/{mount,net}.go 一致模式 |
+| `sessions ls/attach` 子命令 | claudedock（cmd 层） | 容器内 tmux | OOS-A20 明令禁止控制面新增 endpoint |
 
 ---
 
@@ -111,10 +111,10 @@ planner / executor 可按实现便利性决定（不需要再回 discuss）：ke
 
 | 库 / 命令 | 版本 | 用途 | 来源 |
 |---------|---------|---------|--------------|
-| `golang.org/x/crypto/ssh` | go.mod 既有 | SSH client + SendRequest | `internal/cloudclaude/ssh.go` 已用 [VERIFIED: import] |
+| `golang.org/x/crypto/ssh` | go.mod 既有 | SSH client + SendRequest | `internal/claudedock/ssh.go` 已用 [VERIFIED: import] |
 | `golang.org/x/term` | go.mod 既有 | term.MakeRaw / IsTerminal | `ssh.go` runClaude 已用 [VERIFIED] |
 | `al.essio.dev/pkg/shellescape` | go.mod 既有 | shell 命令拼接转义 | Phase 31 mount_*.go 已用 [VERIFIED] |
-| `github.com/spf13/cobra` | go.mod 既有 | sessions 子命令注册 | `cmd/cloud-claude/main.go` 既有模式 [VERIFIED] |
+| `github.com/spf13/cobra` | go.mod 既有 | sessions 子命令注册 | `cmd/claudedock/main.go` 既有模式 [VERIFIED] |
 | `tmux` | ≥ 3.4 | 容器内会话持久化 + 多端 | Phase 29 D-06 + entrypoint `assert_tmux_version` [VERIFIED: deploy/docker/managed-user/entrypoint.sh:102-115] |
 | `util-linux flock` | ubuntu:24.04 内置 ≥ 2.39 | 容器内单例锁；`-F` no-fork 选项 ≥ 2.34 | ubuntu:24.04 默认 [VERIFIED: ubuntu 24.04 ships flock 2.39.3] |
 | `sshd` `ClientAliveInterval=15` / `ClientAliveCountMax=8` / `MaxSessions=30` | OpenSSH 9.x | 服务端 KeepAlive 与并发上限 | Phase 29 D-14 [VERIFIED: deploy/docker/managed-user/sshd_config:14-17] |
@@ -156,8 +156,8 @@ SendRequest(name string, wantReply bool, payload []byte) (bool, []byte, error)
 #### 1.2 推荐实现模式
 
 ```go
-// 文件: internal/cloudclaude/keepalive.go
-package cloudclaude
+// 文件: internal/claudedock/keepalive.go
+package claudedock
 
 import (
     "context"
@@ -226,7 +226,7 @@ func sendKeepaliveWithTimeout(conn ssh.Conn, timeout time.Duration) (bool, error
 #### 1.3 启动期校验 < 15s（REQ-F3-A 强约束 / PITFALLS M11）
 
 ```go
-// cmd/cloud-claude/main.go 在 mountCfg 构造后立即校验
+// cmd/claudedock/main.go 在 mountCfg 构造后立即校验
 if mountCfg.KeepAliveInterval < 15*time.Second {
     fmt.Fprintln(os.Stderr, errcodes.Format(errcodes.SESSION_KEEPALIVE_TOO_AGGRESSIVE,
         mountCfg.KeepAliveInterval.String()))
@@ -263,10 +263,10 @@ func ConfigureTCPKeepAlive(tcpConn *net.TCPConn, period time.Duration) error {
 #### 2.2 Linux: TCP_USER_TIMEOUT [VERIFIED: tcp(7) man page Linux 2.6.37+]
 
 ```go
-// 文件: internal/cloudclaude/keepalive_linux.go
+// 文件: internal/claudedock/keepalive_linux.go
 //go:build linux
 
-package cloudclaude
+package claudedock
 
 import (
     "net"
@@ -301,10 +301,10 @@ func configurePlatformSpecific(tcpConn *net.TCPConn) error {
 #### 2.3 macOS: TCP_KEEPALIVE [VERIFIED: Darwin tcp.h]
 
 ```go
-// 文件: internal/cloudclaude/keepalive_darwin.go
+// 文件: internal/claudedock/keepalive_darwin.go
 //go:build darwin
 
-package cloudclaude
+package claudedock
 
 import (
     "net"
@@ -337,16 +337,16 @@ func configurePlatformSpecific(tcpConn *net.TCPConn) error {
 #### 2.4 Windows / 其它平台
 
 ```go
-// 文件: internal/cloudclaude/keepalive_other.go
+// 文件: internal/claudedock/keepalive_other.go
 //go:build !linux && !darwin
 
-package cloudclaude
+package claudedock
 
 import (
     "fmt"
     "net"
 
-    "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+    "github.com/claudedock/claudedock/internal/claudedock/errcodes"
 )
 
 func configurePlatformSpecific(tcpConn *net.TCPConn) error {
@@ -357,11 +357,11 @@ func configurePlatformSpecific(tcpConn *net.TCPConn) error {
 }
 ```
 
-**Windows 是否实际支持 cloud-claude**：v2.0 既有 `cmd/cloud-claude/main.go` 没有 GOOS 限制 [VERIFIED: 无 build tag]，所以理论上 windows 可编译。但 PTY / shellescape / mutagen-bin embed 在 windows 上未经测试。**本阶段沿用 best-effort + warning 策略**（CONTEXT 草决策一致）。
+**Windows 是否实际支持 claudedock**：v2.0 既有 `cmd/claudedock/main.go` 没有 GOOS 限制 [VERIFIED: 无 build tag]，所以理论上 windows 可编译。但 PTY / shellescape / mutagen-bin embed 在 windows 上未经测试。**本阶段沿用 best-effort + warning 策略**（CONTEXT 草决策一致）。
 
 #### 2.5 在 sshConnect 中接入
 
-修改 `internal/cloudclaude/ssh.go:sshConnect`：
+修改 `internal/claudedock/ssh.go:sshConnect`：
 
 ```go
 func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
@@ -392,7 +392,7 @@ func sshConnect(cfg SSHConfig) (*ssh.Client, error) {
 #### 3.1 状态机签名
 
 ```go
-// 文件: internal/cloudclaude/reconnect.go
+// 文件: internal/claudedock/reconnect.go
 
 type ConnState int32
 
@@ -570,7 +570,7 @@ func renderDisconnectStatus(d time.Duration, noColor bool) string {
 #### 4.1 结构与生命周期
 
 ```go
-// 文件: internal/cloudclaude/input_buffer.go
+// 文件: internal/claudedock/input_buffer.go
 
 type BufferedStdin struct {
     src       io.Reader      // os.Stdin
@@ -710,7 +710,7 @@ CONTEXT D-12 设想用 `tmux list-clients -F "#{client_name}|#{client_activity}|
 
 **实证检查 [VERIFIED: tmux 3.4 man FORMATS]**：
 
-| Format | 实际值 | 是否可被 cloud-claude 自定义 |
+| Format | 实际值 | 是否可被 claudedock 自定义 |
 |--------|--------|---------------------------|
 | `#{client_name}` | 默认 = `client_tty` 路径，**不是**独立字段 | ✗ tmux 没有 rename-client 命令 |
 | `#{client_user}` | tmux 客户端运行的 OS 用户名 | ✗ 容器内全是 `workspace` |
@@ -724,25 +724,25 @@ CONTEXT D-12 设想用 `tmux list-clients -F "#{client_name}|#{client_activity}|
 
 **planner 必须在 plan 切分时单独处理 fallback 策略**（推荐 (a)）：
 
-- **(a) 文件注册表**（推荐）：cloud-claude 启动 attach 时通过 SSH 在容器内 `~/.cloud-claude/clients/<client_pid>.json` 写一条记录（`local_hostname` / `attach_at` / `claude_account_id`）；session.go 输出 banner 时读取目录列表过滤当前 session 的 PID 集合（来自 `tmux list-clients -F "#{client_pid}"`）。退出时 `defer os.Remove`。
-- **(b) tmux server-options 自定义**：用 `tmux set-option -t <session> -g @cloud-claude-client-<pid> <hostname>`，banner 时 `tmux show-options -t <session> -g`。tmux ≥ 3.0 支持 `@` 用户选项 [VERIFIED: tmux 3.0 changelog]。**优点**：不写文件；**缺点**：cloud-claude 异常崩溃时旧 hostname 残留（需 startup gc）。
+- **(a) 文件注册表**（推荐）：claudedock 启动 attach 时通过 SSH 在容器内 `~/.claudedock/clients/<client_pid>.json` 写一条记录（`local_hostname` / `attach_at` / `claude_account_id`）；session.go 输出 banner 时读取目录列表过滤当前 session 的 PID 集合（来自 `tmux list-clients -F "#{client_pid}"`）。退出时 `defer os.Remove`。
+- **(b) tmux server-options 自定义**：用 `tmux set-option -t <session> -g @claudedock-client-<pid> <hostname>`，banner 时 `tmux show-options -t <session> -g`。tmux ≥ 3.0 支持 `@` 用户选项 [VERIFIED: tmux 3.0 changelog]。**优点**：不写文件；**缺点**：claudedock 异常崩溃时旧 hostname 残留（需 startup gc）。
 - **(c) 退化**：banner 只显示 `（另 N 个会话正在共享：<未知来源> / <活跃时间>）` — 把"谁在另一端"留 v3.1。**最简单**，但削弱 REQ-F5-B 体感。
 
 **planner 决策建议**：选 (a) — 文件注册表最朴素、最易诊断、出错最容易清理。具体：
 
 ```bash
-# attach 时（cloud-claude → SSH conn-A）
-mkdir -p /workspace/.cloud-claude/clients && \
+# attach 时（claudedock → SSH conn-A）
+mkdir -p /workspace/.claudedock/clients && \
 echo '{"hostname":"<local>","attach_at":<unix>,"claude_account_id":"<id>","tmux_pid":<pid>}' \
-  > /workspace/.cloud-claude/clients/<tmux_client_pid>.json
+  > /workspace/.claudedock/clients/<tmux_client_pid>.json
 # 注：用 /workspace 而不是 /var/lock，UID 1000 可写
 
-# detach / cloud-claude 退出时
-rm -f /workspace/.cloud-claude/clients/<tmux_client_pid>.json
+# detach / claudedock 退出时
+rm -f /workspace/.claudedock/clients/<tmux_client_pid>.json
 
 # banner 渲染时（在 attach 之前先做）
 tmux list-clients -t <session> -F '#{client_pid}|#{client_activity}|#{client_tty}'
-# 然后对每个 pid 读 /workspace/.cloud-claude/clients/<pid>.json，缺失时 hostname=<unknown>
+# 然后对每个 pid 读 /workspace/.claudedock/clients/<pid>.json，缺失时 hostname=<unknown>
 ```
 
 `<活跃时间>` = `now - client_activity_unix_seconds`，渲染：`5 分钟前活跃` / `刚刚活跃`（< 30s）/ `3 小时前活跃`。
@@ -751,14 +751,14 @@ tmux list-clients -t <session> -F '#{client_pid}|#{client_activity}|#{client_tty
 
 [VERIFIED: tmux man `detach-client`] `-a` flag = "kill all clients attached to the session **except the caller**"。
 
-**关键**：caller = 执行 `tmux detach-client -a` 这条命令的 client。但 cloud-claude 是通过 SSH 远程执行 `tmux ...` 命令，此时 SSH session 内 spawn 的 tmux 进程是**临时 client**，不是后续要 attach 的 client。所以：
+**关键**：caller = 执行 `tmux detach-client -a` 这条命令的 client。但 claudedock 是通过 SSH 远程执行 `tmux ...` 命令，此时 SSH session 内 spawn 的 tmux 进程是**临时 client**，不是后续要 attach 的 client。所以：
 
 ```bash
 # CONTEXT D-11 实际执行序列（修订）：
 # 1. 探测 — SSH 上跑独立 tmux 命令
 ssh: tmux list-clients -t <session> -F '#{client_pid}'
 # 2. 如果有客户端，先广播
-ssh: tmux display-message -t <session> '[cloud-claude] 另一端 (<src>) 已通过 --take-over 接管会话，本会话将在 3s 后断开'
+ssh: tmux display-message -t <session> '[claudedock] 另一端 (<src>) 已通过 --take-over 接管会话，本会话将在 3s 后断开'
 ssh: sleep 3
 # 3. 踢掉所有客户端（注意：这条命令的 caller 是临时 SSH，不在 client list 内，所以 -a 会踢掉所有）
 ssh: tmux detach-client -t <session> -a
@@ -771,7 +771,7 @@ ssh: exec tmux new-session -A -d -s <session> "<wrap>" \; attach-session -t <ses
 #### 5.4 sessions ls / attach 子命令（D-13 / D-14）
 
 ```go
-// cmd/cloud-claude/sessions.go
+// cmd/claudedock/sessions.go
 func newSessionsCmd() *cobra.Command {
     cmd := &cobra.Command{Use: "sessions", Short: "tmux 会话管理"}
     lsCmd := &cobra.Command{Use: "ls", RunE: runSessionsLs}
@@ -796,7 +796,7 @@ func newSessionsCmd() *cobra.Command {
 #### 5.5 tmux 不可用降级探测（D-15 / D-16）
 
 ```go
-// internal/cloudclaude/session.go
+// internal/claudedock/session.go
 func DetectTmux(conn *ssh.Client) (available bool, version string, errReason string) {
     out, err := sshRunWithOutput(conn, "command -v tmux >/dev/null 2>&1 && tmux -V 2>&1")
     if err != nil {
@@ -843,13 +843,13 @@ Options:
 CONTEXT D-17 命令逐字解析：
 
 ```bash
-flock -n -E 99 -F /var/lock/cloud-claude/sync-<account_id>.lock -c 'echo "lock acquired"; sleep infinity' &
+flock -n -E 99 -F /var/lock/claudedock/sync-<account_id>.lock -c 'echo "lock acquired"; sleep infinity' &
 ```
 
 - `-n`：拿不到锁立即返回（不阻塞）
 - `-E 99`：拿不到锁时退出码 99（区别于其它错误）
 - `-F`：**no fork**，flock 进程直接 exec 成 `bash -c '...'`，让 sleep infinity 直接持有锁的 fd
-- `/var/lock/cloud-claude/sync-X.lock`：lockfile 路径（positional arg）
+- `/var/lock/claudedock/sync-X.lock`：lockfile 路径（positional arg）
 - `-c '...'`：在 shell 里执行命令
 
 **关键收益**：`-F` 让进程树扁平，`sleep infinity` 直接是 sshd 的孙子（sshd → bash -c → sleep）。SSH session 关闭时，sshd 给整个进程组发 SIGHUP，sleep 收到 SIGHUP 自动死，bash 也死，flock 的 fd 跟着 close，锁释放。
@@ -858,31 +858,31 @@ flock -n -E 99 -F /var/lock/cloud-claude/sync-<account_id>.lock -c 'echo "lock a
 
 #### 6.2 容器内路径权限：用 /workspace 不用 /var/lock — **修订 D-17**
 
-CONTEXT D-17 用 `/var/lock/cloud-claude/sync-X.lock`。但 [VERIFIED: ubuntu:24.04 默认]：
+CONTEXT D-17 用 `/var/lock/claudedock/sync-X.lock`。但 [VERIFIED: ubuntu:24.04 默认]：
 
 - `/var/lock` 在 ubuntu:24.04 是 `lrwxrwxrwx 1 root root → /run/lock`
 - `/run/lock` 默认 mode = `0755`，owner `root:root`
-- workspace 用户 UID=1000 — `mkdir /var/lock/cloud-claude` 会 EACCES
+- workspace 用户 UID=1000 — `mkdir /var/lock/claudedock` 会 EACCES
 
 **两个候选**（planner 选）：
 
 | 路径 | 优点 | 缺点 |
 |------|------|------|
-| `/run/cloud-claude/` | tmpfs，重启清空，符合 lock 语义 | 默认 root 拥有；需要 entrypoint 创建 + chown 1000:1000 — **改 Phase 29 entrypoint**（违反 D-25 "Phase 29 不改"） |
-| `/workspace/.cloud-claude/locks/` | UID 1000 已拥有 /workspace；现成可写 | mergerfs 视图下 lock 文件可能进 hot/cold branch 同步 — **必须显式 ignore** |
-| `/tmp/cloud-claude-locks/` | UID 1000 写权限通常 ok（mode 1777） | tmp 可能被清理；多用户场景污染 |
+| `/run/claudedock/` | tmpfs，重启清空，符合 lock 语义 | 默认 root 拥有；需要 entrypoint 创建 + chown 1000:1000 — **改 Phase 29 entrypoint**（违反 D-25 "Phase 29 不改"） |
+| `/workspace/.claudedock/locks/` | UID 1000 已拥有 /workspace；现成可写 | mergerfs 视图下 lock 文件可能进 hot/cold branch 同步 — **必须显式 ignore** |
+| `/tmp/claudedock-locks/` | UID 1000 写权限通常 ok（mode 1777） | tmp 可能被清理；多用户场景污染 |
 
-**推荐 `/workspace/.cloud-claude/locks/`** 配套 mutagen ignore 规则（Phase 31 默认 ignore 已含 `.git/` 等，添加 `.cloud-claude/` 一行即可）— 但这又**修改 Phase 31 默认 ignore**，需要小改 `mount_mutagen.go`。
+**推荐 `/workspace/.claudedock/locks/`** 配套 mutagen ignore 规则（Phase 31 默认 ignore 已含 `.git/` 等，添加 `.claudedock/` 一行即可）— 但这又**修改 Phase 31 默认 ignore**，需要小改 `mount_mutagen.go`。
 
-**最干净的路径**：`/tmp/cloud-claude/locks/<account_id>.lock`（mode 1777 default，UID 1000 可写）— 不污染 mergerfs / Mutagen，cloud-claude 启动时 `mkdir -p /tmp/cloud-claude/locks` 幂等。
+**最干净的路径**：`/tmp/claudedock/locks/<account_id>.lock`（mode 1777 default，UID 1000 可写）— 不污染 mergerfs / Mutagen，claudedock 启动时 `mkdir -p /tmp/claudedock/locks` 幂等。
 
-**planner 决策建议**：用 `/tmp/cloud-claude/locks/` — 与 Phase 31 / Phase 29 完全解耦，0 侵入。文件被 OS 重启清理符合 lock 语义。
+**planner 决策建议**：用 `/tmp/claudedock/locks/` — 与 Phase 31 / Phase 29 完全解耦，0 侵入。文件被 OS 重启清理符合 lock 语义。
 
 修订后命令：
 
 ```bash
-mkdir -p /tmp/cloud-claude/locks && \
-flock -n -E 99 -F /tmp/cloud-claude/locks/sync-<account_id>.lock \
+mkdir -p /tmp/claudedock/locks && \
+flock -n -E 99 -F /tmp/claudedock/locks/sync-<account_id>.lock \
   -c 'echo $$; exec sleep infinity' &
 echo $!  # 拿到 background PID
 ```
@@ -892,7 +892,7 @@ echo $!  # 拿到 background PID
 #### 6.3 实现接口
 
 ```go
-// 文件: internal/cloudclaude/sync_lock.go
+// 文件: internal/claudedock/sync_lock.go
 
 // AcquireSyncLock 在 conn 上创建账号级单例锁。
 // 返回 release 函数（idempotent），调用者必须 defer release()。
@@ -906,9 +906,9 @@ func AcquireSyncLock(conn *ssh.Client, accountID string) (release func(), err er
         return func() {}, nil
     }
 
-    lockPath := fmt.Sprintf("/tmp/cloud-claude/locks/sync-%s.lock", accountID)
+    lockPath := fmt.Sprintf("/tmp/claudedock/locks/sync-%s.lock", accountID)
     cmd := fmt.Sprintf(
-        "mkdir -p /tmp/cloud-claude/locks 2>/dev/null && " +
+        "mkdir -p /tmp/claudedock/locks 2>/dev/null && " +
         "flock -n -E 99 -F %s -c 'echo $$; exec sleep infinity' &\necho $!",
         shellescape.Quote(lockPath),
     )
@@ -943,15 +943,15 @@ func AcquireSyncLock(conn *ssh.Client, accountID string) (release func(), err er
     return release, nil
 }
 
-var ErrSyncLocked = errors.New("sync session locked by another cloud-claude")
+var ErrSyncLocked = errors.New("sync session locked by another claudedock")
 ```
 
 #### 6.4 注入 MountConfig（D-18）
 
-`cmd/cloud-claude/main.go runRoot` 中：
+`cmd/claudedock/main.go runRoot` 中：
 
 ```go
-mountCfg := cloudclaude.MountConfig{
+mountCfg := claudedock.MountConfig{
     Mode:              mode,
     KeepAliveInterval: 15 * time.Second,
     KeepAliveCountMax: 4,
@@ -1014,25 +1014,25 @@ tmux ls | grep test  # 必须命中
 Phase 31 已落 `SSHFSWatcher`（5s 检测周期 × 3 次失败 = ≥ 15s 摘除阈值）。本阶段验收：
 
 ```bash
-# 准备：cloud-claude 在 full mode 下连接，mergerfs 视图正常
+# 准备：claudedock 在 full mode 下连接，mergerfs 视图正常
 # 注入 30s 网络抖动
 docker network disconnect <ctr> <net>
 sleep 30
 # 期间从客户端：
-# - cloud-claude reconnect 状态机进入退避 / Enter 立即重试
+# - claudedock reconnect 状态机进入退避 / Enter 立即重试
 # - 容器内 sshfs_watcher 在 ~15s 后摘除 cold branch
 # - mergerfs /workspace 仍可读 hot branch（可能丢 cold-only 文件）
 # - tmux session 内 claude 进程不丢（关键 — 这是 BASE-03 核心）
 
 docker network connect <ctr> <net>
 sleep 5
-# 客户端 cloud-claude reconnect 成功 → input_buffer flush → tmux attach 恢复
+# 客户端 claudedock reconnect 成功 → input_buffer flush → tmux attach 恢复
 # cold branch 留待 Phase 34 doctor --fix 重挂（本阶段不自动恢复）
 ```
 
 #### 7.3 mergerfs branch 摘除协议（Phase 31 已落）
 
-[VERIFIED: internal/cloudclaude/sshfs_watcher.go + 调用 RemoveBranch] Phase 31 通过 `RemoveBranch(conn, "/workspace-cold", "/workspace")` 实现。底层应该用 mergerfs xattr 协议 [CITED: mergerfs README "Runtime config"]：
+[VERIFIED: internal/claudedock/sshfs_watcher.go + 调用 RemoveBranch] Phase 31 通过 `RemoveBranch(conn, "/workspace-cold", "/workspace")` 实现。底层应该用 mergerfs xattr 协议 [CITED: mergerfs README "Runtime config"]：
 
 ```bash
 # 摘除 cold branch（mergerfs 2.41.x 语法）
@@ -1050,7 +1050,7 @@ echo "-/workspace-cold" > /workspace/.mergerfs/branches
 10 条新码（CONTEXT D-20 表）的具体 Message / NextAction：
 
 ```go
-// 文件: internal/cloudclaude/errcodes/session.go
+// 文件: internal/claudedock/errcodes/session.go
 package errcodes
 
 func init() {
@@ -1062,12 +1062,12 @@ func init() {
     MustRegister(Entry{
         Code: SESSION_TMUX_UNAVAILABLE, Severity: SeverityWarn,
         Message:    "容器内 tmux 不可用：%s，会话恢复已禁用",
-        NextAction: "检查容器镜像是否升级到 v3.0.0，或运行 cloud-claude doctor mount",
+        NextAction: "检查容器镜像是否升级到 v3.0.0，或运行 claudedock doctor mount",
     })
     MustRegister(Entry{
         Code: SESSION_NOT_FOUND, Severity: SeverityError,
         Message:    "tmux 会话 %s 不存在",
-        NextAction: "运行 cloud-claude sessions ls 查看当前会话列表",
+        NextAction: "运行 claudedock sessions ls 查看当前会话列表",
     })
     MustRegister(Entry{
         Code: SESSION_TAKEOVER_NOTIFIED, Severity: SeverityInfo,
@@ -1077,12 +1077,12 @@ func init() {
     MustRegister(Entry{
         Code: SESSION_TAKEOVER_FAILED, Severity: SeverityError,
         Message:    "tmux detach-client 命令失败: %s",
-        NextAction: "运行 cloud-claude sessions ls 检查会话状态，或 cloud-claude doctor",
+        NextAction: "运行 claudedock sessions ls 检查会话状态，或 claudedock doctor",
     })
     MustRegister(Entry{
         Code: SESSION_SYNC_LOCKED, Severity: SeverityWarn,
         Message:    "账号 %s 已有另一端在执行 Mutagen sync，本端只读 sshfs 视图",
-        NextAction: "无需操作；如需独占同步，请先关闭另一端 cloud-claude",
+        NextAction: "无需操作；如需独占同步，请先关闭另一端 claudedock",
     })
     MustRegister(Entry{
         Code: SESSION_BUFFER_OVERFLOW, Severity: SeverityWarn,
@@ -1091,7 +1091,7 @@ func init() {
     })
 }
 
-// 文件: internal/cloudclaude/errcodes/net.go（追加，不删既有 NET_OAUTH_*）
+// 文件: internal/claudedock/errcodes/net.go（追加，不删既有 NET_OAUTH_*）
 func init() {
     MustRegister(Entry{
         Code: NET_RECONNECT_BACKOFF, Severity: SeverityInfo,
@@ -1101,7 +1101,7 @@ func init() {
     MustRegister(Entry{
         Code: NET_RECONNECT_GAVE_UP, Severity: SeverityFatal,
         Message:    "重连失败（已重试 %d 次，耗时 %s）",
-        NextAction: "请检查网络后重新运行 cloud-claude，或运行 cloud-claude doctor 诊断",
+        NextAction: "请检查网络后重新运行 claudedock，或运行 claudedock doctor 诊断",
     })
     MustRegister(Entry{
         Code: NET_TCP_KEEPALIVE_UNSUPPORTED, Severity: SeverityWarn,
@@ -1136,7 +1136,7 @@ const (
 ### 9. last-session.json schema 扩展（D-27）
 
 ```go
-// 文件: internal/cloudclaude/last_session.go
+// 文件: internal/claudedock/last_session.go
 type LastSessionSnapshot struct {
     SchemaVersion       int             `json:"schema_version"`
     Timestamp           time.Time       `json:"timestamp"`
@@ -1187,10 +1187,10 @@ func init() {
 所有错误输出走 `errcodes.Format(code, args...)` → `[<CODE>] <Message>\n  建议: <NextAction>`。**禁止**新建错误格式 helper、**禁止**直接 `fmt.Fprintf(os.Stderr, "[CODE] %s", ...)`。
 
 ### P-03 cobra 子命令注册（v2.0 + Phase 31 sync）
-[VERIFIED: cmd/cloud-claude/main.go:39-92 + cmd/cloud-claude/sync.go:18-37]
+[VERIFIED: cmd/claudedock/main.go:39-92 + cmd/claudedock/sync.go:18-37]
 
 ```go
-// cmd/cloud-claude/sessions.go
+// cmd/claudedock/sessions.go
 func newSessionsCmd() *cobra.Command {
     cmd := &cobra.Command{Use: "sessions", ...}
     cmd.AddCommand(lsCmd, attachCmd)
@@ -1202,7 +1202,7 @@ rootCmd.AddCommand(initCmd, envCmd, sshCmd, newSyncCmd(), newSessionsCmd())
 ```
 
 ### P-04 DisableFlagParsing 手动剥离 flag（v2.0 --mount-mode）
-[VERIFIED: cmd/cloud-claude/main.go:244-269]
+[VERIFIED: cmd/claudedock/main.go:244-269]
 
 ```go
 // runRoot 中扫描 args 剥离 --new-session / --take-over：
@@ -1229,7 +1229,7 @@ args = filtered
 `keepalive_linux.go` / `keepalive_darwin.go` / `keepalive_other.go` 三文件分发；公共逻辑放 `keepalive.go`。
 
 ### P-06 sshfs_watcher 模式：ctx + ticker + 失败计数（Phase 31）
-[VERIFIED: internal/cloudclaude/sshfs_watcher.go:51-76]
+[VERIFIED: internal/claudedock/sshfs_watcher.go:51-76]
 
 ```go
 // reconnect.Run 沿用此结构：ticker + select{ ctx.Done | ticker.C | trigger } + 失败计数
@@ -1246,7 +1246,7 @@ args = filtered
 所有 SSH 远程命令拼接走 `shellescape.QuoteCommand([]string{...})` 或 `shellescape.Quote(arg)`。**禁止**手写 `'...'` / `"..."` 引用。
 
 ### P-09 ANSI 颜色经 colors.go 与 NO_COLOR（Phase 31 D-23）
-[VERIFIED: internal/cloudclaude/colors.go:9-47]
+[VERIFIED: internal/claudedock/colors.go:9-47]
 
 新增 `ansiGray = "\033[90m"` 到 colors.go 常量；reconnect.go / input_buffer.go 通过 `colorize(text, ansiGray, colorEnabled(noColor, w))` 输出。
 
@@ -1270,7 +1270,7 @@ args = filtered
 - **验证**：§Acceptance Templates REQ-F3-A
 
 ### M12（sshd MaxSessions 下溢）
-- **触发**：cloud-claude 每端开 conn-A + conn-B + Mutagen 自管 conn-C = 3 sessions × N 端 → 触 MaxSessions=30
+- **触发**：claudedock 每端开 conn-A + conn-B + Mutagen 自管 conn-C = 3 sessions × N 端 → 触 MaxSessions=30
 - **本阶段防御**：sshd_config `MaxSessions 30` / `MaxStartups 60:30:120`（Phase 29 D-14 已落）；本阶段不会再开新 conn（仅在 reconnect 时短暂 +1，旧 conn 已关闭）
 - **验证**：M12 不需独立用例；REQ-F5-A 多端测试用例顺带覆盖（2 端 = 6 sessions << 30）
 
@@ -1293,7 +1293,7 @@ args = filtered
 ### REQ-F3-A — KeepAlive 启动期校验
 ```bash
 # 模拟非法配置（假设支持环境变量 / flag — planner 视具体实现切分）
-KEEPALIVE_INTERVAL=10s cloud-claude
+KEEPALIVE_INTERVAL=10s claudedock
 # 期望:
 #   stderr: [SESSION_KEEPALIVE_TOO_AGGRESSIVE] SSH KeepAlive 间隔 10s 低于 15s 下限
 #     建议: 调整 keepalive_interval 至 >= 15s，或移除该配置使用默认值
@@ -1303,10 +1303,10 @@ KEEPALIVE_INTERVAL=10s cloud-claude
 ### REQ-F3-B — 灰色未确认 echo + 重连后按序提交
 ```bash
 # 集成测试 (使用 docker compose fixture，沿用 Phase 31 Plan 03 模式):
-# 1. cloud-claude 启动并进入 claude prompt
+# 1. claudedock 启动并进入 claude prompt
 # 2. docker network disconnect <ctr> <net>
 # 3. 通过 stdin pipe 注入 "echo hello\r"
-# 4. 断言：cloud-claude stdout 包含 "\x1b[90mecho hello\r\x1b[0m"（灰色 echo）
+# 4. 断言：claudedock stdout 包含 "\x1b[90mecho hello\r\x1b[0m"（灰色 echo）
 # 5. docker network connect <ctr> <net>
 # 6. 等待 reconnect 成功（<= 30s）
 # 7. 断言：tmux capture-pane -p 内容包含 "echo hello"（实际执行）
@@ -1314,18 +1314,18 @@ KEEPALIVE_INTERVAL=10s cloud-claude
 
 ### REQ-F3-C — 重连失败 prompt 显示原因 + 下一步
 ```bash
-# 1. cloud-claude 启动
+# 1. claudedock 启动
 # 2. docker stop <ctr> （永久断开）
 # 3. 反复按 Enter 5 次（在 60s 内）
 # 4. 断言 stderr:
 #   [NET_RECONNECT_GAVE_UP] 重连失败（已重试 5 次，耗时 *s）
-#     建议: 请检查网络后重新运行 cloud-claude，或运行 cloud-claude doctor 诊断
+#     建议: 请检查网络后重新运行 claudedock，或运行 claudedock doctor 诊断
 # 5. exit code: 2 (ExitNetworkError)
 ```
 
 ### REQ-F3-D — 退避序列 + 不弹密码
 ```bash
-# 1. cloud-claude 启动并通过 SSH 认证（密码已在内存）
+# 1. claudedock 启动并通过 SSH 认证（密码已在内存）
 # 2. docker pause <ctr>
 # 3. 启动时间戳记录 reconnect 触发
 # 4. 断言：
@@ -1339,44 +1339,44 @@ KEEPALIVE_INTERVAL=10s cloud-claude
 
 ### REQ-F4-A — tmux 默认包装 + 重连 attach 同会话不丢进程
 ```bash
-# 1. cloud-claude 启动 → 远程命令应包含 "tmux new-session -A"
+# 1. claudedock 启动 → 远程命令应包含 "tmux new-session -A"
 #    docker exec <ctr> ps aux | grep tmux  # 必须命中 tmux server
 # 2. 在 claude prompt 内执行长任务（例: claude task "sleep 60"）
 # 3. docker network disconnect <ctr> <net>
 # 4. sleep 30
 # 5. docker network connect <ctr> <net>
-# 6. 断言：cloud-claude reconnect 成功，重新看到任务输出（claude 进程 PID 不变）
+# 6. 断言：claudedock reconnect 成功，重新看到任务输出（claude 进程 PID 不变）
 # 7. docker exec <ctr> tmux capture-pane -t claude-* -p | grep "sleep 60"  # 历史 buffer 完整
 ```
 
 ### REQ-F4-B — sessions ls / attach
 ```bash
-cloud-claude sessions ls
+claudedock sessions ls
 # 期望表格:
 # SESSION              CREATED               CLIENTS  WINDOWS
 # claude-abc12345      2 小时前              2        1
 
-cloud-claude sessions attach claude-abc12345
+claudedock sessions attach claude-abc12345
 # 期望: attach 到既有 session
 
-cloud-claude sessions attach nonexistent
+claudedock sessions attach nonexistent
 # 期望: stderr [SESSION_NOT_FOUND] tmux 会话 nonexistent 不存在
-#         建议: 运行 cloud-claude sessions ls 查看当前会话列表
+#         建议: 运行 claudedock sessions ls 查看当前会话列表
 #       exit code: 非 0
 ```
 
 ### REQ-F4-C — tmux 不可用降级
 ```bash
 # 1. 用一个旧镜像（无 tmux）启动容器
-# 2. cloud-claude 连接
+# 2. claudedock 连接
 # 3. 断言 stderr 包含: [SESSION_TMUX_UNAVAILABLE] 容器内 tmux 不可用：...
-# 4. cloud-claude 不退出，仍能进入 claude（裸 runClaude 路径）
+# 4. claudedock 不退出，仍能进入 claude（裸 runClaude 路径）
 ```
 
 ### REQ-F5-A — 多端默认共享 attach（不踢人）
 ```bash
-# 终端 A: cloud-claude （首端，建 session）
-# 终端 B: cloud-claude （第二端，attach）
+# 终端 A: claudedock （首端，建 session）
+# 终端 B: claudedock （第二端，attach）
 # 期望:
 #   终端 A stdout 不出现"被踢"
 #   终端 B 看到 "✓ 已 attach 到会话 claude-XXX"
@@ -1395,25 +1395,25 @@ cloud-claude sessions attach nonexistent
 
 ### REQ-F5-C — --new-session / --take-over
 ```bash
-cloud-claude --new-session
+claudedock --new-session
 # 期望: 创建 claude-<8字符base64url>，与既有 claude-<8hex> 命名空间正交
 docker exec <ctr> tmux ls | grep "claude-[A-Za-z0-9_-]\{8\}"  # 命中
 
 # 终端 A 已 attach claude-abc12345
-cloud-claude --take-over
+claudedock --take-over
 # 期望终端 B stdout: 立即 attach
-# 终端 A stdout 在 ~3s 后看到 [cloud-claude] 另一端... 已通过 --take-over 接管
+# 终端 A stdout 在 ~3s 后看到 [claudedock] 另一端... 已通过 --take-over 接管
 # 终端 A SSH 在 ~3s 后断开
 docker exec <ctr> tmux list-clients -t claude-abc12345 | wc -l  # 必须 1
 ```
 
 ### REQ-F5-D — 账号级 Mutagen 单例锁
 ```bash
-# 终端 A: cloud-claude （首端，acquire 锁，跑 mutagen sync）
-docker exec <ctr> mutagen sync list | grep "cloud-claude-<account>" | wc -l  # = 1
-docker exec <ctr> ls /tmp/cloud-claude/locks/  # 必须有 sync-<account>.lock
+# 终端 A: claudedock （首端，acquire 锁，跑 mutagen sync）
+docker exec <ctr> mutagen sync list | grep "claudedock-<account>" | wc -l  # = 1
+docker exec <ctr> ls /tmp/claudedock/locks/  # 必须有 sync-<account>.lock
 
-# 终端 B: cloud-claude （第二端，flock 拿不到 → exit 99）
+# 终端 B: claudedock （第二端，flock 拿不到 → exit 99）
 # 期望终端 B stderr 含:
 #   [SESSION_SYNC_LOCKED] 账号 <account> 已有另一端在执行 Mutagen sync，本端只读 sshfs 视图
 # 第二端 last-session.json: actual_mode = "sshfs-only" / client_role = "secondary"
@@ -1461,7 +1461,7 @@ docker exec <ctr> tmux ls | grep testtmux  # 必须命中
 | 单元 | AcquireSyncLock anon 路径直接 noop | accountID="" | ✓ Go test | `sync_lock_test.go` |
 | 单元 | errcodes registry 10 条新码均合法 | TestRegistry | ✓ Go test | `errcodes/codes_test.go` |
 | 单元 | last-session.json 含 tmux_session / client_role | round-trip JSON | ✓ Go test | `last_session_test.go` |
-| 集成 | docker compose fixture 双 cloud-claude 同 account | 沿用 Phase 31 Plan 03 fixture + 第二个 cloud-claude service | ✓ Go integration test | `integration_test.go` |
+| 集成 | docker compose fixture 双 claudedock 同 account | 沿用 Phase 31 Plan 03 fixture + 第二个 claudedock service | ✓ Go integration test | `integration_test.go` |
 | 集成 | docker network disconnect/connect 30s 抖动 | 同 fixture + docker network commands | ✓ Go integration test | `integration_test.go` |
 | 集成 | pkill -SIGHUP sshd 后 tmux 存活（C7） | docker exec | ✓ Go integration test | `integration_test.go` |
 | 集成 | pgrep systemd-logind 应无结果 | docker exec | ✓ Go integration test | `integration_test.go` |
@@ -1470,7 +1470,7 @@ docker exec <ctr> tmux ls | grep testtmux  # 必须命中
 
 **自动化覆盖率目标**：单元 + 集成必须能在 CI 跑（docker-in-docker + Go test）；真机 UAT 留 Phase 35。
 
-**集成测试 fixture 复用**：Phase 31 Plan 03 已有 `docker-compose.test.yml` + workspace 镜像（`internal/cloudclaude/integration_test.go` 已用 `t.Skip` 留 C3 真实 netem 场景给 Phase 35）。本阶段在同 fixture 加 1 个 service `cloud-claude-second`（同 account 不同 cwd）即可覆盖多端用例。
+**集成测试 fixture 复用**：Phase 31 Plan 03 已有 `docker-compose.test.yml` + workspace 镜像（`internal/claudedock/integration_test.go` 已用 `t.Skip` 留 C3 真实 netem 场景给 Phase 35）。本阶段在同 fixture 加 1 个 service `claudedock-second`（同 account 不同 cwd）即可覆盖多端用例。
 
 ---
 
@@ -1482,25 +1482,25 @@ docker exec <ctr> tmux ls | grep testtmux  # 必须命中
 
 CONTEXT D-12 设想用 tmux 环境变量识别 client name；实测 tmux 没有 per-client 名 API。三个候选：
 
-- (a) **文件注册表 `/workspace/.cloud-claude/clients/<pid>.json`**（推荐）
-- (b) tmux user-options `@cloud-claude-client-<pid>`
+- (a) **文件注册表 `/workspace/.claudedock/clients/<pid>.json`**（推荐）
+- (b) tmux user-options `@claudedock-client-<pid>`
 - (c) 退化为 `<未知来源>`
 
-**planner 决策建议**：(a) — 与既有 `/workspace/.cloud-claude/` 目录一致，attach/detach 时清理简单。
+**planner 决策建议**：(a) — 与既有 `/workspace/.claudedock/` 目录一致，attach/detach 时清理简单。
 
-**RESOLVED**：Plan 02 Task 2.1a 采用 (a) 文件注册表完整方案 — 落地 `writeClientFile` / `removeClientFile` / `readClientHostnames` 三个 helper；attach 后远程 `tmux display-message -p '#{client_pid}'` 取本端 client_pid 写入 `/workspace/.cloud-claude/clients/<pid>.json`，runClaudeWithSession defer 远程 `rm -f` 清理；banner 渲染时通过 `readClientHostnames` 批量 cat JSON 文件，缺失则 fallback `unknown-host`。完整 schema 见 Plan 02 `<remote_command_templates>`。
+**RESOLVED**：Plan 02 Task 2.1a 采用 (a) 文件注册表完整方案 — 落地 `writeClientFile` / `removeClientFile` / `readClientHostnames` 三个 helper；attach 后远程 `tmux display-message -p '#{client_pid}'` 取本端 client_pid 写入 `/workspace/.claudedock/clients/<pid>.json`，runClaudeWithSession defer 远程 `rm -f` 清理；banner 渲染时通过 `readClientHostnames` 批量 cat JSON 文件，缺失则 fallback `unknown-host`。完整 schema 见 Plan 02 `<remote_command_templates>`。
 
 ### Q2（§6.2）：单例锁路径
 
-CONTEXT D-17 用 `/var/lock/cloud-claude/`；UID 1000 写不进。三个候选：
+CONTEXT D-17 用 `/var/lock/claudedock/`；UID 1000 写不进。三个候选：
 
-- (a) `/run/cloud-claude/`（需改 Phase 29 entrypoint，**违反** D-25）
-- (b) `/workspace/.cloud-claude/locks/`（污染 mergerfs，需改 Phase 31 默认 ignore）
-- (c) **`/tmp/cloud-claude/locks/`**（推荐，0 侵入其它 phase）
+- (a) `/run/claudedock/`（需改 Phase 29 entrypoint，**违反** D-25）
+- (b) `/workspace/.claudedock/locks/`（污染 mergerfs，需改 Phase 31 默认 ignore）
+- (c) **`/tmp/claudedock/locks/`**（推荐，0 侵入其它 phase）
 
 **planner 决策建议**：(c) — 与 Phase 29/31 完全解耦。
 
-**RESOLVED**：Plan 03 Task 3.1 采用 `/tmp/cloud-claude/locks/sync-<account_id>.lock`；Plan 03 acceptance criteria 包含 `! rg -q "/var/lock" internal/cloudclaude/sync_lock.go` 反向校验防止回归；mode 1777 + UID 1000 写权限验证由集成测试 TestIntegration_Phase32_SyncLockMutexes 覆盖。
+**RESOLVED**：Plan 03 Task 3.1 采用 `/tmp/claudedock/locks/sync-<account_id>.lock`；Plan 03 acceptance criteria 包含 `! rg -q "/var/lock" internal/claudedock/sync_lock.go` 反向校验防止回归；mode 1777 + UID 1000 写权限验证由集成测试 TestIntegration_Phase32_SyncLockMutexes 覆盖。
 
 ### Q3（§6.4）：SyncSessionLock 注入位置
 
@@ -1536,15 +1536,15 @@ ROADMAP §Phase 29 SC5 文字写 PID 1 = tini，但 entrypoint.sh 最后一行 `
 
 ### Primary（HIGH confidence）
 
-- [VERIFIED] `internal/cloudclaude/ssh.go` — sshConnect / runClaude / ConnectAndRunClaudeV3 当前实现
-- [VERIFIED] `internal/cloudclaude/mount_strategy.go` — MountConfig 字段（KeepAliveInterval / KeepAliveCountMax / SyncSessionLock 已预留）
-- [VERIFIED] `internal/cloudclaude/errcodes/codes.go` — 命名正则 + Registry / Format helper
-- [VERIFIED] `internal/cloudclaude/errcodes/{mount,net}.go` — Phase 31 既有注册模式
-- [VERIFIED] `internal/cloudclaude/last_session.go` — schema_version=1 + omitempty 模式
-- [VERIFIED] `internal/cloudclaude/sshfs_watcher.go` — Phase 31 watcher（C3 防御）
-- [VERIFIED] `internal/cloudclaude/colors.go` — ANSI 颜色 + colorize helper + NO_COLOR
-- [VERIFIED] `cmd/cloud-claude/main.go` — cobra 注册 + DisableFlagParsing 模式
-- [VERIFIED] `cmd/cloud-claude/sync.go` — Phase 31 子命令注册参考
+- [VERIFIED] `internal/claudedock/ssh.go` — sshConnect / runClaude / ConnectAndRunClaudeV3 当前实现
+- [VERIFIED] `internal/claudedock/mount_strategy.go` — MountConfig 字段（KeepAliveInterval / KeepAliveCountMax / SyncSessionLock 已预留）
+- [VERIFIED] `internal/claudedock/errcodes/codes.go` — 命名正则 + Registry / Format helper
+- [VERIFIED] `internal/claudedock/errcodes/{mount,net}.go` — Phase 31 既有注册模式
+- [VERIFIED] `internal/claudedock/last_session.go` — schema_version=1 + omitempty 模式
+- [VERIFIED] `internal/claudedock/sshfs_watcher.go` — Phase 31 watcher（C3 防御）
+- [VERIFIED] `internal/claudedock/colors.go` — ANSI 颜色 + colorize helper + NO_COLOR
+- [VERIFIED] `cmd/claudedock/main.go` — cobra 注册 + DisableFlagParsing 模式
+- [VERIFIED] `cmd/claudedock/sync.go` — Phase 31 子命令注册参考
 - [VERIFIED] `deploy/docker/managed-user/sshd_config` — ClientAliveInterval 15 / CountMax 8 / MaxSessions 30
 - [VERIFIED] `deploy/docker/managed-user/entrypoint.sh` — assert_tmux_version + 无 systemd
 - [VERIFIED] `.planning/phases/31-cli/31-RESEARCH.md` §1 — Mutagen 通信模型与 conn-C 模式
@@ -1593,7 +1593,7 @@ ROADMAP §Phase 29 SC5 文字写 PID 1 = tini，但 entrypoint.sh 最后一行 `
 ### Key Findings
 - CONTEXT.md 已对所有 gray area 决策；本研究**确认 D-03/D-04/D-05/D-10/D-11/D-15/D-16/D-22/D-23/D-28/D-29 全部可行**，无需调整
 - **修订 D-12** — tmux 没有 per-client 名 API，§5.2 提出三个 fallback（推荐 (a) 文件注册表）
-- **修订 D-17** — `/var/lock` 在 ubuntu:24.04 是 root-only，§6.2 推荐改用 `/tmp/cloud-claude/locks/`（0 侵入其它 phase）
+- **修订 D-17** — `/var/lock` 在 ubuntu:24.04 是 root-only，§6.2 推荐改用 `/tmp/claudedock/locks/`（0 侵入其它 phase）
 - **澄清 D-18** — Phase 31 `MountConfig.SyncSessionLock` 接口没传 conn，需在 `ssh.go ConnectAndRunClaudeV3` 内部覆盖此字段（不改 Phase 31 接口）
 - SendRequest 必须包 timeout（goroutine + `select <-time.After`）— 否则 dead network 会让 keepalive 永久阻塞而无法触发失败计数
 
@@ -1611,7 +1611,7 @@ ROADMAP §Phase 29 SC5 文字写 PID 1 = tini，但 entrypoint.sh 最后一行 `
 
 ### Open Questions（不阻塞 planner，留 plan 切分时拍板）
 1. tmux client 识别 fallback 策略（推荐 (a) 文件注册表）
-2. 单例锁路径（推荐 (c) `/tmp/cloud-claude/locks/`）
+2. 单例锁路径（推荐 (c) `/tmp/claudedock/locks/`）
 3. SyncSessionLock 注入位置（推荐 ssh.go 覆盖，不改 Phase 31 接口）
 4. reconnect 三态 UX 与用户输入的渲染并发（建议 v0 容忍偶尔覆盖）
 5. ringBuf 容量（建议默认 8KB）

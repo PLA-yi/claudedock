@@ -36,7 +36,7 @@ Accepts an optional topic argument: `/gsd-explore authentication strategy`
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/explore.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/explore.md
 </execution_context>
 
 <process>

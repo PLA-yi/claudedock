@@ -51,7 +51,7 @@ darwin 本地 4 道闸全部通过：
 
 1. **MVS-06 `TestExpiry_AutoStop_GoldenPath`**
    - 前置：Phase 46 Plan 01 Step 2 实现并消费 `controlPlaneSpec.ExtraEnv`，把 `EXPIRY_SCAN_INTERVAL=1s` 写入控制面子进程 env。
-   - 验证：30s 内容器 `cloudproxy-<host>` status=stopped + events 表出现 `host.stop.expired` 行。
+   - 验证：30s 内容器 `claudedock-<host>` status=stopped + events 表出现 `host.stop.expired` 行。
 
 2. **MVS-07 `TestEgressIPBinding_DoubleBindExcluded`**
    - 前置：admin login fixture（admin user + JWT secret 生效）。

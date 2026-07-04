@@ -53,7 +53,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| claude-shell/ 子目录独立 Dockerfile | 与 BUILD-02 一致，完全独立于 cloud-cli-proxy 主项目 | ✓ |
+| claude-shell/ 子目录独立 Dockerfile | 与 BUILD-02 一致，完全独立于 claudedock 主项目 | ✓ |
 | deploy/docker/claude-shell/ | 放在现有 deploy 目录下，与其他镜像并列 | |
 | managed-user 精简变体 | 多阶段构建，从 managed-user 裁剪 GUI 组件 | |
 

@@ -20,7 +20,7 @@ updated: 2026-04-24T06:16:25Z
 
 ### 1. 错误码注册与 explain 输出
 expected: |
-  cloud-claude explain MOUNT_REQUIRE_GIT_REPO 和 MOUNT_OVERSIZED_FILE_SKIPPED 子进程退出码为 0，
+  claudedock explain MOUNT_REQUIRE_GIT_REPO 和 MOUNT_OVERSIZED_FILE_SKIPPED 子进程退出码为 0，
   输出中文长说明 ≥200 字，且不含 "unknown code" 或英文 fallback。
 result: pass
 
@@ -55,7 +55,7 @@ result: pass
 
 ### 7. 非 git 目录拒绝挂载
 expected: |
-  cd /tmp && cloud-claude 立即拒绝挂载，stderr 含 MOUNT_REQUIRE_GIT_REPO + 中文 next_action，
+  cd /tmp && claudedock 立即拒绝挂载，stderr 含 MOUNT_REQUIRE_GIT_REPO + 中文 next_action，
   退出码 = 4（exitConfigError），不发起任何 SSH 连接。
 result: pass
 
@@ -73,13 +73,13 @@ result: pass
 
 ### 10. doctor mount 新增 5 项 check
 expected: |
-  cloud-claude doctor mount --json 输出中 checks 数组比 v3.0 多 5 项：
+  claudedock doctor mount --json 输出中 checks 数组比 v3.0 多 5 项：
   require_git_repo / oversized_files_count / sshfs_cache_args / git_proxy_enabled / default_ignore_loaded。
 result: pass
 
 ### 11. doctor mount check 矩阵测试
 expected: |
-  go test ./internal/cloudclaude/doctor/... 全部 PASS，含 13 条新增矩阵测试覆盖 pass/warn/fail/skip 全分支。
+  go test ./internal/claudedock/doctor/... 全部 PASS，含 13 条新增矩阵测试覆盖 pass/warn/fail/skip 全分支。
 result: pass
 
 ### 12. CI 闸门通过

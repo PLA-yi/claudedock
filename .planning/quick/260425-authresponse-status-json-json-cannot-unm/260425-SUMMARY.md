@@ -1,7 +1,7 @@
 ---
 phase: quick
 plan: "260425"
-subsystem: cloud-claude
+subsystem: claudedock
  tags:
   - bugfix
   - json
@@ -10,8 +10,8 @@ subsystem: cloud-claude
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/entry.go
-    - internal/cloudclaude/entry_compat_test.go
+    - internal/claudedock/entry.go
+    - internal/claudedock/entry_compat_test.go
 decisions:
   - Status 类型底层为 string，通过 String() 方法和直接比较运算符保持现有调用点零破坏
   - 数字 status 仅做解析兼容，不改变语义映射（"1" != "ready"），避免误匹配
@@ -42,7 +42,7 @@ metrics:
 
 ### Task 3: 全包回归验证
 
-- `go test ./internal/cloudclaude/... -count=1` 全 PASS（含 doctor / errcodes 子包）
+- `go test ./internal/claudedock/... -count=1` 全 PASS（含 doctor / errcodes 子包）
 - 无回归
 
 ## 测试覆盖
@@ -75,10 +75,10 @@ metrics:
 
 ## 自检查验
 
-- [x] `internal/cloudclaude/entry.go` 已修改，包含 Status 类型定义
-- [x] `internal/cloudclaude/entry_compat_test.go` 已修改，包含 7 条新测试
-- [x] `go build ./internal/cloudclaude/...` PASS
-- [x] `go test ./internal/cloudclaude/... -count=1` 全 PASS
+- [x] `internal/claudedock/entry.go` 已修改，包含 Status 类型定义
+- [x] `internal/claudedock/entry_compat_test.go` 已修改，包含 7 条新测试
+- [x] `go build ./internal/claudedock/...` PASS
+- [x] `go test ./internal/claudedock/... -count=1` 全 PASS
 - [x] 3 个 commit 均存在于 git 历史
 
 ## Self-Check: PASSED

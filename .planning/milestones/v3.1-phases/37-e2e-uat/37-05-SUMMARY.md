@@ -21,7 +21,7 @@ key-files:
   modified:
     - Makefile
 decisions:
-  - "场景 3/4/5 在非 Linux 平台 dry-run 时 SKIP（需要 Docker/cloud-claude/FUSE 内核支持）"
+  - "场景 3/4/5 在非 Linux 平台 dry-run 时 SKIP（需要 Docker/claudedock/FUSE 内核支持）"
   - "dry-run 模式各场景通过 write_json_report 自行填充状态，不做主函数覆盖"
 metrics:
   duration: "~15min"
@@ -56,7 +56,7 @@ metrics:
 - **双模式**：`--dry-run`（默认，仅打印操作描述）vs `--confirm-destructive`（实际 mount + 断言）
 - **退出码**：0=PASS / 1=FAIL / 2=SKIP（与 uat-network-resilience.sh 风格一致）
 - **JSON 报告**：`schema_version=1`，含 summary（pass/fail/skip）+ scenarios 数组
-- **平台适配**：非 Linux 平台场景 3/4/5 自动 SKIP（需要 Docker/cloud-claude/FUSE 内核支持）
+- **平台适配**：非 Linux 平台场景 3/4/5 自动 SKIP（需要 Docker/claudedock/FUSE 内核支持）
 - **安全闸门**：`--confirm-destructive` 中文提示确认
 
 ## 验收标准通过
@@ -82,8 +82,8 @@ metrics:
 [PASS]  非 git 目录拒绝挂载（dry-run 描述通过）
 [PASS]  大文件熔断（dry-run 描述通过）
 [SKIP]  fuse_cache_hit: 需要 Linux 内核 FUSE 支持（当前平台: Darwin）
-[SKIP]  cold_promotion: 需要 Docker + cloud-claude + SSH server + mergerfs ...
-[SKIP]  no_promotion: 需要 Docker + cloud-claude 完整链路（当前平台: Darwin）
+[SKIP]  cold_promotion: 需要 Docker + claudedock + SSH server + mergerfs ...
+[SKIP]  no_promotion: 需要 Docker + claudedock 完整链路（当前平台: Darwin）
 [PASS]  场景 6: schema_version == 1
 [PASS]  场景 6: scenarios 数组非空（6 个条目）
 

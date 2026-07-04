@@ -593,7 +593,7 @@ curl -s http://YOUR_HOST:8080/v1/admin/dashboard/stats \
 sudo bash deploy/scripts/backup.sh
 ```
 
-默认配置：备份目录 `/var/backups/cloud-cli-proxy`，保留 7 天。
+默认配置：备份目录 `/var/backups/claudedock`，保留 7 天。
 
 通过环境变量自定义：
 
@@ -604,7 +604,7 @@ BACKUP_DIR=/data/backups RETENTION_DAYS=30 bash deploy/scripts/backup.sh
 建议通过 cron 设置定期备份：
 
 ```bash
-echo "0 2 * * * root /opt/cloud-cli-proxy/deploy/scripts/backup.sh" > /etc/cron.d/cloud-cli-proxy-backup
+echo "0 2 * * * root /opt/claudedock/deploy/scripts/backup.sh" > /etc/cron.d/claudedock-backup
 ```
 
 ## 密钥轮换
@@ -612,7 +612,7 @@ echo "0 2 * * * root /opt/cloud-cli-proxy/deploy/scripts/backup.sh" > /etc/cron.
 ### JWT Secret 轮换
 
 1. 生成新密钥：`NEW_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '=+/' | head -c 48)`
-2. 更新 `/etc/cloud-cli-proxy/env` 中的 `ADMIN_JWT_SECRET`
-3. 重启控制面：`systemctl restart cloud-cli-proxy-control-plane`
+2. 更新 `/etc/claudedock/env` 中的 `ADMIN_JWT_SECRET`
+3. 重启控制面：`systemctl restart claudedock-control-plane`
 
 轮换后所有已颁发的 JWT Token 立即失效。

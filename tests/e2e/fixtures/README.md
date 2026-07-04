@@ -1,4 +1,4 @@
-# Cloud CLI Proxy e2e fixture
+# ClaudeDock e2e fixture
 
 本目录为 Phase 45 Plan 02 引入的 *e2e 专用* fixture，与 `docker-compose.dev.yml` 完全独立，专门服务 `tests/e2e/...` 套件。
 
@@ -6,7 +6,7 @@
 
 - **不复用 dev compose**：开发期热重载 / 源码挂载会污染 e2e 洁净副本（CONTEXT.md §Area 2 锁定）。
 - **起停由 Scenario 全权负责**：用例代码通过 `scenario.New(t)...Start(ctx)` 起，`Scenario.Stop` 在 `TearDownTest` 自动调用，**没有需要人工运行的脚本**。
-- **镜像复用生产构建**：`postgres:18`、`cloud-cli-proxy-sing-gateway:local`、`Dockerfile.managed-user` 全部沿用主仓库已经构建好的镜像，避免镜像漂移。
+- **镜像复用生产构建**：`postgres:18`、`claudedock-sing-gateway:local`、`Dockerfile.managed-user` 全部沿用主仓库已经构建好的镜像，避免镜像漂移。
 
 ## 拓扑
 

@@ -15,8 +15,8 @@ import (
 )
 
 // EnvArtifactBaseDir 环境变量可覆盖默认 artifact 根目录。CI workflow 通过
-// `env: CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR` 设置即可（Plan 05 e2e.yml 使用）。
-const EnvArtifactBaseDir = "CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR"
+// `env: CLAUDEDOCK_E2E_ARTIFACT_DIR` 设置即可（Plan 05 e2e.yml 使用）。
+const EnvArtifactBaseDir = "CLAUDEDOCK_E2E_ARTIFACT_DIR"
 
 // DefaultArtifactBaseDir 项目根相对路径，禁绝对路径（CONVENTIONS.md §Privacy）。
 const DefaultArtifactBaseDir = "./out/e2e-artifacts"
@@ -46,7 +46,7 @@ type ArtifactDumper struct {
 // NewArtifactDumper 构造 dumper。
 //
 // baseDir 为空时按以下优先级解析：
-//  1. 环境变量 EnvArtifactBaseDir（CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR）
+//  1. 环境变量 EnvArtifactBaseDir（CLAUDEDOCK_E2E_ARTIFACT_DIR）
 //  2. 编译默认 DefaultArtifactBaseDir（"./out/e2e-artifacts"）
 //
 // scenario 可为 nil；当前阶段未被使用，仅保留指针供 Phase 52 扩展。

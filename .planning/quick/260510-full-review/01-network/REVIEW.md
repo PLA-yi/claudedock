@@ -110,7 +110,7 @@ return map[string]any{"ssh_host": access.Host, ...}
 
 下游 (entry / bootstrap / sshproxy) 用这个值作为连接目标会失败 — 也可能下游另有逻辑从 docker inspect 拿真实 IP,这套 metadata 只是表面装饰。无论哪种,都是**契约错位**。
 
-**应当**: 立即追踪 `ssh_host` 实际消费方 (entry handoff、sshproxy、cloud-claude CLI),决定是从 docker inspect 拿真实 IP,还是把这个函数一并删掉。
+**应当**: 立即追踪 `ssh_host` 实际消费方 (entry handoff、sshproxy、claudedock CLI),决定是从 docker inspect 拿真实 IP,还是把这个函数一并删掉。
 
 ---
 

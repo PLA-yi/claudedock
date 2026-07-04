@@ -5,7 +5,7 @@ status: human_needed
 score: 8/8
 overrides_applied: 0
 human_verification:
-  - test: "在本地项目目录运行 cloud-claude，容器内 ls /workspace 可看到本地文件"
+  - test: "在本地项目目录运行 claudedock，容器内 ls /workspace 可看到本地文件"
     expected: "容器 /workspace 下内容与本地 CWD 一致"
     why_human: "需要运行中的网关和容器环境，无法离线验证 sshfs 挂载"
   - test: "在容器内 /workspace 创建文件，退出会话后本地目录出现该文件"
@@ -14,7 +14,7 @@ human_verification:
   - test: "正常退出（exit/Ctrl+D）后执行 mountpoint -q /workspace 返回非零"
     expected: "挂载点已被清理，无残留"
     why_human: "需要真实 FUSE 环境验证清理逻辑"
-  - test: "异常退出（kill -9 cloud-claude）后容器内挂载点无残留"
+  - test: "异常退出（kill -9 claudedock）后容器内挂载点无残留"
     expected: "fusermountCleanup 或后续启动时防御性卸载生效"
     why_human: "异常退出场景需要真实 SSH 连接和容器环境"
 ---
@@ -34,7 +34,7 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| SC-1 | 用户运行 cloud-claude 时，CLI 自动在第二个 SSH session 上通过 sshfs slave 将当前目录映射到容器 /workspace | ✓ VERIFIED | `mount.go:44` 通过 `conn.NewSession()` 创建独立 sshfs session，`mount.go:62` 执行 `sshfs : /workspace -o passive -f`；`ssh.go:34` 在 ConnectAndRunClaude 内调用 `mountWorkspace(conn, cwd)` |
+| SC-1 | 用户运行 claudedock 时，CLI 自动在第二个 SSH session 上通过 sshfs slave 将当前目录映射到容器 /workspace | ✓ VERIFIED | `mount.go:44` 通过 `conn.NewSession()` 创建独立 sshfs session，`mount.go:62` 执行 `sshfs : /workspace -o passive -f`；`ssh.go:34` 在 ConnectAndRunClaude 内调用 `mountWorkspace(conn, cwd)` |
 | SC-2 | 本地文件修改在容器内即时可见，容器内文件修改在本地即时可见（双向实时读写） | ✓ VERIFIED | `mount.go:70` 使用 `sftp.NewServer(rwc, sftp.WithServerWorkingDirectory(localDir))` 创建 SFTP server，SFTP 协议天然支持双向读写；`localDir` 由 `main.go:160` 的 `os.Getwd()` 获取后经 `ssh.go:34` 传入 |
 | SC-3 | Claude Code 以 /workspace 为工作目录运行，可正常读写项目文件 | ✓ VERIFIED | `ssh.go:116` 构建远程命令为 `remoteCmd := "cd /workspace && " + claudeCmd`，保证 claude 在挂载目录内运行 |
 | SC-4 | 会话正常或异常退出时，容器内 sshfs 挂载点和相关资源自动清理 | ✓ VERIFIED | `mount.go:99-104` cleanup 函数按序执行：`sshfsSession.Close()` → `<-sftpDone` → `server.Close()` → `fusermountCleanup(conn)`；`ssh.go:38` 通过 `defer cleanupMount()` 保证执行 |
@@ -64,11 +64,11 @@ human_verification:
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `internal/cloudclaude/mount.go` | mountWorkspace, waitForMount, fusermountCleanup, channelRWC, MountNotReadyError | ✓ VERIFIED | 151 行，全部函数/类型存在且实现完整 |
-| `internal/cloudclaude/mount_test.go` | TestWaitForMount 三个子测试 | ✓ VERIFIED | 61 行，3 个子测试全部 PASS |
+| `internal/claudedock/mount.go` | mountWorkspace, waitForMount, fusermountCleanup, channelRWC, MountNotReadyError | ✓ VERIFIED | 151 行，全部函数/类型存在且实现完整 |
+| `internal/claudedock/mount_test.go` | TestWaitForMount 三个子测试 | ✓ VERIFIED | 61 行，3 个子测试全部 PASS |
 | `go.mod` | github.com/pkg/sftp v1.13.10 | ✓ VERIFIED | 依赖声明存在，版本匹配 |
-| `internal/cloudclaude/ssh.go` | 三阶段 ConnectAndRunClaude + sshConnect + runClaude | ✓ VERIFIED | 134 行，三函数完整实现 |
-| `cmd/cloud-claude/main.go` | os.Getwd() + CWD 传递到 ConnectAndRunClaude | ✓ VERIFIED | line 160 获取 CWD，line 173 传入 |
+| `internal/claudedock/ssh.go` | 三阶段 ConnectAndRunClaude + sshConnect + runClaude | ✓ VERIFIED | 134 行，三函数完整实现 |
+| `cmd/claudedock/main.go` | os.Getwd() + CWD 传递到 ConnectAndRunClaude | ✓ VERIFIED | line 160 获取 CWD，line 173 传入 |
 
 ### Key Link Verification
 
@@ -93,10 +93,10 @@ human_verification:
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
 | 全项目编译 | `go build ./...` | exit 0 | ✓ PASS |
-| cloudclaude 包编译 | `go build ./internal/cloudclaude/...` | exit 0 | ✓ PASS |
-| CLI 二进制编译 | `go build ./cmd/cloud-claude/...` | exit 0 | ✓ PASS |
-| waitForMount 测试 | `go test ./internal/cloudclaude/ -run TestWaitForMount -v` | 3/3 PASS | ✓ PASS |
-| go vet | `go vet ./internal/cloudclaude/... ./cmd/cloud-claude/...` | exit 0 | ✓ PASS |
+| claudedock 包编译 | `go build ./internal/claudedock/...` | exit 0 | ✓ PASS |
+| CLI 二进制编译 | `go build ./cmd/claudedock/...` | exit 0 | ✓ PASS |
+| waitForMount 测试 | `go test ./internal/claudedock/ -run TestWaitForMount -v` | 3/3 PASS | ✓ PASS |
+| go vet | `go vet ./internal/claudedock/... ./cmd/claudedock/...` | exit 0 | ✓ PASS |
 
 ### Requirements Coverage
 
@@ -122,7 +122,7 @@ human_verification:
 
 ### 1. sshfs 挂载实际生效
 
-**Test:** 在本地项目目录运行 `cloud-claude`，容器内执行 `ls /workspace` 检查文件列表
+**Test:** 在本地项目目录运行 `claudedock`，容器内执行 `ls /workspace` 检查文件列表
 **Expected:** 容器 /workspace 下内容与本地 CWD 一致
 **Why human:** 需要运行中的 SSH 网关和带 FUSE 支持的容器环境
 
@@ -134,13 +134,13 @@ human_verification:
 
 ### 3. 正常退出清理
 
-**Test:** 正常退出 cloud-claude（exit 或 Ctrl+D），然后在容器内执行 `mountpoint -q /workspace`
+**Test:** 正常退出 claudedock（exit 或 Ctrl+D），然后在容器内执行 `mountpoint -q /workspace`
 **Expected:** 返回非零退出码（挂载点已清理）
 **Why human:** 需要真实 FUSE 环境和 SSH 连接验证清理链
 
 ### 4. 异常退出清理
 
-**Test:** 运行 cloud-claude 后 `kill -9` 进程，检查容器内挂载点状态
+**Test:** 运行 claudedock 后 `kill -9` 进程，检查容器内挂载点状态
 **Expected:** fusermountCleanup 兜底或下次启动时防御性卸载生效
 **Why human:** 异常退出场景需要真实进程管理和容器环境
 

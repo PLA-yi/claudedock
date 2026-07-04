@@ -23,11 +23,11 @@ requirements_completed:
 
 ### DEP-01: docker-compose.yml 精简
 - 移除 postgres、admin、sing-box 三个服务定义
-- 移除 `cloudproxy-postgres` volume
+- 移除 `claudedock-postgres` volume
 - 最终保留 2 个服务：control-plane + managed-user
 
 ### DEP-02: control-plane SQLite 数据卷
-- `DATABASE_URL` 改为 `file:/data/cloud-cli-proxy.db`
+- `DATABASE_URL` 改为 `file:/data/claudedock.db`
 - 新增 `./data:/data` volume 映射确保 SQLite 数据持久化
 
 ### DEP-03: 环境变量清理

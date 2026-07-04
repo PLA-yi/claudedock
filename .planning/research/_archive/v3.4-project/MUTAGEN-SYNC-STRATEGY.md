@@ -13,7 +13,7 @@
 3. [删除防抖动与Staging机制](#3-删除防抖动与staging机制)
 4. [扫描失败保护行为](#4-扫描失败保护行为)
 5. [快照与状态机机制](#5-快照与状态机机制)
-6. [对 Cloud CLI Proxy Hot-Sync 的改进建议](#6-对-cloud-cli-proxy-hot-sync-的改进建议)
+6. [对 ClaudeDock Hot-Sync 的改进建议](#6-对-claudedock-hot-sync-的改进建议)
 7. [关键概念定义](#7-关键概念定义)
 8. [来源引用](#8-来源引用)
 
@@ -151,9 +151,9 @@ sync:
 
 **关键洞察:** Staging 仅影响"文件如何被写入目标端"，不影响"何时执行删除"。删除操作在 reconciliation 决策后立即执行，没有延迟窗口。
 
-### 3.3 与 Cloud CLI Proxy Hot-Sync 的对比
+### 3.3 与 ClaudeDock Hot-Sync 的对比
 
-| 机制 | Mutagen | Cloud CLI Proxy (Phase 36-37) |
+| 机制 | Mutagen | ClaudeDock (Phase 36-37) |
 |------|---------|------------------------------|
 | 删除保护 | 无延迟，依赖安全机制 halt | 大文件熔断 (50MB+) |
 | 传输原子性 | Staging + 原子重命名 | SFTP 直接写入 |
@@ -309,9 +309,9 @@ run() 循环:
 
 ---
 
-## 6. 对 Cloud CLI Proxy Hot-Sync 的改进建议
+## 6. 对 ClaudeDock Hot-Sync 的改进建议
 
-基于 Mutagen 的研究，以下建议可用于改进 Cloud CLI Proxy 的 hot-sync 引擎（Phase 36-37 已实现的基础之上）：
+基于 Mutagen 的研究，以下建议可用于改进 ClaudeDock 的 hot-sync 引擎（Phase 36-37 已实现的基础之上）：
 
 ### 6.1 建议 1: 引入三向合并替代单向覆盖
 

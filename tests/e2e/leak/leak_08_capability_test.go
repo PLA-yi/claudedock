@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	e2e "github.com/zanel1u/cloud-cli-proxy/tests/e2e"
+	e2e "github.com/claudedock/claudedock/tests/e2e"
 )
 
 func TestLeak_08_WorkerCapabilities_Locked(t *testing.T) {

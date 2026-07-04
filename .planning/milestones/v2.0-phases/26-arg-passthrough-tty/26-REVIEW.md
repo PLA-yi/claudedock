@@ -4,8 +4,8 @@ reviewed: 2026-04-15T12:00:00Z
 depth: standard
 files_reviewed: 4
 files_reviewed_list:
-  - internal/cloudclaude/ssh.go
-  - cmd/cloud-claude/main.go
+  - internal/claudedock/ssh.go
+  - cmd/claudedock/main.go
   - go.mod
   - go.sum
 findings:
@@ -41,8 +41,8 @@ status: issues_found
 
 ### WR-01：SIGWINCH 监听协程在会话结束后无法退出（协程泄漏）
 
-**File:** `internal/cloudclaude/ssh.go:82-91`  
-**Issue:** `go func()` 中使用 `for range sigCh` 从信号通道接收。`defer signal.Stop(sigCh)` 会停止向该通道投递信号，但**不会关闭通道**。`for range` 在通道未关闭时会一直阻塞，因此每次 TTY 会话结束仍会残留一个永久阻塞的 goroutine；频繁使用 `cloud-claude` 会累积泄漏。  
+**File:** `internal/claudedock/ssh.go:82-91`  
+**Issue:** `go func()` 中使用 `for range sigCh` 从信号通道接收。`defer signal.Stop(sigCh)` 会停止向该通道投递信号，但**不会关闭通道**。`for range` 在通道未关闭时会一直阻塞，因此每次 TTY 会话结束仍会残留一个永久阻塞的 goroutine；频繁使用 `claudedock` 会累积泄漏。  
 **Fix:** 在会话生命周期上增加显式结束信号，例如：
 
 ```go
@@ -69,13 +69,13 @@ defer signal.Stop(sigCh)
 
 ### IN-01：`os.Exit` 之后的不可达 `return nil`
 
-**File:** `cmd/cloud-claude/main.go:119-123`、`145-155`  
+**File:** `cmd/claudedock/main.go:119-123`、`145-155`  
 **Issue:** 若干分支在 `os.Exit(...)` 之后仍有 `return nil`，编译器可能报 unreachable（视工具链而定），且增加阅读噪音。  
 **Fix:** 删除 `os.Exit` 之后的 `return nil`，或改为 `return` 前集中处理退出（例如抽成小函数统一 `os.Exit`）。
 
 ### IN-02：SSH 主机密钥未校验（既有行为）
 
-**File:** `internal/cloudclaude/ssh.go:33`  
+**File:** `internal/claudedock/ssh.go:33`  
 **Issue:** `ssh.InsecureIgnoreHostKey()` 使连接易受 MITM 攻击；若为本阶段可接受的开发/内网假设，建议在后续阶段或文档中明确。非 Phase 26 新引入逻辑，仅作备案。  
 **Fix:** 后续可改为 `KnownHosts` 或固定 host key fingerprint 校验。
 

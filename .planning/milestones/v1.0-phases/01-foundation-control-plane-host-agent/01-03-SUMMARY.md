@@ -25,12 +25,12 @@ key-files:
     - internal/controlplane/http/hosts.go
     - internal/controlplane/http/tasks.go
     - internal/network/provider.go
-    - deploy/systemd/cloud-cli-proxy-host-agent.service
+    - deploy/systemd/claudedock-host-agent.service
   modified:
     - internal/controlplane/app/app.go
     - internal/controlplane/http/router.go
     - internal/store/repository/queries.go
-    - deploy/systemd/cloud-cli-proxy-control-plane.service
+    - deploy/systemd/claudedock-control-plane.service
     - deploy/scripts/host-preflight.sh
 key-decisions:
   - "控制面通过 Unix socket 私有 API 调用 host-agent，而不是在 HTTP 层直接操作 Docker。"
@@ -73,7 +73,7 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 - `cmd/host-agent/main.go` - host-agent 启动入口与数据库连接
-- `internal/agent/server.go` - 监听 `/run/cloud-cli-proxy/host-agent.sock` 的私有 API 服务
+- `internal/agent/server.go` - 监听 `/run/claudedock/host-agent.sock` 的私有 API 服务
 - `internal/agentapi/contracts.go` - `HostActionRequest`、`HostActionResponse`、`TaskStatusUpdate`
 - `internal/agentapi/client.go` - 控制面对 Unix socket 的 `RunHostAction` 客户端
 - `internal/runtime/tasks/worker.go` - 真实 Docker lifecycle 执行与任务状态写回
@@ -81,7 +81,7 @@ Each task was committed atomically:
 - `internal/controlplane/http/hosts.go` - `POST /v1/hosts/{hostID}/create|start|stop|rebuild`
 - `internal/controlplane/http/tasks.go` - 真实 `GET /v1/tasks` 列表
 - `internal/network/provider.go` - `Provider` / `NoopProvider` seam
-- `deploy/systemd/cloud-cli-proxy-host-agent.service` - host-agent 权限边界
+- `deploy/systemd/claudedock-host-agent.service` - host-agent 权限边界
 
 ## Decisions Made
 - 任务调度阶段就消费 `image.lock`，避免 host-agent 和 control-plane 分别猜测镜像/挂载参数。

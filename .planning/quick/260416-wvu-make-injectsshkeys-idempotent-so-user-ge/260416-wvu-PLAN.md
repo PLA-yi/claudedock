@@ -22,7 +22,7 @@ must_haves:
   artifacts:
     - path: "internal/runtime/tasks/worker.go"
       provides: "injectSSHKeys / injectSSHKeysLegacy 幂等写入 + authorized_keys marker 合并"
-      contains: "cloud-cli-proxy managed keys"
+      contains: "claudedock managed keys"
     - path: "internal/runtime/tasks/ssh_inject_test.go"
       provides: "injectSSHKeys 幂等与合并行为的单元测试"
       contains: "ssh_key_skipped_existing"
@@ -34,7 +34,7 @@ must_haves:
     - from: "authorized_keys 合并器"
       to: "marker 常量"
       via: "字符串拼接后整体 cat > 写回"
-      pattern: ">>> cloud-cli-proxy managed keys"
+      pattern: ">>> claudedock managed keys"
 ---
 
 <objective>
@@ -82,8 +82,8 @@ var execInContainer = func(ctx context.Context, container, script string, stdin 
 
 // Marker 常量（用于 authorized_keys 合并）：
 const (
-    sshManagedBeginMarker = "# >>> cloud-cli-proxy managed keys (do not edit) >>>"
-    sshManagedEndMarker   = "# <<< cloud-cli-proxy managed keys <<<"
+    sshManagedBeginMarker = "# >>> claudedock managed keys (do not edit) >>>"
+    sshManagedEndMarker   = "# <<< claudedock managed keys <<<"
 )
 ```
 
@@ -118,8 +118,8 @@ const (
 2. 在同一文件顶部的 `const` 区（`defaultWorkspaceMount` 附近或新增独立 const 块）新增 authorized_keys marker 常量：
    ```go
    const (
-       sshManagedBeginMarker = "# >>> cloud-cli-proxy managed keys (do not edit) >>>"
-       sshManagedEndMarker   = "# <<< cloud-cli-proxy managed keys <<<"
+       sshManagedBeginMarker = "# >>> claudedock managed keys (do not edit) >>>"
+       sshManagedEndMarker   = "# <<< claudedock managed keys <<<"
    )
    ```
 

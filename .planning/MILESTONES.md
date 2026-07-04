@@ -59,7 +59,7 @@
 - **netshoot privileged sidecar** —— host eth0 tcpdump 改走 `docker run --network host --cap-add NET_RAW/NET_ADMIN nicolaka/netshoot:v0.13`，新增 `E2E_TCPDUMP_IMAGE` / `E2E_ALLOW_HOST_TCPDUMP` env 覆盖
 - **Pumba 0.10.0 固定 tag** —— 避免 latest 漂移
 - **nft counter + linklocal-drop** —— QUAL-05 所有规则插入 `expr.Counter{}`；worker 输出链注入 `ip daddr 169.254.0.0/16 counter drop comment "linklocal-drop"`
-- **goleak.VerifyTestMain** —— QUAL-08 在 `internal/network` / `cmd/cloud-claude` / `internal/controlplane/app` 三包接入；ignore list 仅 `broadcast.(*Hub).cleanupLoop`
+- **goleak.VerifyTestMain** —— QUAL-08 在 `internal/network` / `cmd/claudedock` / `internal/controlplane/app` 三包接入；ignore list 仅 `broadcast.(*Hub).cleanupLoop`
 - **CONTEXT §Area 3 「以源码为准」** —— MVS-05 被测 binary 改为 `cloud-bootstrap.sh`；Phase 47 草案 5 项偏差全部以源码为准；NET_ADMIN 折中保留（sing-box tun 在 worker netns 创建 tun0 的依赖）
 - **CONTEXT §Area 4 「darwin 编译 + 纯函数单测 PASS = passed；Linux 真机断言 deferred-to-CI 非阻塞 ship」** —— 9 个签字点全 deferred-to-CI 不构成阻塞
 - **CI 走 hosted ubuntu-24.04** —— 弃用 self-hosted Linux runner（E2E-03 草案），与 v3.5 uat-bypass.yml 同款 runner 池
@@ -149,7 +149,7 @@
 **Key accomplishments:**
 
 - SSH Proxy 端口转发：direct-tcpip channel dispatch + tcpip-forward/forwarded-tcpip 全局请求透传 + 管理网段/Docker socket/metadata 安全拦截 + sshd_config 验证
-- 本地 Dev Containers：`cloud-claude local up/down/status` cobra 子命令组 + `internal/local` 包 + entrypoint `MODE=local` + sing-box tun/proxy 双模式出网 + `--egress-config` 注入 + devcontainer.json 模板
+- 本地 Dev Containers：`claudedock local up/down/status` cobra 子命令组 + `internal/local` 包 + entrypoint `MODE=local` + sing-box tun/proxy 双模式出网 + `--egress-config` 注入 + devcontainer.json 模板
 - VS Code Remote-SSH E2E：端到端连接 + 端口转发 + 出口 IP 强约束验证（6→9 场景 UAT 脚本）
 - Doctor remote-ssh 维度：5 项检查（VS Code Server 进程 / vscode-server 磁盘占用 / forwarding channel / sshd 进程 / sing-box 进程）+ 6 个新错误码 + 20 个单元测试
 - doctor sshd_config 主动验证：parseSSHDForwarding + checkSSHDForwarding + 3 个错误码（SSH_SSHD_FORWARDING_DISABLED / SSH_SSHD_STREAM_FORWARDING_DISABLED / SSH_SSHD_GATEWAY_PORTS_OPEN）+ 13 个单元测试
@@ -213,7 +213,7 @@
 - 单文件 50MB 熔断（可配置 `hot_sync_max_file_mb`）：`HotSyncEngine` 超阈文件不进热同步，走 cold sshfs 兜底；`last-session.json` 记录熔断清单，stderr 一次性提示
 - sshfs FUSE page cache 命中：`cache=yes,kernel_cache,auto_cache,cache_timeout=300` 默认开启，同会话重复读零额外 RTT
 - doctor mount 9 项 check：从 v3.0 的 4 项扩展到 9 项（+git 仓库 / 大文件熔断 / sshfs 缓存 / git proxy / ignore 加载状态），13 条矩阵测试全 PASS
-- `cloud-claude explain` 新增 2 条错误码长说明：`MOUNT_REQUIRE_GIT_REPO` / `MOUNT_OVERSIZED_FILE_SKIPPED`，rustc 风格 ≥200 字中文说明
+- `claudedock explain` 新增 2 条错误码长说明：`MOUNT_REQUIRE_GIT_REPO` / `MOUNT_OVERSIZED_FILE_SKIPPED`，rustc 风格 ≥200 字中文说明
 - ColdPromoter 冷文件晋升引擎：容器内 inotify `IN_OPEN/IN_ACCESS` 监听 + 异步 SFTP 拉取到 hot 分支，5s 防抖去重 + 1/2/4s 指数退避 + 3 次熔断
 - 晋升机制完整集成：`tryModeReal` Full 路径 mergerfs ready 后启动，cleanup LIFO 回收；`CLOUD_CLAUDE_NO_PROMOTION=1` 全量关闭
 - 晋升可观测性：`last-session.json` 新增 `promotion_count/bytes/failed_count`；doctor 新增 4 项晋升指标（promoter_alive / queue_depth / total / failed）
@@ -248,11 +248,11 @@
 - 三层文件系统架构：Mutagen 热同步白名单（≤50MB + ignore）+ sshfs 冷兜底全量懒拉 + mergerfs 单一 `/workspace` 视图，替换 v2.0 纯 sshfs 性能天花板
 - `--mount-mode=auto|full|mutagen-only|sshfs-only` 四档降级状态机：任一层失败 ≤2s 降级 + 禁止静默降级 + last-session.json downgrade_chain 留痕 + banner 彩色 mount 模式标签（NO_COLOR 尊重）
 - SSH 弱网容忍：KeepAlive 15s/4 强制下限 + Reconnector 退避 1/2/4/8/30s + token 复用不弹密码 + BufferedStdin 灰色未确认本地 echo + ringBuf 按序回放
-- tmux 默认包装 + 多端共享 attach：`exec tmux new-session -A -s claude-<account_id>` + `cloud-claude sessions ls/attach` + `--new-session`/`--take-over` + 第二端 banner 显示其它会话来源 + 活跃时间
+- tmux 默认包装 + 多端共享 attach：`exec tmux new-session -A -s claude-<account_id>` + `claudedock sessions ls/attach` + `--new-session`/`--take-over` + 第二端 banner 显示其它会话来源 + 活跃时间
 - 账号级 Mutagen 单例锁：远程 flock + ErrSyncLocked 降级 ModeSSHFSOnly + IsSecondaryClient=true + last-session.json client_role=secondary
-- Claude Code OAuth 持久化：单 Docker named volume `claude-state-{claude_account_id}` + label `com.cloud-cli-proxy.account_id` + entrypoint symlink + chown 1000:1000 兜底；admin DELETE claude_account 事务性联动 `volume rm`（强一致 10s + force 30s 双路径，错误码 STATE_VOLUME_IN_USE_001 + 6 类 audit 事件）
-- `cloud-claude doctor` 5 维度 18 项 check（network/auth/ssh/mount=mutagen+sshfs+mergerfs/disk）+ 6 类自动 fix（mutagen agent / FUSE 残留 / known_hosts / token / OAuth refresh / DNS）+ JSON schema_v1 + 退出码 0/1/2 brew 对齐 + 第一屏降级历史 banner + scripts/ci-doctor-grep.sh M14 闸门
-- 错误码统一：42 条 Code 8 域闭合（MOUNT/SESSION/NET/STATE/SYSTEM/SSH/AUTH/DISK + 既有），格式 `<DOMAIN>_<KIND>_<NUM>`，三要素强制（Code + 中文 message + 中文 next_action），CI 单测遍历 + `cloud-claude explain <code>` 子命令对每个码给 ≥200 字符长说明（rustc 风格）
+- Claude Code OAuth 持久化：单 Docker named volume `claude-state-{claude_account_id}` + label `com.claudedock.account_id` + entrypoint symlink + chown 1000:1000 兜底；admin DELETE claude_account 事务性联动 `volume rm`（强一致 10s + force 30s 双路径，错误码 STATE_VOLUME_IN_USE_001 + 6 类 audit 事件）
+- `claudedock doctor` 5 维度 18 项 check（network/auth/ssh/mount=mutagen+sshfs+mergerfs/disk）+ 6 类自动 fix（mutagen agent / FUSE 残留 / known_hosts / token / OAuth refresh / DNS）+ JSON schema_v1 + 退出码 0/1/2 brew 对齐 + 第一屏降级历史 banner + scripts/ci-doctor-grep.sh M14 闸门
+- 错误码统一：42 条 Code 8 域闭合（MOUNT/SESSION/NET/STATE/SYSTEM/SSH/AUTH/DISK + 既有），格式 `<DOMAIN>_<KIND>_<NUM>`，三要素强制（Code + 中文 message + 中文 next_action），CI 单测遍历 + `claudedock explain <code>` 子命令对每个码给 ≥200 字符长说明（rustc 风格）
 - 镜像 v3 基线：mergerfs 2.41.1（GitHub static `.deb` 反 PITFALLS M3）+ mutagen-agent v0.18.1 tarball 预放 + tmux 3.6a 核对 + libfuse3 3.18.x；entrypoint 串行 prepare-fuse → chown → mutagen-agent → mergerfs → wait → exec sshd（防 PITFALLS M4）；image.lock v3.0.0 + CI 镜像 ≤ 700MB gate
 - Worker 容器参数扩展：`HostActionRequest.Volumes []VolumeMount` + `ClaudeAccountID` 字段；`createHost` 在 ClaudeAccountID 非空时自动 `ensureDockerVolume` 幂等创建 + 追加 mount + Upsert 写库
 - 控制面数据模型：migration 0014 `claude_accounts.persistent_volume_name`；Entry API `/v1/entry/{id}/auth` 追加 `image_version` / `supports_mutagen` / `supports_mergerfs` / `claude_account_id`（向后兼容，旧 v2 client 不破）
@@ -263,7 +263,7 @@
 **Coverage:**
 
 - Requirements: **33/34 satisfied** — 30 functional + 3 baselines（BASE-01/03/04）satisfied；BASE-02 自动化 PASS / 真机签字 deferred-to-ship
-- Cross-phase integration: 4 条核心 E2E flow 全闭环（cloud-claude 启动 / 网络抖动重连 / admin DELETE volume rm / doctor + ApplyFixes）；零 orphan export，零 broken wiring
+- Cross-phase integration: 4 条核心 E2E flow 全闭环（claudedock 启动 / 网络抖动重连 / admin DELETE volume rm / doctor + ApplyFixes）；零 orphan export，零 broken wiring
 - Critical Pitfalls 防御：C1/C2/C3/C4/C5/C6/C7/C8 + M13/M14 全部覆盖（验证手段见 v3.0-MILESTONE-AUDIT.md）
 
 **Known deferred items at close:** 23 (see STATE.md `## Deferred Items`)
@@ -285,7 +285,7 @@
 
 ---
 
-## v2.0 cloud-claude 透明远程 CLI (Shipped: 2026-04-15)
+## v2.0 claudedock 透明远程 CLI (Shipped: 2026-04-15)
 
 **Phases completed:** 5 phases, 7 plans, 16 tasks
 

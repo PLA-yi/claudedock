@@ -35,12 +35,12 @@ function PortalLayout() {
         <footer className="mt-8 border-t pt-4 pb-2 text-center text-xs text-muted-foreground">
           Powered by{" "}
           <a
-            href="https://github.com/zanel1u/cloud-cli-proxy"
+            href="https://github.com/claudedock/claudedock"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-primary hover:underline"
           >
-            cloud-cli-proxy
+            claudedock
           </a>
         </footer>
       </main>

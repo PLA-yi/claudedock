@@ -34,7 +34,7 @@ Verify milestone achieved its definition of done. Check requirements coverage, c
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/audit-milestone.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/audit-milestone.md
 </execution_context>
 
 <context>

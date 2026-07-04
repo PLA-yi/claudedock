@@ -36,50 +36,235 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ============ 糖果霓虹 · 浅色主题 tokens ============ */
 :root {
-  --background: oklch(0.995 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.985 0.010 320);
+  --foreground: oklch(0.24 0.035 288);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.488 0.200 264);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.965 0.005 264);
-  --secondary-foreground: oklch(0.3 0.06 264);
-  --muted: oklch(0.968 0.003 264);
-  --muted-foreground: oklch(0.50 0.02 264);
-  --accent: oklch(0.955 0.012 264);
-  --accent-foreground: oklch(0.35 0.08 264);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: oklch(0.62 0.17 145);
-  --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.72 0.17 75);
-  --warning-foreground: oklch(0.18 0 0);
-  --info: oklch(0.58 0.16 220);
-  --info-foreground: oklch(0.985 0 0);
-  --border: oklch(0.915 0.006 264);
-  --input: oklch(0.915 0.006 264);
+  --card-foreground: oklch(0.24 0.035 288);
+  --primary: oklch(0.605 0.235 300);
+  --primary-foreground: oklch(0.99 0.005 320);
+  --secondary: oklch(0.955 0.030 320);
+  --secondary-foreground: oklch(0.36 0.11 302);
+  --muted: oklch(0.965 0.016 318);
+  --muted-foreground: oklch(0.53 0.035 296);
+  --accent: oklch(0.945 0.040 320);
+  --accent-foreground: oklch(0.36 0.12 305);
+  --destructive: oklch(0.60 0.235 18);
+  --success: oklch(0.70 0.16 168);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.80 0.15 82);
+  --warning-foreground: oklch(0.24 0.02 60);
+  --info: oklch(0.66 0.16 232);
+  --info-foreground: oklch(0.99 0 0);
+  --border: oklch(0.905 0.020 315);
+  --input: oklch(0.918 0.020 315);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --ring: oklch(0.488 0.200 264);
-  --sidebar: oklch(0.185 0.04 264);
-  --sidebar-foreground: oklch(0.85 0.02 264);
-  --sidebar-muted: oklch(0.4 0.03 264);
-  --sidebar-accent: oklch(0.28 0.06 264);
-  --radius: 0.625rem;
+  --popover-foreground: oklch(0.24 0.035 288);
+  --ring: oklch(0.62 0.22 300);
+  --sidebar: oklch(0.975 0.020 320);
+  --sidebar-foreground: oklch(0.30 0.035 290);
+  --sidebar-muted: oklch(0.55 0.035 296);
+  --sidebar-accent: oklch(0.90 0.055 315);
+  --radius: 0.75rem;
+
+  /* 炫彩渐变与光效 */
+  --grad-brand: linear-gradient(120deg, #8b5cf6 0%, #22d3ee 52%, #fb7bd0 100%);
+  --grad-brand-soft: linear-gradient(120deg, #a78bfa 0%, #67e8f9 50%, #f9a8d4 100%);
+  --grad-panel: linear-gradient(150deg, #7c3aed 0%, #d946ef 30%, #6366f1 58%, #06b6d4 100%);
+  --glow-brand: 0 10px 32px -10px rgba(139, 92, 246, 0.55);
+  --glow-brand-strong: 0 14px 40px -8px rgba(139, 92, 246, 0.7);
 }
 
 * {
   border-color: var(--border);
 }
 
+html,
 body {
-  background: var(--background);
+  min-height: 100%;
+}
+
+body {
   color: var(--foreground);
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    sans-serif;
+  background: var(--background);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============ 全屏流动极光背景 ============ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  background:
+    radial-gradient(42vmax 42vmax at 12% -6%, rgba(167, 139, 250, 0.45), transparent 62%),
+    radial-gradient(40vmax 40vmax at 102% 8%, rgba(103, 232, 249, 0.40), transparent 60%),
+    radial-gradient(46vmax 46vmax at 82% 104%, rgba(249, 168, 212, 0.42), transparent 62%),
+    radial-gradient(38vmax 38vmax at 8% 100%, rgba(147, 197, 253, 0.35), transparent 60%);
+  filter: saturate(125%);
+  animation: aurora 24s ease-in-out infinite alternate;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(124, 92, 246, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 92, 246, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 50% 40%, #000, transparent 78%);
+  pointer-events: none;
+}
+@keyframes aurora {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -1.5%, 0) scale(1.08); }
+  100% { transform: translate3d(-1.5%, 1.5%, 0) scale(1.04); }
+}
+
+/* ============ 复用工具类 ============ */
+.grad-text {
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.grad-brand-bg { background-image: var(--grad-brand); }
+.glow-brand { box-shadow: var(--glow-brand); }
+
+/* 玻璃拟态卡片 */
+.card-glass {
+  position: relative;
+  background: color-mix(in oklch, white 72%, transparent);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 12px 36px -18px rgba(124, 92, 246, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: box-shadow 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+}
+/* 顶部霓虹描边 */
+.card-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--grad-brand-soft);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 通用玻璃面 */
+.glass {
+  background: color-mix(in oklch, white 60%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* 侧栏 / 顶栏玻璃 */
+.sidebar-glass {
+  background: color-mix(in oklch, white 62%, transparent);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+}
+.topbar-glass {
+  background: color-mix(in oklch, white 55%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+/* 导航激活态：糖果渐变 + 发光 */
+.nav-active {
+  background: var(--grad-brand);
+  color: #fff !important;
+  box-shadow: 0 8px 22px -8px rgba(139, 92, 246, 0.65);
+}
+.nav-active svg { color: #fff !important; }
+
+/* 品牌渐变按钮 */
+.btn-brand {
+  background: var(--grad-brand);
+  background-size: 160% 160%;
+  color: #fff;
+  box-shadow: var(--glow-brand);
+  transition: background-position 0.5s ease, box-shadow 0.3s ease, transform 0.12s ease;
+}
+.btn-brand:hover {
+  background-position: 100% 50%;
+  box-shadow: var(--glow-brand-strong);
+}
+.btn-brand:active { transform: translateY(1px); }
+
+/* 登录左侧品牌面板：全息糖果 */
+.brand-panel {
+  position: relative;
+  background: var(--grad-panel);
+  background-size: 180% 180%;
+  overflow: hidden;
+  animation: holo 16s ease-in-out infinite alternate;
+}
+/* 流光扫过 */
+.brand-panel::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.16) 40deg,
+    transparent 90deg,
+    rgba(103, 232, 249, 0.14) 160deg,
+    transparent 220deg,
+    rgba(249, 168, 212, 0.16) 300deg,
+    transparent 360deg
+  );
+  animation: spin 22s linear infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+@keyframes holo {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* 发光浮球 */
+.brand-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(46px);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  animation: float 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(6%, -8%) scale(1.15); }
+}
+/* 玻璃标签 */
+.chip-glass {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* 数字/标题渐变强调 */
+.grad-number {
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

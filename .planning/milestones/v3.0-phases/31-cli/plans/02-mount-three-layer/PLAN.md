@@ -6,24 +6,24 @@ wave: 2
 depends_on:
   - 01-errcodes-mutagen-embed
 files_modified:
-  - internal/cloudclaude/mount.go
-  - internal/cloudclaude/mount_sshfs.go
-  - internal/cloudclaude/mount_mutagen.go
-  - internal/cloudclaude/mount_merge.go
-  - internal/cloudclaude/mount_strategy.go
-  - internal/cloudclaude/mount_strategy_test.go
-  - internal/cloudclaude/mount_mutagen_test.go
-  - internal/cloudclaude/askpass.go
-  - internal/cloudclaude/askpass_test.go
-  - internal/cloudclaude/sshfs_watcher.go
-  - internal/cloudclaude/sshfs_watcher_test.go
-  - internal/cloudclaude/last_session.go
-  - internal/cloudclaude/last_session_test.go
-  - internal/cloudclaude/colors.go
-  - internal/cloudclaude/exitcodes.go
-  - internal/cloudclaude/exitcodes_test.go
-  - internal/cloudclaude/ssh.go
-  - cmd/cloud-claude/main.go
+  - internal/claudedock/mount.go
+  - internal/claudedock/mount_sshfs.go
+  - internal/claudedock/mount_mutagen.go
+  - internal/claudedock/mount_merge.go
+  - internal/claudedock/mount_strategy.go
+  - internal/claudedock/mount_strategy_test.go
+  - internal/claudedock/mount_mutagen_test.go
+  - internal/claudedock/askpass.go
+  - internal/claudedock/askpass_test.go
+  - internal/claudedock/sshfs_watcher.go
+  - internal/claudedock/sshfs_watcher_test.go
+  - internal/claudedock/last_session.go
+  - internal/claudedock/last_session_test.go
+  - internal/claudedock/colors.go
+  - internal/claudedock/exitcodes.go
+  - internal/claudedock/exitcodes_test.go
+  - internal/claudedock/ssh.go
+  - cmd/claudedock/main.go
 autonomous: true
 requirements:
   - REQ-F1-A
@@ -45,44 +45,44 @@ must_haves:
     - "AskpassHelper 创建临时 helper 0700 + 在父进程退出时 defer 清理；密码不进 ps args"
     - "sshfs_watcher goroutine 每 5s 在 conn-A 上 timeout 2 mountpoint -q /workspace-cold；连续 3 次失败（≥15s）远程 setfattr -n user.mergerfs.branches -v '-/workspace-cold' /workspace + MOUNT_SSHFS_DISCONNECTED 警告"
     - "ConnectAndRunClaudeV3(cfg, args, cwd, proxyCmds, mountCfg, authResp) 是新公开入口；ConnectAndRunClaude 保留为兼容入口（默认 sshfs-only）"
-    - "cmd/cloud-claude/main.go 注册 cobra flag --mount-mode={auto,full,mutagen-only,sshfs-only}，默认 auto；非法值 cobra 自动报错"
+    - "cmd/claudedock/main.go 注册 cobra flag --mount-mode={auto,full,mutagen-only,sshfs-only}，默认 auto；非法值 cobra 自动报错"
     - "三段式中文进度按最终决策的 mode 渲染：(1/3) 热同步源码中… / (2/3) 启动冷兜底… / (3/3) 合并视图…；mutagen-only / sshfs-only 模式下对应段改为 跳过 提示"
     - "banner 「✓ 文件映射就绪 [<mode>]」按 mode 着色：full=绿、mutagen-only/sshfs-only=黄；NO_COLOR=1 或非 TTY 关色"
-    - "降级状态机 + conflict count 写入 ~/.cloud-claude/last-session.json，schema_version=1，含 downgrade_chain / actual_mode / apfs_case_insensitive 字段"
-    - "internal/cloudclaude/exitcodes.go 暴露 9 个命名退出码常量（ExitOK=0..ExitMountForceFailed=8），全部 ≤ 125（POSIX 限制）；Plan 03 OAuth 与 mount_strategy 引用常量而非裸数字；与 v2.0 cmd/cloud-claude/main.go 现有 exitOK/exitAuthFailed/.../exitInternalError 0-5 数值完全对齐，新增 OAuth 与 mount 退出码占用 6-8，无冲突"
+    - "降级状态机 + conflict count 写入 ~/.claudedock/last-session.json，schema_version=1，含 downgrade_chain / actual_mode / apfs_case_insensitive 字段"
+    - "internal/claudedock/exitcodes.go 暴露 9 个命名退出码常量（ExitOK=0..ExitMountForceFailed=8），全部 ≤ 125（POSIX 限制）；Plan 03 OAuth 与 mount_strategy 引用常量而非裸数字；与 v2.0 cmd/claudedock/main.go 现有 exitOK/exitAuthFailed/.../exitInternalError 0-5 数值完全对齐，新增 OAuth 与 mount 退出码占用 6-8，无冲突"
   artifacts:
-    - path: "internal/cloudclaude/mount_strategy.go"
+    - path: "internal/claudedock/mount_strategy.go"
       provides: "MountWorkspace 入口 + Mode 枚举 + 状态机降级 + 三段式进度 + banner + last-session 写入"
       contains: "func MountWorkspace"
-    - path: "internal/cloudclaude/mount_mutagen.go"
+    - path: "internal/claudedock/mount_mutagen.go"
       provides: "Mutagen daemon start (幂等) + 版本握手 + 50MB / safety guard / sync create 经 conn-C + askpass"
       contains: "MutagenHealthCheck"
-    - path: "internal/cloudclaude/mount_sshfs.go"
+    - path: "internal/claudedock/mount_sshfs.go"
       provides: "v2.0 mountWorkspace 重命名 mountSSHFS + 追加 reconnect / ServerAlive 参数"
       contains: "reconnect,ServerAliveInterval=15"
-    - path: "internal/cloudclaude/mount_merge.go"
+    - path: "internal/claudedock/mount_merge.go"
       provides: "远程 sudo mergerfs 挂载（参数与 Phase 29 D-11 一致）+ runtime branch 摘除（setfattr）"
       contains: "setfattr -n user.mergerfs.branches"
-    - path: "internal/cloudclaude/askpass.go"
+    - path: "internal/claudedock/askpass.go"
       provides: "ssh-askpass helper 临时脚本生成 + 环境变量包装 + defer 清理；密码不进 ps args"
       contains: "SSH_ASKPASS"
-    - path: "internal/cloudclaude/sshfs_watcher.go"
+    - path: "internal/claudedock/sshfs_watcher.go"
       provides: "5s 周期 mountpoint 检查 + 3 次失败摘除 cold branch + MOUNT_SSHFS_DISCONNECTED 警告"
       contains: "timeout 2 mountpoint"
-    - path: "internal/cloudclaude/last_session.go"
+    - path: "internal/claudedock/last_session.go"
       provides: "WriteLastSession(path, snapshot) — RESEARCH §8 schema_version=1"
       contains: "schema_version"
-    - path: "internal/cloudclaude/colors.go"
+    - path: "internal/claudedock/colors.go"
       provides: "极简 ANSI 着色 helper（30/32/33/35/0），NO_COLOR / 非 TTY 自动关色"
       contains: "NO_COLOR"
-    - path: "cmd/cloud-claude/main.go"
+    - path: "cmd/claudedock/main.go"
       provides: "--mount-mode flag + 切到 ConnectAndRunClaudeV3 入口"
       contains: "--mount-mode"
-    - path: "internal/cloudclaude/exitcodes.go"
+    - path: "internal/claudedock/exitcodes.go"
       provides: "9 个命名退出码常量（ExitOK..ExitMountForceFailed），与 v2.0 main.go 0-5 对齐 + 新增 OAuth/mount 6-8"
       contains: "ExitOAuthExpired"
   key_links:
-    - from: "internal/cloudclaude/mount_strategy.go MountWorkspace"
+    - from: "internal/claudedock/mount_strategy.go MountWorkspace"
       to: "mount_mutagen.go mountMutagen / mount_sshfs.go mountSSHFS / mount_merge.go mountMerge"
       via: "errgroup 并发拉起 + 顺序降级 fallback"
       pattern: "mountMutagen\\(|mountSSHFS\\(|mountMerge\\("
@@ -94,23 +94,23 @@ must_haves:
       to: "mount_merge.go RemoveBranch"
       via: "watcher 检测到 ≥15s 抖动后调 RemoveBranch(connA, /workspace-cold)"
       pattern: "RemoveBranch"
-    - from: "cmd/cloud-claude/main.go runRoot"
-      to: "cloudclaude.ConnectAndRunClaudeV3"
+    - from: "cmd/claudedock/main.go runRoot"
+      to: "claudedock.ConnectAndRunClaudeV3"
       via: "新入口替代 v2.0 ConnectAndRunClaude"
       pattern: "ConnectAndRunClaudeV3"
     - from: "mount_strategy.go"
-      to: "~/.cloud-claude/last-session.json"
+      to: "~/.claudedock/last-session.json"
       via: "WriteLastSession(snapshot)"
       pattern: "WriteLastSession"
 ---
 
 <plan_dependencies>
 - **Plan 01（Wave 1）必须先完成**：本 plan 重度依赖
-  - `internal/cloudclaude/errcodes`（Format / Lookup / 15 个 Code 常量）
-  - `cloudclaude.ExtractMutagenBinary`（mountMutagen 启动时调用）
-  - `cloudclaude.IsCaseInsensitiveFS`（mount_strategy 启动早期检测 APFS）
-  - `internal/cloudclaude/mutagen_bin/<plat>/mutagen`（embed 二进制必须存在才能编译）
-- 同 Wave 内禁止与本 plan 并发改动 `internal/cloudclaude/mount.go` / `ssh.go` / `cmd/cloud-claude/main.go`
+  - `internal/claudedock/errcodes`（Format / Lookup / 15 个 Code 常量）
+  - `claudedock.ExtractMutagenBinary`（mountMutagen 启动时调用）
+  - `claudedock.IsCaseInsensitiveFS`（mount_strategy 启动早期检测 APFS）
+  - `internal/claudedock/mutagen_bin/<plat>/mutagen`（embed 二进制必须存在才能编译）
+- 同 Wave 内禁止与本 plan 并发改动 `internal/claudedock/mount.go` / `ssh.go` / `cmd/claudedock/main.go`
 </plan_dependencies>
 
 <objective>
@@ -135,19 +135,19 @@ Output: 4 个 mount_*.go 文件 + 4 个辅助文件（askpass / watcher / last_s
 @.planning/phases/29-v3-worker/29-CONTEXT.md
 @.planning/phases/30-entry-api/30-CONTEXT.md
 @.planning/phases/31-cli/plans/01-errcodes-mutagen-embed/PLAN.md
-@internal/cloudclaude/mount.go
-@internal/cloudclaude/ssh.go
-@internal/cloudclaude/entry.go
-@internal/cloudclaude/config.go
-@cmd/cloud-claude/main.go
+@internal/claudedock/mount.go
+@internal/claudedock/ssh.go
+@internal/claudedock/entry.go
+@internal/claudedock/config.go
+@cmd/claudedock/main.go
 
 <interfaces>
 <!-- 本 plan 创建/扩展的对外 API；Plan 03 必须按此调用。 -->
 
-internal/cloudclaude/mount_strategy.go 导出：
+internal/claudedock/mount_strategy.go 导出：
 
 ```go
-package cloudclaude
+package claudedock
 
 type Mode int
 const (
@@ -172,7 +172,7 @@ type MountConfig struct {
     Cwd               string              // 本地 cwd
     NoColor           bool                // os.Getenv("NO_COLOR") != "" || !isTTY(stderr)
     Logger            io.Writer           // stderr 写入器（默认 os.Stderr）
-    LastSessionPath   string              // ~/.cloud-claude/last-session.json
+    LastSessionPath   string              // ~/.claudedock/last-session.json
     SyncSessionLock   func(accountID string) (release func(), err error) // Phase 32 接管；本阶段默认 noop
 }
 
@@ -181,7 +181,7 @@ type MountConfig struct {
 func MountWorkspace(connA, connB *ssh.Client, cfg MountConfig) (cleanup func(), mode Mode, err error)
 ```
 
-internal/cloudclaude/mount_mutagen.go 导出：
+internal/claudedock/mount_mutagen.go 导出：
 
 ```go
 type MutagenStatus struct {
@@ -196,7 +196,7 @@ type MutagenStatus struct {
 func MutagenHealthCheck(daemonReady, agentReady, syncReady bool, conflicts int) MutagenStatus
 ```
 
-internal/cloudclaude/last_session.go 导出：
+internal/claudedock/last_session.go 导出：
 
 ```go
 type LastSessionSnapshot struct {
@@ -221,7 +221,7 @@ type DowngradeStep struct {
 func WriteLastSession(path string, snap LastSessionSnapshot) error
 ```
 
-internal/cloudclaude/ssh.go 新增：
+internal/claudedock/ssh.go 新增：
 
 ```go
 // ConnectAndRunClaudeV3 是 Phase 31 主入口：建立 conn-A / conn-B，按 cfg.Mode 调 MountWorkspace，
@@ -231,7 +231,7 @@ func ConnectAndRunClaudeV3(cfg SSHConfig, claudeArgs []string, cwd string, proxy
     mountCfg MountConfig, authResp *AuthResponse) (int, error)
 
 // ConnectAndRunClaude 保留为 v2.0 兼容入口；内部转 V3 + Mode=ModeSSHFSOnly + 默认 mountCfg。
-// （签名与 v2.0 完全一致，cmd/cloud-claude/main.go 旧调用如保留则仍走 sshfs-only）
+// （签名与 v2.0 完全一致，cmd/claudedock/main.go 旧调用如保留则仍走 sshfs-only）
 ```
 </interfaces>
 
@@ -263,8 +263,8 @@ sudo setfattr -n user.mergerfs.branches -v "-/workspace-cold" /workspace
 
 环境变量：
 ```
-MUTAGEN_DATA_DIRECTORY=$HOME/.cloud-claude/mutagen
-SSH_ASKPASS=$HOME/.cloud-claude/run/ssh-askpass.sh
+MUTAGEN_DATA_DIRECTORY=$HOME/.claudedock/mutagen
+SSH_ASKPASS=$HOME/.claudedock/run/ssh-askpass.sh
 SSH_ASKPASS_REQUIRE=force
 DISPLAY=:0
 CLOUD_CLAUDE_SSH_PASS=<password from cfg>
@@ -272,29 +272,29 @@ CLOUD_CLAUDE_SSH_PASS=<password from cfg>
 
 daemon 启动（幂等，daemon already started 也算成功）：
 ```
-$HOME/.cloud-claude/bin/mutagen daemon start
+$HOME/.claudedock/bin/mutagen daemon start
 ```
 
 sync create（alpha = 本地 cwd / beta = ssh://user@host:port/workspace-hot）：
 ```
-$HOME/.cloud-claude/bin/mutagen sync create \
-  --name=cloud-claude-{account_id_or_anon}-{cwd_hash8} \
+$HOME/.claudedock/bin/mutagen sync create \
+  --name=claudedock-{account_id_or_anon}-{cwd_hash8} \
   --mode=two-way-resolved \
   --default-owner-beta=id:1000 \
   --default-group-beta=id:1000 \
   --ignore-vcs \
-  --global-config=$HOME/.cloud-claude/mutagen-defaults.yml \
+  --global-config=$HOME/.claudedock/mutagen-defaults.yml \
   . \
   {ssh_user}@{ssh_host}:{ssh_port}:/workspace-hot
 ```
 
 sync list（解析 conflict 计数，使用 go-template 因为 v0.18.1 不支持 --json）：
 ```
-$HOME/.cloud-claude/bin/mutagen sync list \
+$HOME/.claudedock/bin/mutagen sync list \
   --template '{{range .}}{{.Name}}|{{len .Conflicts}}|{{.LastError}}{{"\n"}}{{end}}'
 ```
 
-mutagen-defaults.yml（运行时生成，写入 ~/.cloud-claude/mutagen-defaults.yml）：
+mutagen-defaults.yml（运行时生成，写入 ~/.claudedock/mutagen-defaults.yml）：
 ```yaml
 sync:
   defaults:
@@ -320,19 +320,19 @@ sync:
 <task type="auto">
   <name>Task 2.1: 拆分 mount.go → mount_sshfs.go + 抽取共享 helper + 新增 colors.go / askpass.go / last_session.go / sshfs_watcher.go 骨架</name>
   <files>
-    internal/cloudclaude/mount.go
-    internal/cloudclaude/mount_sshfs.go
-    internal/cloudclaude/colors.go
-    internal/cloudclaude/askpass.go
-    internal/cloudclaude/askpass_test.go
-    internal/cloudclaude/last_session.go
-    internal/cloudclaude/last_session_test.go
-    internal/cloudclaude/sshfs_watcher.go
-    internal/cloudclaude/sshfs_watcher_test.go
+    internal/claudedock/mount.go
+    internal/claudedock/mount_sshfs.go
+    internal/claudedock/colors.go
+    internal/claudedock/askpass.go
+    internal/claudedock/askpass_test.go
+    internal/claudedock/last_session.go
+    internal/claudedock/last_session_test.go
+    internal/claudedock/sshfs_watcher.go
+    internal/claudedock/sshfs_watcher_test.go
   </files>
   <read_first>
-    - internal/cloudclaude/mount.go（v2.0 单文件实现 — 本任务原样剥离 mountWorkspace）
-    - internal/cloudclaude/mount_test.go（v2.0 waitForMount 测试 — 必须继续 PASS）
+    - internal/claudedock/mount.go（v2.0 单文件实现 — 本任务原样剥离 mountWorkspace）
+    - internal/claudedock/mount_test.go（v2.0 waitForMount 测试 — 必须继续 PASS）
     - .planning/phases/31-cli/31-CONTEXT.md（D-01 拆分四文件、D-17 banner 颜色、D-22 OAuth、D-27 watcher）
     - .planning/phases/31-cli/31-RESEARCH.md §1.2（conn-C + askpass + SSH_ASKPASS_REQUIRE=force）、§2.2（setfattr 协议）、§2.3（timeout 2 mountpoint）、§8（last-session.json schema）
     - .planning/phases/31-cli/plans/01-errcodes-mutagen-embed/PLAN.md（errcodes 的 15 个 Code 常量与 Format 模板）
@@ -370,7 +370,7 @@ sync:
 
     3. **colors.go**（极简实现，不引入第三方包）：
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "os"
@@ -410,7 +410,7 @@ sync:
 
     4. **askpass.go**（CONTEXT D-25 + RESEARCH §1.2 落实）：
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "fmt"
@@ -425,14 +425,14 @@ sync:
            cleanup    func()
        }
 
-       // NewAskpassHelper 在 ~/.cloud-claude/run/ 下创建临时 helper 脚本。
+       // NewAskpassHelper 在 ~/.claudedock/run/ 下创建临时 helper 脚本。
        // 调用方必须在 Mutagen 命令完全退出后调用 Helper.Cleanup() 删除脚本。
        func NewAskpassHelper() (*AskpassHelper, error) {
            home, err := os.UserHomeDir()
            if err != nil {
                return nil, fmt.Errorf("无法获取用户主目录: %w", err)
            }
-           runDir := filepath.Join(home, ".cloud-claude", "run")
+           runDir := filepath.Join(home, ".claudedock", "run")
            if err := os.MkdirAll(runDir, 0700); err != nil {
                return nil, fmt.Errorf("创建 askpass 目录失败: %w", err)
            }
@@ -496,7 +496,7 @@ sync:
 
     6. **sshfs_watcher.go**（CONTEXT D-27 + RESEARCH §2.3）：
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "context"
@@ -505,7 +505,7 @@ sync:
            "time"
 
            "golang.org/x/crypto/ssh"
-           "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+           "github.com/claudedock/claudedock/internal/claudedock/errcodes"
        )
 
        // SSHFSWatcher 在 conn-A 上每 interval 检查一次 mountpoint，连续 failures 次失败后调 onDisconnect。
@@ -575,21 +575,21 @@ sync:
          ```
   </action>
   <acceptance_criteria>
-    - `gofmt -l internal/cloudclaude/` 输出为空
+    - `gofmt -l internal/claudedock/` 输出为空
     - `go build ./...` 退出码 0
     - 拆分正确性：
-      `! grep -F 'func mountWorkspace(' internal/cloudclaude/mount.go`（mountWorkspace 已搬走）
-      `grep -F 'func mountSSHFS(' internal/cloudclaude/mount_sshfs.go`（命中 1 行）
-      `grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/cloudclaude/mount_sshfs.go`（命中 1 行）
-      `grep -F 'func waitForMount(' internal/cloudclaude/mount.go`（保留 helper）
-      `grep -F 'func sshRun(' internal/cloudclaude/mount.go`（保留 helper）
-      `grep -F 'func shellQuote(' internal/cloudclaude/mount.go`（保留 helper）
-    - 单测：`go test ./internal/cloudclaude/ -run 'TestWaitForMount|Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v` 全 PASS
-    - 安全检查：`! grep -F 'CLOUD_CLAUDE_SSH_PASS=' internal/cloudclaude/askpass.go` 误用为命令行参数 — 应只出现在 Env() 返回的 KV 中
-    - schema_version: `grep -F '"schema_version"' internal/cloudclaude/last_session.go` 命中 1 行
+      `! grep -F 'func mountWorkspace(' internal/claudedock/mount.go`（mountWorkspace 已搬走）
+      `grep -F 'func mountSSHFS(' internal/claudedock/mount_sshfs.go`（命中 1 行）
+      `grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/claudedock/mount_sshfs.go`（命中 1 行）
+      `grep -F 'func waitForMount(' internal/claudedock/mount.go`（保留 helper）
+      `grep -F 'func sshRun(' internal/claudedock/mount.go`（保留 helper）
+      `grep -F 'func shellQuote(' internal/claudedock/mount.go`（保留 helper）
+    - 单测：`go test ./internal/claudedock/ -run 'TestWaitForMount|Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v` 全 PASS
+    - 安全检查：`! grep -F 'CLOUD_CLAUDE_SSH_PASS=' internal/claudedock/askpass.go` 误用为命令行参数 — 应只出现在 Env() 返回的 KV 中
+    - schema_version: `grep -F '"schema_version"' internal/claudedock/last_session.go` 命中 1 行
   </acceptance_criteria>
   <verify>
-    <automated>go build ./... && go test ./internal/cloudclaude/ -run 'TestWaitForMount|Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v && grep -F 'func mountSSHFS(' internal/cloudclaude/mount_sshfs.go && grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/cloudclaude/mount_sshfs.go && grep -F 'func waitForMount(' internal/cloudclaude/mount.go</automated>
+    <automated>go build ./... && go test ./internal/claudedock/ -run 'TestWaitForMount|Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v && grep -F 'func mountSSHFS(' internal/claudedock/mount_sshfs.go && grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/claudedock/mount_sshfs.go && grep -F 'func waitForMount(' internal/claudedock/mount.go</automated>
   </verify>
   <done>
     mount.go 拆分完成，mountSSHFS 含四个新参数；askpass / last_session / sshfs_watcher / colors 四个辅助文件就位 + 各自单测 PASS；v2.0 兼容 alias mountWorkspace 仍可被旧 ConnectAndRunClaude 调用。
@@ -599,11 +599,11 @@ sync:
 <task type="auto" tdd="true">
   <name>Task 2.2: mount_mutagen.go + mount_merge.go + mount_strategy.go 三层实现 + 12 个降级矩阵单测</name>
   <files>
-    internal/cloudclaude/mount_mutagen.go
-    internal/cloudclaude/mount_mutagen_test.go
-    internal/cloudclaude/mount_merge.go
-    internal/cloudclaude/mount_strategy.go
-    internal/cloudclaude/mount_strategy_test.go
+    internal/claudedock/mount_mutagen.go
+    internal/claudedock/mount_mutagen_test.go
+    internal/claudedock/mount_merge.go
+    internal/claudedock/mount_strategy.go
+    internal/claudedock/mount_strategy_test.go
   </files>
   <behavior>
     mount_strategy_test.go 12 个降级矩阵用例（Mode × failure injection）：
@@ -628,14 +628,14 @@ sync:
     - .planning/phases/31-cli/31-RESEARCH.md §1.1（mutagen 命令清单 + daemon 协议 + 没有 --json）、§1.2（conn-C + askpass）、§1.3（mode flag + ignore yaml）、§2.1（mergerfs 命令）、§2.2（setfattr 协议）、§5.2（错误码文案 — 已在 errcodes 包，本 task 直接 errcodes.Format 调用）、§8（last-session.json schema）
     - .planning/phases/29-v3-worker/29-CONTEXT.md D-11 / D-12（mergerfs 参数 + 2 路 branch + CLOUD_CLAUDE_MERGERFS_BRANCHES 扩展点）
     - .planning/phases/30-entry-api/30-CONTEXT.md D-03 / D-05 / D-06 / D-07（AuthResponse 字段语义）
-    - internal/cloudclaude/mount_sshfs.go（Task 2.1 产出）
-    - internal/cloudclaude/errcodes/codes.go（15 个 Code 常量）
-    - internal/cloudclaude/mutagen_bin.go（ExtractMutagenBinary）
-    - internal/cloudclaude/envcheck_fs.go（IsCaseInsensitiveFS）
-    - internal/cloudclaude/last_session.go（WriteLastSession）
-    - internal/cloudclaude/sshfs_watcher.go（NewSSHFSWatcher）
-    - internal/cloudclaude/colors.go
-    - internal/cloudclaude/askpass.go
+    - internal/claudedock/mount_sshfs.go（Task 2.1 产出）
+    - internal/claudedock/errcodes/codes.go（15 个 Code 常量）
+    - internal/claudedock/mutagen_bin.go（ExtractMutagenBinary）
+    - internal/claudedock/envcheck_fs.go（IsCaseInsensitiveFS）
+    - internal/claudedock/last_session.go（WriteLastSession）
+    - internal/claudedock/sshfs_watcher.go（NewSSHFSWatcher）
+    - internal/claudedock/colors.go
+    - internal/claudedock/askpass.go
   </read_first>
   <action>
     1. **mount_mutagen.go**：
@@ -657,7 +657,7 @@ sync:
            SSHPort         int
            Password        string         // conn-C askpass 通过环境变量传递
            ClaudeAccountID string
-           SessionName     string         // cloud-claude-{account_or_anon}-{cwd_hash8}
+           SessionName     string         // claudedock-{account_or_anon}-{cwd_hash8}
        }
 
        // mountMutagenDeps 是供测试注入的接口集合，生产代码使用默认实现：defaultMutagenDeps()。
@@ -665,20 +665,20 @@ sync:
            extractBinary  func(dst string) error                                  // ExtractMutagenBinary
            runLocal       func(name string, args []string, env []string) (string, error) // exec.Command 包装
            remoteRun      func(conn *ssh.Client, cmd string) (string, error)      // 含 stdout 收集
-           remoteVersion  func(conn *ssh.Client) (string, error)                  // cat /etc/cloud-claude/mutagen.version
+           remoteVersion  func(conn *ssh.Client) (string, error)                  // cat /etc/claudedock/mutagen.version
            remoteFindBeta func(conn *ssh.Client, path string) (bool, error)       // find -mindepth 1 -maxdepth 1 -not -name '.*' | head -1 是否非空
            localDuBytes   func(path string) (int64, error)                        // du -sb {path}
            localDuTopN    func(path string) ([]string, error)                     // du -sh {path}/* | sort -hr | head -3
-           writeIgnoreYML func(path string) error                                 // 生成 ~/.cloud-claude/mutagen-defaults.yml
+           writeIgnoreYML func(path string) error                                 // 生成 ~/.claudedock/mutagen-defaults.yml
            newAskpass     func() (*AskpassHelper, error)                          // NewAskpassHelper
        }
        ```
 
        函数体伪代码（执行顺序与防御点）：
 
-       a. ExtractMutagenBinary 到 ~/.cloud-claude/bin/mutagen → fail 返回 errcodes.MOUNT_MUTAGEN_TRANSPORT_FAILED 或 MOUNT_MUTAGEN_DAEMON_UNAVAILABLE
+       a. ExtractMutagenBinary 到 ~/.claudedock/bin/mutagen → fail 返回 errcodes.MOUNT_MUTAGEN_TRANSPORT_FAILED 或 MOUNT_MUTAGEN_DAEMON_UNAVAILABLE
        
-       b. mutagen daemon start（env: MUTAGEN_DATA_DIRECTORY=$HOME/.cloud-claude/mutagen）→ 输出含 "daemon already started" 视为 OK；其它非 0 退出 → MOUNT_MUTAGEN_DAEMON_UNAVAILABLE
+       b. mutagen daemon start（env: MUTAGEN_DATA_DIRECTORY=$HOME/.claudedock/mutagen）→ 输出含 "daemon already started" 视为 OK；其它非 0 退出 → MOUNT_MUTAGEN_DAEMON_UNAVAILABLE
        
        c. **版本握手（C4 防御）**：本地 mutagen version | grep "v0.18.1" + remoteVersion(connA) → 不一致返回 sentinel error 包装 errcodes.MOUNT_MUTAGEN_VERSION_SKEW
        
@@ -686,7 +686,7 @@ sync:
        
        e. **安全门（C5 / D-13）**：os.ReadDir(cwd) 过滤 ignore 列表后 entries empty AND remoteFindBeta(connA, "/workspace-hot")=true → 直接返回 errcodes.MOUNT_MUTAGEN_SAFETY_GUARD（**Fatal，不可降级**，调用方必须退出非 0）
        
-       f. writeIgnoreYML(~/.cloud-claude/mutagen-defaults.yml) — 内容按 <mutagen_sync_command> 中 yaml 模板
+       f. writeIgnoreYML(~/.claudedock/mutagen-defaults.yml) — 内容按 <mutagen_sync_command> 中 yaml 模板
        
        g. NewAskpassHelper → 拿 helper.ScriptPath 与 Env(password)
        
@@ -745,7 +745,7 @@ sync:
           着色：full=ansiGreen, mutagen-only=ansiYellow, sshfs-only=ansiYellow；NO_COLOR / 非 TTY 关色
 
        g. **conflict 冒泡**：mount ready 后调 mountMutagen 提供的 conflict count（通过 mutagen sync list --template 解析）；> 0 时 banner 后插入：
-          `⚠ 有 N 个文件同步冲突，运行 cloud-claude sync conflicts 查看`
+          `⚠ 有 N 个文件同步冲突，运行 claudedock sync conflicts 查看`
           （注：完整 sync conflicts 子命令在 Plan 03 落地，本 task 只输出 banner 行）
 
        h. **last-session.json 写入**：mount 路径完成（成功 or 失败均写）后调 WriteLastSession(cfg.LastSessionPath, snapshot)；失败 stderr warning 不阻塞
@@ -770,41 +770,41 @@ sync:
   </action>
   <acceptance_criteria>
     - 文件存在性：
-      `test -f internal/cloudclaude/mount_mutagen.go`
-      `test -f internal/cloudclaude/mount_merge.go`
-      `test -f internal/cloudclaude/mount_strategy.go`
+      `test -f internal/claudedock/mount_mutagen.go`
+      `test -f internal/claudedock/mount_merge.go`
+      `test -f internal/claudedock/mount_strategy.go`
     - 关键函数与签名：
-      `grep -E 'func MountWorkspace\(connA, connB \*ssh\.Client, cfg MountConfig\)' internal/cloudclaude/mount_strategy.go` 命中
-      `grep -E 'func mountMutagen\(' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -E 'func mountMerge\(' internal/cloudclaude/mount_merge.go` 命中
-      `grep -E 'func RemoveBranch\(' internal/cloudclaude/mount_merge.go` 命中
-      `grep -F 'MutagenHealthCheck' internal/cloudclaude/mount_mutagen.go` 命中
+      `grep -E 'func MountWorkspace\(connA, connB \*ssh\.Client, cfg MountConfig\)' internal/claudedock/mount_strategy.go` 命中
+      `grep -E 'func mountMutagen\(' internal/claudedock/mount_mutagen.go` 命中
+      `grep -E 'func mountMerge\(' internal/claudedock/mount_merge.go` 命中
+      `grep -E 'func RemoveBranch\(' internal/claudedock/mount_merge.go` 命中
+      `grep -F 'MutagenHealthCheck' internal/claudedock/mount_mutagen.go` 命中
     - 关键命令拼接（grep 严格匹配）：
-      `grep -F 'category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash' internal/cloudclaude/mount_merge.go` 命中
-      `grep -F 'setfattr -n user.mergerfs.branches' internal/cloudclaude/mount_merge.go` 命中
-      `grep -F '--mode=two-way-resolved' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F '--default-owner-beta=id:1000' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F '--default-group-beta=id:1000' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F '--ignore-vcs' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F 'MUTAGEN_DATA_DIRECTORY' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F 'mutagen daemon start' internal/cloudclaude/mount_mutagen.go` 命中
-      `grep -F '--template' internal/cloudclaude/mount_mutagen.go` 命中（不能是 --json）
-      `! grep -F 'sync list --json' internal/cloudclaude/mount_mutagen.go`（修订 D-28 落实）
+      `grep -F 'category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash' internal/claudedock/mount_merge.go` 命中
+      `grep -F 'setfattr -n user.mergerfs.branches' internal/claudedock/mount_merge.go` 命中
+      `grep -F '--mode=two-way-resolved' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F '--default-owner-beta=id:1000' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F '--default-group-beta=id:1000' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F '--ignore-vcs' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F 'MUTAGEN_DATA_DIRECTORY' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F 'mutagen daemon start' internal/claudedock/mount_mutagen.go` 命中
+      `grep -F '--template' internal/claudedock/mount_mutagen.go` 命中（不能是 --json）
+      `! grep -F 'sync list --json' internal/claudedock/mount_mutagen.go`（修订 D-28 落实）
     - 50MB / 安全门 / 中文进度文案：
-      `grep -F '52428800' internal/cloudclaude/mount_mutagen.go` 命中（50MB 阈值）
-      `grep -F '热同步源码中' internal/cloudclaude/mount_strategy.go` 命中
-      `grep -F '启动冷兜底' internal/cloudclaude/mount_strategy.go` 命中
-      `grep -F '合并视图' internal/cloudclaude/mount_strategy.go` 命中
-      `grep -F '✓ 文件映射就绪' internal/cloudclaude/mount_strategy.go` 命中
-      `grep -F '同步冲突' internal/cloudclaude/mount_strategy.go` 命中
+      `grep -F '52428800' internal/claudedock/mount_mutagen.go` 命中（50MB 阈值）
+      `grep -F '热同步源码中' internal/claudedock/mount_strategy.go` 命中
+      `grep -F '启动冷兜底' internal/claudedock/mount_strategy.go` 命中
+      `grep -F '合并视图' internal/claudedock/mount_strategy.go` 命中
+      `grep -F '✓ 文件映射就绪' internal/claudedock/mount_strategy.go` 命中
+      `grep -F '同步冲突' internal/claudedock/mount_strategy.go` 命中
     - 单元测试：
-      `go test ./internal/cloudclaude/ -run 'Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v` 全 PASS
-      `go test ./internal/cloudclaude/ -run TestMountStrategy_DowngradeMatrix -count=1 -v` 至少 12 个子用例 PASS
+      `go test ./internal/claudedock/ -run 'Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v` 全 PASS
+      `go test ./internal/claudedock/ -run TestMountStrategy_DowngradeMatrix -count=1 -v` 至少 12 个子用例 PASS
     - 整仓回归：`go test ./... -count=1` 退出码 0
-    - `gofmt -l internal/cloudclaude/` 输出为空
+    - `gofmt -l internal/claudedock/` 输出为空
   </acceptance_criteria>
   <verify>
-    <automated>go build ./... && go test ./internal/cloudclaude/ -run 'TestMountStrategy_DowngradeMatrix|Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v && grep -F 'category.create=ff,func.readdir=cor:4' internal/cloudclaude/mount_merge.go && grep -F 'setfattr -n user.mergerfs.branches' internal/cloudclaude/mount_merge.go && grep -F '--mode=two-way-resolved' internal/cloudclaude/mount_mutagen.go && grep -F 'MOUNT_AUTO_DOWNGRADED' internal/cloudclaude/mount_strategy.go && ! grep -F 'sync list --json' internal/cloudclaude/mount_mutagen.go</automated>
+    <automated>go build ./... && go test ./internal/claudedock/ -run 'TestMountStrategy_DowngradeMatrix|Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v && grep -F 'category.create=ff,func.readdir=cor:4' internal/claudedock/mount_merge.go && grep -F 'setfattr -n user.mergerfs.branches' internal/claudedock/mount_merge.go && grep -F '--mode=two-way-resolved' internal/claudedock/mount_mutagen.go && grep -F 'MOUNT_AUTO_DOWNGRADED' internal/claudedock/mount_strategy.go && ! grep -F 'sync list --json' internal/claudedock/mount_mutagen.go</automated>
   </verify>
   <done>
     三层 mount 文件齐备；状态机按 4 档 mode × 3 层失败注入跑出 12 个降级矩阵全 PASS；安全门 / 50MB / 版本握手 / banner 颜色 / APFS / 降级 banner 6 项专项测试 PASS；mergerfs 命令与 setfattr 协议与 Phase 29 / RESEARCH §2.2 字符级一致。
@@ -812,20 +812,20 @@ sync:
 </task>
 
 <task type="auto">
-  <name>Task 2.3: ConnectAndRunClaudeV3 入口 + cmd/cloud-claude/main.go --mount-mode flag 接线</name>
+  <name>Task 2.3: ConnectAndRunClaudeV3 入口 + cmd/claudedock/main.go --mount-mode flag 接线</name>
   <files>
-    internal/cloudclaude/ssh.go
-    cmd/cloud-claude/main.go
+    internal/claudedock/ssh.go
+    cmd/claudedock/main.go
   </files>
   <read_first>
-    - internal/cloudclaude/ssh.go（v2.0 ConnectAndRunClaude / sshConnect / runClaude）
-    - cmd/cloud-claude/main.go（cobra root + DisableFlagParsing + runRoot）
-    - internal/cloudclaude/entry.go（AuthResponse 字段，含 v3 扩展）
-    - internal/cloudclaude/mount_strategy.go（Task 2.2 产出 — MountConfig / Mode / MountWorkspace / ParseMode）
+    - internal/claudedock/ssh.go（v2.0 ConnectAndRunClaude / sshConnect / runClaude）
+    - cmd/claudedock/main.go（cobra root + DisableFlagParsing + runRoot）
+    - internal/claudedock/entry.go（AuthResponse 字段，含 v3 扩展）
+    - internal/claudedock/mount_strategy.go（Task 2.2 产出 — MountConfig / Mode / MountWorkspace / ParseMode）
     - .planning/phases/31-cli/31-CONTEXT.md（D-30 兼容入口策略 / D-14 cobra flag 四档枚举）
   </read_first>
   <action>
-    1. **internal/cloudclaude/ssh.go**：
+    1. **internal/claudedock/ssh.go**：
 
        a. **新增 ConnectAndRunClaudeV3**：
           ```go
@@ -852,7 +852,7 @@ sync:
               }
               if mountCfg.LastSessionPath == "" {
                   if home, err := os.UserHomeDir(); err == nil {
-                      mountCfg.LastSessionPath = filepath.Join(home, ".cloud-claude", "last-session.json")
+                      mountCfg.LastSessionPath = filepath.Join(home, ".claudedock", "last-session.json")
                   }
               }
               if mountCfg.Logger == nil {
@@ -906,7 +906,7 @@ sync:
           ```
           这样所有未升级的旧代码继续以 sshfs-only 模式工作，无回归。
 
-    2. **cmd/cloud-claude/main.go**：
+    2. **cmd/claudedock/main.go**：
 
        a. **rootCmd 加 PersistentFlags（在 cobra Cmd 创建之后、AddCommand 之前）**：
           ```go
@@ -933,7 +933,7 @@ sync:
           }
           args = filtered
 
-          mode, err := cloudclaude.ParseMode(mountMode)
+          mode, err := claudedock.ParseMode(mountMode)
           if err != nil {
               fmt.Fprintln(os.Stderr, "错误: --mount-mode 必须是 auto / full / mutagen-only / sshfs-only 之一")
               os.Exit(exitConfigError)
@@ -942,17 +942,17 @@ sync:
 
        b. **runRoot 切换调用**：把
           ```go
-          exitCode, err := cloudclaude.ConnectAndRunClaude(sshCfg, args, cwd, cfg.EffectiveProxyCommands())
+          exitCode, err := claudedock.ConnectAndRunClaude(sshCfg, args, cwd, cfg.EffectiveProxyCommands())
           ```
           改为：
           ```go
-          mountCfg := cloudclaude.MountConfig{
+          mountCfg := claudedock.MountConfig{
               Mode:              mode,
               KeepAliveInterval: 15 * time.Second,
               KeepAliveCountMax: 4,
               NoColor:           os.Getenv("NO_COLOR") != "",
           }
-          exitCode, err := cloudclaude.ConnectAndRunClaudeV3(sshCfg, args, cwd, cfg.EffectiveProxyCommands(), mountCfg, authResp)
+          exitCode, err := claudedock.ConnectAndRunClaudeV3(sshCfg, args, cwd, cfg.EffectiveProxyCommands(), mountCfg, authResp)
           ```
 
        c. **保留 v2.0 行为不破坏**：`init` / `env` / `ssh` 子命令路径完全不动；只有 runRoot（默认无子命令）走 V3 入口。
@@ -960,71 +960,71 @@ sync:
     3. 不要改 `runEnvCheck` / `runSSHDoctor`（它们仍用 v2.0 的 RunEnvCheck / RunSSHDoctor，与 mount 无关）。
   </action>
   <acceptance_criteria>
-    - `gofmt -l internal/cloudclaude/ssh.go cmd/cloud-claude/main.go` 输出为空
+    - `gofmt -l internal/claudedock/ssh.go cmd/claudedock/main.go` 输出为空
     - `go build ./...` 退出码 0
     - 关键签名：
-      `grep -F 'func ConnectAndRunClaudeV3(' internal/cloudclaude/ssh.go` 命中 1 行
-      `grep -F 'func ConnectAndRunClaude(' internal/cloudclaude/ssh.go` 命中 1 行（兼容入口保留）
-      `grep -F 'ConnectAndRunClaudeV3(' cmd/cloud-claude/main.go` 命中至少 1 行
-      `grep -F '--mount-mode' cmd/cloud-claude/main.go` 命中至少 2 行（flag 注册 + 解析）
-      `grep -F 'cloudclaude.ParseMode' cmd/cloud-claude/main.go` 命中 1 行
+      `grep -F 'func ConnectAndRunClaudeV3(' internal/claudedock/ssh.go` 命中 1 行
+      `grep -F 'func ConnectAndRunClaude(' internal/claudedock/ssh.go` 命中 1 行（兼容入口保留）
+      `grep -F 'ConnectAndRunClaudeV3(' cmd/claudedock/main.go` 命中至少 1 行
+      `grep -F '--mount-mode' cmd/claudedock/main.go` 命中至少 2 行（flag 注册 + 解析）
+      `grep -F 'claudedock.ParseMode' cmd/claudedock/main.go` 命中 1 行
     - 兼容性：v2.0 ConnectAndRunClaude 签名未变（4 个参数）：
-      `grep -E 'func ConnectAndRunClaude\(cfg SSHConfig, claudeArgs \[\]string, cwd string, proxyCommands \[\]string\) \(int, error\)' internal/cloudclaude/ssh.go` 命中
+      `grep -E 'func ConnectAndRunClaude\(cfg SSHConfig, claudeArgs \[\]string, cwd string, proxyCommands \[\]string\) \(int, error\)' internal/claudedock/ssh.go` 命中
     - 整仓回归：`go test ./... -count=1` 退出码 0
     - 二进制可启动 + flag 可见：
       ```bash
-      go build -o /tmp/cloud-claude-test ./cmd/cloud-claude
-      /tmp/cloud-claude-test --help 2>&1 | grep -F '--mount-mode' || true
+      go build -o /tmp/claudedock-test ./cmd/claudedock
+      /tmp/claudedock-test --help 2>&1 | grep -F '--mount-mode' || true
       # 注：因 DisableFlagParsing=true，--help 输出可能不显示 PersistentFlags；改测试 ParseMode 直接 reject 非法值
-      /tmp/cloud-claude-test --mount-mode=invalid 2>&1 | grep -E '错误.*mount-mode' || exit 1
+      /tmp/claudedock-test --mount-mode=invalid 2>&1 | grep -E '错误.*mount-mode' || exit 1
       ```
   </acceptance_criteria>
   <verify>
-    <automated>go build -o /tmp/cc-test ./cmd/cloud-claude && /tmp/cc-test --mount-mode=invalid 2>&1 | grep -E '错误.*mount-mode' && grep -F 'func ConnectAndRunClaudeV3(' internal/cloudclaude/ssh.go && grep -F 'ConnectAndRunClaudeV3(' cmd/cloud-claude/main.go && grep -F 'cloudclaude.ParseMode' cmd/cloud-claude/main.go && go test ./... -count=1</automated>
+    <automated>go build -o /tmp/cc-test ./cmd/claudedock && /tmp/cc-test --mount-mode=invalid 2>&1 | grep -E '错误.*mount-mode' && grep -F 'func ConnectAndRunClaudeV3(' internal/claudedock/ssh.go && grep -F 'ConnectAndRunClaudeV3(' cmd/claudedock/main.go && grep -F 'claudedock.ParseMode' cmd/claudedock/main.go && go test ./... -count=1</automated>
   </verify>
   <done>
-    cloud-claude 二进制接线完毕：runRoot 走 ConnectAndRunClaudeV3 + cobra --mount-mode 四档 flag；v2.0 ConnectAndRunClaude 签名兼容保留，旧 import 不破；非法 mount-mode 值有明确中文提示。
+    claudedock 二进制接线完毕：runRoot 走 ConnectAndRunClaudeV3 + cobra --mount-mode 四档 flag；v2.0 ConnectAndRunClaude 签名兼容保留，旧 import 不破；非法 mount-mode 值有明确中文提示。
   </done>
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 2.4: 集中管理退出码（internal/cloudclaude/exitcodes.go）— 解决 OAuth 与 v2.0 main.go 的 4/5 冲突</name>
+  <name>Task 2.4: 集中管理退出码（internal/claudedock/exitcodes.go）— 解决 OAuth 与 v2.0 main.go 的 4/5 冲突</name>
   <files>
-    internal/cloudclaude/exitcodes.go
-    internal/cloudclaude/exitcodes_test.go
+    internal/claudedock/exitcodes.go
+    internal/claudedock/exitcodes_test.go
   </files>
   <behavior>
     exitcodes_test.go 用例：
     - Test_ExitCodes_Unique：用 map[int]bool 遍历所有导出常量，断言无重复值
     - Test_ExitCodes_PosixLimit：每个常量值 ≤ 125（POSIX shell 退出码上限，> 125 与 SIGTERM/SIGKILL 等信号编码冲突）
-    - Test_ExitCodes_V2Compat：断言 ExitOK=0、ExitAuthFailed=1、ExitNetworkError=2、ExitTimeout=3、ExitConfigError=4、ExitInternalError=5（与 cmd/cloud-claude/main.go v2.0 现有 exitOK..exitInternalError 完全对齐，避免行为回归）
+    - Test_ExitCodes_V2Compat：断言 ExitOK=0、ExitAuthFailed=1、ExitNetworkError=2、ExitTimeout=3、ExitConfigError=4、ExitInternalError=5（与 cmd/claudedock/main.go v2.0 现有 exitOK..exitInternalError 完全对齐，避免行为回归）
     - Test_ExitCodes_NewCodesNotConflictV2：断言新增 OAuth 与 mount 退出码（6/7/8）不与 v2.0 0-5 撞码
     - Test_ExitCodes_NamesPresent：用 reflection / 直接访问，断言 ExitOAuthNotFound、ExitOAuthExpired、ExitMountForceFailed 三个常量存在且非 0
   </behavior>
   <read_first>
-    - cmd/cloud-claude/main.go（行 16-23，v2.0 现有 6 个 exit* 常量声明位置；行 250-307，os.Exit 调用点）
+    - cmd/claudedock/main.go（行 16-23，v2.0 现有 6 个 exit* 常量声明位置；行 250-307，os.Exit 调用点）
     - .planning/phases/31-cli/31-CONTEXT.md（D-22 第 3 条 — 原约定 OAuth NotFound=4 / Expired=5；本 task 修订为 6/7 避开 v2.0 冲突，理由：v2.0 已用 4=ConfigError / 5=InternalError，行为不可回归）
     - .planning/phases/31-cli/plans/03-oauth-conflicts-integration/PLAN.md（Task 3.2 ssh.go OAuth 检查的 return 值会引用本 task 创建的常量）
   </read_first>
   <action>
-    1. **创建 internal/cloudclaude/exitcodes.go**：
+    1. **创建 internal/claudedock/exitcodes.go**：
 
        ```go
-       // Package cloudclaude 退出码常量（Phase 31 引入）。
+       // Package claudedock 退出码常量（Phase 31 引入）。
        //
        // 设计原则：
-       //   1. 与 v2.0 cmd/cloud-claude/main.go 现有 exit* 常量数值完全对齐（0-5）
+       //   1. 与 v2.0 cmd/claudedock/main.go 现有 exit* 常量数值完全对齐（0-5）
        //   2. v3.0 新增 OAuth / mount 等错误路径占用 6-8（避开 v2.0 行为）
        //   3. 全部 ≤ 125（POSIX shell 退出码限制；> 125 与 SIGINT(130) / SIGKILL(137) 等信号编码冲突）
        //   4. ssh.go ConnectAndRunClaudeV3 / mount_strategy.go MountWorkspace 引用这些常量而非裸数字
        //
        // CONTEXT D-22 原约定 OAuth NotFound=4 / Expired=5，与 v2.0 ConfigError=4 / InternalError=5 撞码；
-       // 本文件按 plan-checker 反馈修订为 6/7。Phase 34 doctor `cloud-claude explain` 子命令将复用此表。
+       // 本文件按 plan-checker 反馈修订为 6/7。Phase 34 doctor `claudedock explain` 子命令将复用此表。
 
-       package cloudclaude
+       package claudedock
 
        const (
-           // 0-5：与 v2.0 cmd/cloud-claude/main.go exit* 常量完全对齐（不可改值）
+           // 0-5：与 v2.0 cmd/claudedock/main.go exit* 常量完全对齐（不可改值）
            ExitOK            = 0
            ExitAuthFailed    = 1
            ExitNetworkError  = 2
@@ -1039,12 +1039,12 @@ sync:
        )
        ```
 
-       注意：本 plan **不**在本 task 中改 cmd/cloud-claude/main.go 的现有 exit* 常量（避免大范围 rename + git diff 噪音）；只是新声明 cloudclaude.Exit* 常量供 Plan 03 与 mount_strategy 引用。Phase 34 / 后续可考虑统一 rename，本 plan 范围外。
+       注意：本 plan **不**在本 task 中改 cmd/claudedock/main.go 的现有 exit* 常量（避免大范围 rename + git diff 噪音）；只是新声明 claudedock.Exit* 常量供 Plan 03 与 mount_strategy 引用。Phase 34 / 后续可考虑统一 rename，本 plan 范围外。
 
-    2. **internal/cloudclaude/exitcodes_test.go**：按 <behavior> 5 个用例落地：
+    2. **internal/claudedock/exitcodes_test.go**：按 <behavior> 5 个用例落地：
 
        ```go
-       package cloudclaude
+       package claudedock
 
        import "testing"
 
@@ -1121,10 +1121,10 @@ sync:
        }
        ```
 
-    3. **不**在本 task 修改 cmd/cloud-claude/main.go 的现有 exit* 常量声明或调用点（v2.0 行为冻结，迁移留 Phase 34）。
+    3. **不**在本 task 修改 cmd/claudedock/main.go 的现有 exit* 常量声明或调用点（v2.0 行为冻结，迁移留 Phase 34）。
   </action>
   <verify>
-    <automated>go build ./... && go test ./internal/cloudclaude/ -run 'Test_ExitCodes' -count=1 -v && grep -F 'ExitOAuthNotFound    = 6' internal/cloudclaude/exitcodes.go && grep -F 'ExitOAuthExpired     = 7' internal/cloudclaude/exitcodes.go && grep -F 'ExitMountForceFailed = 8' internal/cloudclaude/exitcodes.go && grep -F 'ExitConfigError   = 4' internal/cloudclaude/exitcodes.go && grep -F 'ExitInternalError = 5' internal/cloudclaude/exitcodes.go</automated>
+    <automated>go build ./... && go test ./internal/claudedock/ -run 'Test_ExitCodes' -count=1 -v && grep -F 'ExitOAuthNotFound    = 6' internal/claudedock/exitcodes.go && grep -F 'ExitOAuthExpired     = 7' internal/claudedock/exitcodes.go && grep -F 'ExitMountForceFailed = 8' internal/claudedock/exitcodes.go && grep -F 'ExitConfigError   = 4' internal/claudedock/exitcodes.go && grep -F 'ExitInternalError = 5' internal/claudedock/exitcodes.go</automated>
   </verify>
   <done>
     exitcodes.go 暴露 9 个命名常量（ExitOK..ExitMountForceFailed）；与 v2.0 main.go exit* 0-5 完全对齐 + 新增 OAuth/mount 6-8；5 个单测覆盖唯一性 / POSIX 上限 / v2.0 兼容 / 不撞码 / 命名存在；Plan 03 的 OAuth 检查与 mount_strategy.go 的 ModeForce 失败路径必须改用这些常量（Plan 03 Task 3.2 同步更新）。
@@ -1138,50 +1138,50 @@ sync:
 
 ```bash
 # 1. 文件结构
-test -f internal/cloudclaude/mount_sshfs.go
-test -f internal/cloudclaude/mount_mutagen.go
-test -f internal/cloudclaude/mount_merge.go
-test -f internal/cloudclaude/mount_strategy.go
-test -f internal/cloudclaude/askpass.go
-test -f internal/cloudclaude/sshfs_watcher.go
-test -f internal/cloudclaude/last_session.go
-test -f internal/cloudclaude/colors.go
+test -f internal/claudedock/mount_sshfs.go
+test -f internal/claudedock/mount_mutagen.go
+test -f internal/claudedock/mount_merge.go
+test -f internal/claudedock/mount_strategy.go
+test -f internal/claudedock/askpass.go
+test -f internal/claudedock/sshfs_watcher.go
+test -f internal/claudedock/last_session.go
+test -f internal/claudedock/colors.go
 
 # 2. v2.0 兼容性（mount.go 共享 helper 保留 + ConnectAndRunClaude 签名不变）
-grep -F 'func waitForMount(' internal/cloudclaude/mount.go
-grep -F 'func sshRun(' internal/cloudclaude/mount.go
-grep -F 'func shellQuote(' internal/cloudclaude/mount.go
-grep -E 'func ConnectAndRunClaude\(cfg SSHConfig' internal/cloudclaude/ssh.go
+grep -F 'func waitForMount(' internal/claudedock/mount.go
+grep -F 'func sshRun(' internal/claudedock/mount.go
+grep -F 'func shellQuote(' internal/claudedock/mount.go
+grep -E 'func ConnectAndRunClaude\(cfg SSHConfig' internal/claudedock/ssh.go
 
 # 3. 关键命令字符串（与 Phase 29 / RESEARCH §2.2 字符级一致）
-grep -F 'category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash' internal/cloudclaude/mount_merge.go
-grep -F 'setfattr -n user.mergerfs.branches' internal/cloudclaude/mount_merge.go
-grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/cloudclaude/mount_sshfs.go
-grep -F '--mode=two-way-resolved' internal/cloudclaude/mount_mutagen.go
-grep -F '--default-owner-beta=id:1000' internal/cloudclaude/mount_mutagen.go
+grep -F 'category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash' internal/claudedock/mount_merge.go
+grep -F 'setfattr -n user.mergerfs.branches' internal/claudedock/mount_merge.go
+grep -F 'reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,ConnectTimeout=10' internal/claudedock/mount_sshfs.go
+grep -F '--mode=two-way-resolved' internal/claudedock/mount_mutagen.go
+grep -F '--default-owner-beta=id:1000' internal/claudedock/mount_mutagen.go
 
 # 4. 防御「禁止静默降级」M13
-grep -F 'MOUNT_AUTO_DOWNGRADED' internal/cloudclaude/mount_strategy.go
+grep -F 'MOUNT_AUTO_DOWNGRADED' internal/claudedock/mount_strategy.go
 
 # 5. 单元测试矩阵
-go test ./internal/cloudclaude/ -run 'TestMountStrategy_DowngradeMatrix' -count=1 -v
-go test ./internal/cloudclaude/ -run 'Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v
-go test ./internal/cloudclaude/ -run 'Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v
-go test ./internal/cloudclaude/errcodes/ -count=1
+go test ./internal/claudedock/ -run 'TestMountStrategy_DowngradeMatrix' -count=1 -v
+go test ./internal/claudedock/ -run 'Test_SafetyGuard|Test_50MBReject|Test_VersionSkew|Test_BannerColors|Test_APFS|Test_Downgrade' -count=1 -v
+go test ./internal/claudedock/ -run 'Test_AskpassHelper|Test_WriteLastSession|Test_SSHFSWatcher' -count=1 -v
+go test ./internal/claudedock/errcodes/ -count=1
 go test ./... -count=1   # 整仓回归
 
 # 6. CLI flag 接线
-go build -o /tmp/cc-test ./cmd/cloud-claude
+go build -o /tmp/cc-test ./cmd/claudedock
 /tmp/cc-test --mount-mode=invalid 2>&1 | grep -E '错误.*mount-mode'
 
 # 7. 格式与 vet
-gofmt -l internal/cloudclaude/ cmd/cloud-claude/
+gofmt -l internal/claudedock/ cmd/claudedock/
 go vet ./...
 ```
 
 **不在本 plan 验证范围**（属于 Plan 03）：
 - OAuth credentials 检查（CheckOAuthCredentials 函数尚未存在；本 plan 在 ssh.go 留 TODO 注释）
-- mutagen sync conflicts 子命令（cmd/cloud-claude/sync.go 由 Plan 03 创建）
+- mutagen sync conflicts 子命令（cmd/claudedock/sync.go 由 Plan 03 创建）
 - 集成测试（//go:build integration）由 Plan 03 落地
 </verification>
 
@@ -1190,11 +1190,11 @@ go vet ./...
 
 | Boundary | 描述 |
 |----------|------|
-| cloud-claude 进程 → conn-C ssh 子进程 | Mutagen fork 出独立 ssh 进程；密码经 SSH_ASKPASS helper 传递（不进 ps args / argv） |
-| 本地 askpass helper 文件 → 任意本机进程 | helper 脚本 0700 + 仅在 cloud-claude 进程 lifetime 内存在；defer cleanup |
+| claudedock 进程 → conn-C ssh 子进程 | Mutagen fork 出独立 ssh 进程；密码经 SSH_ASKPASS helper 传递（不进 ps args / argv） |
+| 本地 askpass helper 文件 → 任意本机进程 | helper 脚本 0700 + 仅在 claudedock 进程 lifetime 内存在；defer cleanup |
 | 本地 → 远端 conn-A | mergerfs / setfattr / OAuth cat 命令；shellQuote 包装防注入 |
-| remote stdin (mutagen-defaults.yml 路径) → 本地解析 | yaml 路径硬编码 ~/.cloud-claude/mutagen-defaults.yml，不接受用户输入 |
-| ~/.cloud-claude/last-session.json → 本机其它进程 | 文件 0600（写入时通过 os.Rename atomic）；不含 password / token，仅 mode / 错误码 / account_id |
+| remote stdin (mutagen-defaults.yml 路径) → 本地解析 | yaml 路径硬编码 ~/.claudedock/mutagen-defaults.yml，不接受用户输入 |
+| ~/.claudedock/last-session.json → 本机其它进程 | 文件 0600（写入时通过 os.Rename atomic）；不含 password / token，仅 mode / 错误码 / account_id |
 
 ## STRIDE Threat Register
 
@@ -1206,7 +1206,7 @@ go vet ./...
 | T-31-02-04 | Tampering | setfattr 命令注入 | mitigate | RemoveBranch 的 branchPath 与 target 都用 shellQuote 包装；调用方仅传 "/workspace-cold" / "/workspace" 两个静态字符串 |
 | T-31-02-05 | Tampering | ssh-askpass helper 临时文件被攻击者篡改后注入恶意 shell | mitigate | helper 脚本路径用 os.CreateTemp 生成（不可预测后缀）；写入后立刻 chmod 0700；exec.Command(mutagen, ...) 调用前不再 Stat / 二次校验 — 攻击者必须有用户级写权限才能篡改，已是 game over 场景 |
 | T-31-02-06 | Denial of Service | sshfs_watcher 运行时无限循环 | mitigate | watcher 只检测一次 disconnect 即 return（不重入）；ctx cancel 强制停止；mount_strategy 在 cleanup 时 cancel watcher |
-| T-31-02-07 | Spoofing | Mutagen daemon 与用户已装 brew mutagen daemon 冲突 | mitigate | MUTAGEN_DATA_DIRECTORY=$HOME/.cloud-claude/mutagen 强制隔离 socket；ExtractMutagenBinary 写到 ~/.cloud-claude/bin/mutagen 不污染 PATH |
+| T-31-02-07 | Spoofing | Mutagen daemon 与用户已装 brew mutagen daemon 冲突 | mitigate | MUTAGEN_DATA_DIRECTORY=$HOME/.claudedock/mutagen 强制隔离 socket；ExtractMutagenBinary 写到 ~/.claudedock/bin/mutagen 不污染 PATH |
 | T-31-02-08 | Repudiation | 静默降级到 sshfs-only 用户不知道 | mitigate | M13 强约束：stderr 必输出 errcodes.Format(MOUNT_AUTO_DOWNGRADED, ...) + last-session.json 持久化 downgrade_chain；测试 Test_DowngradeBannerEachStep 强制断言 |
 | T-31-02-09 | Elevation of Privilege | 远程 sudo mergerfs 提权 | accept | 容器内 SYS_ADMIN 已由 v2.0 / Phase 29 开放；本 plan 不引入新 capability / 不要求宿主机额外权限 |
 
@@ -1219,7 +1219,7 @@ go vet ./...
 - v2.0 ConnectAndRunClaude 签名兼容保留；mountWorkspace 兼容 alias 保留
 - M13 防御：每次降级 stderr 必输出 MOUNT_AUTO_DOWNGRADED + last-session.json 含 downgrade_chain 字段
 - 整仓 `go test ./... -count=1` + `gofmt -l` + `go vet` 全部通过
-- cloud-claude --mount-mode=invalid 输出明确中文错误且退出码 != 0
+- claudedock --mount-mode=invalid 输出明确中文错误且退出码 != 0
 </success_criteria>
 
 <output>
@@ -1231,5 +1231,5 @@ go vet ./...
 - 与 Plan 03 的接口契约：
   - ssh.go ConnectAndRunClaudeV3 在 mount ready 后、runClaude 之前留有 OAuth 检查 hook 点（TODO 注释定位）
   - mount_strategy.go banner 后输出 conflict count 警告时调用 mountMutagen 暴露的 conflict count（Plan 03 在 mount_mutagen.go 内部实现 sync list --template 解析）
-  - cmd/cloud-claude/sync.go 子命令由 Plan 03 创建
+  - cmd/claudedock/sync.go 子命令由 Plan 03 创建
 </output>

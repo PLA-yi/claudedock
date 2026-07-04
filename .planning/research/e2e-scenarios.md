@@ -1,4 +1,4 @@
-# Cloud CLI Proxy 端到端测试场景设计
+# ClaudeDock 端到端测试场景设计
 
 > 范围：完整 e2e 套件的「测试场景矩阵 + 测试金字塔 + 可观测性 + 抗 flake」。
 > 不包含具体实现代码；leak 攻击向量层由 leak-researcher 覆盖，本文件只补「操作层对抗」。
@@ -12,7 +12,7 @@
 
 | 序号 | 用例 | 验证的产品承诺 | 估算成本 | 关联模块 |
 |------|------|----------------|---------|---------|
-| MVS-01 | 首次 `bootstrap` 成功并进入 SSH 会话 | 「一行 curl」黄金路径 | 中 | `cmd/cloud-claude`, `internal/controlplane/http/bootstrap_*`, `tests/smoke/bootstrap.bats` |
+| MVS-01 | 首次 `bootstrap` 成功并进入 SSH 会话 | 「一行 curl」黄金路径 | 中 | `cmd/claudedock`, `internal/controlplane/http/bootstrap_*`, `tests/smoke/bootstrap.bats` |
 | MVS-02 | 容器内 `curl ifconfig.me` 返回绑定的出口 IP | 出口 IP 强约束（核心卖点） | 中 | `internal/network/verify.go`, `internal/network/singbox_provider_linux.go` |
 | MVS-03 | 容器内 `dig @1.1.1.1 example.com` 被 tun DNS 接管或被拒绝 | DNS 不可泄漏 | 中 | `internal/network/dns.go`, `verify.go:verifyDNS` |
 | MVS-04 | 容器内直连外网 `bash -c 'echo >/dev/tcp/1.1.1.1/80'` 被防火墙拒绝 | 默认拒绝兜底 | 低 | `verify.go:verifyLeakBlocked`, `worker_firewall_linux.go` |
@@ -33,10 +33,10 @@
 
 | ID | 场景 | 前置条件 | 操作步骤 | 通过判据 | 关联模块 |
 |----|------|---------|---------|---------|---------|
-| JRN-01 | 注册 + 首次 curl 入口 | 数据库初始化、管理员已通过后台创建用户 + 出口 IP 绑定 | `printf 'user\npass\n' \| sh bootstrap.sh` | 退出码 0；本地 cloud-claude 二进制就位；进入 ssh 提示符 | `bootstrap_script.go`, `cmd/cloud-claude/main.go` |
+| JRN-01 | 注册 + 首次 curl 入口 | 数据库初始化、管理员已通过后台创建用户 + 出口 IP 绑定 | `printf 'user\npass\n' \| sh bootstrap.sh` | 退出码 0；本地 claudedock 二进制就位；进入 ssh 提示符 | `bootstrap_script.go`, `cmd/claudedock/main.go` |
 | JRN-02 | 第二次重连（已存在容器） | JRN-01 已完成 | 重复执行 curl 入口 | 30s 内复用已有容器，不重建 netns；SSH 直接接通 | `runtime_service.go`, `tasks/ssh_handoff.go` |
 | JRN-03 | 容器内执行 `claude code` 首次 OAuth | JRN-01 + 容器正常 | 在 SSH 内运行 claude 引导 | OAuth URL 可点开；回调成功；写入 `~/.claude` 持久卷 | `claude_account_persistent_volume` 迁移 (0014) |
-| JRN-04 | 长时间空闲后回到 SSH | 已连接的 SSH 会话空闲 > keepalive 阈值 | 等待后敲一个键 | 连接仍存活；或被自动重连无感知 | `internal/cloudclaude/keepalive*.go`, `reconnect.go` |
+| JRN-04 | 长时间空闲后回到 SSH | 已连接的 SSH 会话空闲 > keepalive 阈值 | 等待后敲一个键 | 连接仍存活；或被自动重连无感知 | `internal/claudedock/keepalive*.go`, `reconnect.go` |
 | JRN-05 | 到期当天用户登入 | 用户 `expires_at = now() - 1m` | 跑 curl 入口 | 返回 `account_expired`，退出码 12 | `bootstrap_auth.go` |
 | JRN-06 | 管理员后台扩容用户期限 | 用户已 expired，容器已被清理 | 后台改 expires_at → +30d；用户重新 curl | 新容器被拉起；SSH 接通；审计事件 `user.renewed` + `host.started` 双落库 | `admin_users.go`, `expiry_test.go` |
 | JRN-07 | 管理员手动停止用户容器 | 用户 SSH 会话活跃 | 后台点「停止」 | 任务进入 `tasks` 表；agent 收到 stop；用户会话被切断；UI 状态 → stopped；netns 清理 | `admin_hosts.go`, `internal/agent/server.go` |
@@ -142,7 +142,7 @@
 
 | 类别 | 项 | 采集命令（示意） | 用途 |
 |------|----|-----------------|------|
-| 应用日志 | control-plane | `docker logs --timestamps cloud-cli-proxy-control-plane` | 看 API 时序、SQL、调度决策 |
+| 应用日志 | control-plane | `docker logs --timestamps claudedock-control-plane` | 看 API 时序、SQL、调度决策 |
 | 应用日志 | host-agent | `journalctl -u host-agent --since '-15min'` 或 `docker logs host-agent` | 看 dispatcher / reconciler 决策 |
 | 应用日志 | sing-box | `docker logs <gateway-ctr>` | 看握手 / outbound 选择 / DNS 行为 |
 | 应用日志 | sshd | `docker exec <user-ctr> journalctl -u ssh` 或读容器内 `/var/log/auth.log` | 看登入失败原因 |
@@ -246,7 +246,7 @@
 | `tests/smoke/bootstrap.bats:8` `POLL_TIMEOUT=3` | mock server 启动慢时 flake | 把 mock 启动改成「ready 探测」而非定时 |
 | `scheduler/expiry.go` Scan 频率 | e2e 等待过期事件落库时不可控 | 测试中暴露 trigger 接口，跳过定时器，直接调 `Scan(ctx)` |
 | `runtime/tasks/dispatcher.go` 任务轮询 | e2e 等任务完成时 sleep | 加 SSE/channel 通知，让测试用条件等待 |
-| `internal/cloudclaude/keepalive*.go` | OS 行为差异（darwin/linux） | macOS e2e 与 Linux e2e 分开，不要混在同一 matrix |
+| `internal/claudedock/keepalive*.go` | OS 行为差异（darwin/linux） | macOS e2e 与 Linux e2e 分开，不要混在同一 matrix |
 | sing-box outbound 首次握手 | 跨地区节点 RTT 高时第一个请求超时 | 容器启动后跑一次「warm-up」让握手完成，再进入断言阶段 |
 
 ### 5.3 通用工程化抗 flake 规范（建议写入 e2e harness）

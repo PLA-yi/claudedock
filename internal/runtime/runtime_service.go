@@ -12,10 +12,10 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
-	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/broadcast"
+	"github.com/claudedock/claudedock/internal/containerregistry"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 func expandBindMountSource(src string) string {
@@ -36,7 +36,7 @@ const (
 	DefaultImageLockPath      = "deploy/docker/managed-user/image.lock"
 	defaultRebuildMode        = "preserve-home"
 	defaultManagedUserSlotKey = "primary"
-	defaultDataDir            = "/var/lib/cloud-cli-proxy"
+	defaultDataDir            = "/var/lib/claudedock"
 )
 
 type RuntimeSpec struct {
@@ -173,8 +173,8 @@ func (s *Service) QueueHostAction(ctx context.Context, hostID string, action age
 		ContainerName: containerNameForHost(host.ID),
 		HomeDir:       fmt.Sprintf("%s/hosts/%s/home", s.dataDir, host.ID),
 		Labels: map[string]string{
-			"cloud-cli-proxy.host_id":  host.ID,
-			"cloud-cli-proxy.slot_key": firstNonEmpty(host.SlotKey, defaultManagedUserSlotKey),
+			"claudedock.host_id":  host.ID,
+			"claudedock.slot_key": firstNonEmpty(host.SlotKey, defaultManagedUserSlotKey),
 		},
 		Timezone:        host.Timezone,
 		Hostname:        host.Hostname,
@@ -317,7 +317,7 @@ func LoadRuntimeSpec(path string) (RuntimeSpec, error) {
 }
 
 func containerNameForHost(hostID string) string {
-	return fmt.Sprintf("cloudproxy-%s", hostID)
+	return fmt.Sprintf("claudedock-%s", hostID)
 }
 
 func firstNonEmpty(values ...string) string {

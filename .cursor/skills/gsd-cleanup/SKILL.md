@@ -34,7 +34,7 @@ Use when `.planning/phases/` has accumulated directories from past milestones.
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/cleanup.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/cleanup.md
 </execution_context>
 
 <process>

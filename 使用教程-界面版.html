@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClaudeDock 使用教程 · 界面版</title>
+<style>
+  :root{
+    --bg:#f6f4ff; --ink:#241f38; --muted:#6b6785; --dim:#9a95b4;
+    --line:rgba(120,90,220,.14); --card:rgba(255,255,255,.72);
+    --v:#8b5cf6; --c:#22d3ee;
+    --grad:linear-gradient(120deg,#8b5cf6,#22d3ee 52%,#fb7bd0);
+    --grad-soft:linear-gradient(120deg,#a78bfa,#67e8f9,#f9a8d4);
+    --glow:0 12px 36px -16px rgba(124,92,246,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;line-height:1.7;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:-20%;z-index:-2;background:
+    radial-gradient(40vmax 40vmax at 10% -6%,rgba(167,139,250,.4),transparent 60%),
+    radial-gradient(38vmax 38vmax at 100% 6%,rgba(103,232,249,.36),transparent 60%),
+    radial-gradient(42vmax 42vmax at 84% 104%,rgba(249,168,212,.38),transparent 62%);
+    filter:saturate(120%);animation:drift 26s ease-in-out infinite alternate}
+  @keyframes drift{50%{transform:translate(2%,-1.5%) scale(1.07)}}
+  a{color:var(--v);text-decoration:none}
+  .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .shell{max-width:1160px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:230px 1fr;gap:36px}
+  header.hero{text-align:center;padding:64px 24px 26px}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--v);border:1px solid var(--line);background:var(--card);backdrop-filter:blur(8px);padding:6px 14px;border-radius:999px;margin-bottom:20px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
+  header.hero h1{font-size:clamp(28px,5vw,46px);font-weight:850;letter-spacing:-.02em;line-height:1.1}
+  header.hero p{margin:14px auto 0;max-width:600px;color:var(--muted);font-size:16px}
+  .switch{margin-top:20px;display:inline-flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px}
+  .switch a{padding:7px 16px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}
+  .switch a.on{background:var(--grad);color:#fff;box-shadow:var(--glow)}
+
+  nav.toc{position:sticky;top:22px;align-self:start;font-size:14px}
+  nav.toc .t{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:0 0 12px 12px}
+  nav.toc a{display:block;color:var(--muted);padding:8px 12px;border-radius:10px;border-left:2px solid transparent;transition:.15s}
+  nav.toc a:hover{background:var(--card);color:var(--ink)}
+  nav.toc a.on{color:var(--v);border-left-color:var(--v);background:var(--card);font-weight:600}
+
+  main{min-width:0;padding-bottom:80px}
+  section{margin-bottom:30px;scroll-margin-top:22px}
+  .card{background:var(--card);backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--line);border-radius:20px;padding:28px 30px;box-shadow:var(--glow)}
+  h2{font-size:23px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:12px}
+  h2 .n{flex:none;width:34px;height:34px;border-radius:11px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:800;box-shadow:var(--glow)}
+  p.lead{color:var(--muted);margin-top:6px}
+  code.inl{font-family:"SF Mono",ui-monospace,monospace;font-size:.88em;background:rgba(124,92,246,.1);color:#6d28d9;padding:2px 7px;border-radius:6px}
+  strong{font-weight:700}
+
+  /* 图 */
+  figure{margin:18px 0 4px}
+  figure img{width:100%;display:block;border-radius:14px;border:1px solid var(--line);box-shadow:0 20px 50px -24px rgba(124,92,246,.5)}
+  figcaption{text-align:center;color:var(--dim);font-size:12.5px;margin-top:8px}
+
+  /* 操作步骤条 */
+  .ops{list-style:none;padding:0;margin:16px 0 0}
+  .ops li{position:relative;padding:4px 0 16px 42px;color:var(--muted);font-size:14.5px}
+  .ops li b{color:var(--ink)}
+  .ops li::before{counter-increment:op;content:counter(op);position:absolute;left:0;top:2px;width:28px;height:28px;border-radius:50%;background:var(--grad-soft);color:#3b2a6b;font-weight:800;display:grid;place-items:center;font-size:13px}
+  .ops{counter-reset:op}
+  .ops li::after{content:"";position:absolute;left:13px;top:30px;bottom:0;width:2px;background:linear-gradient(var(--line),transparent)}
+  .ops li:last-child::after{display:none}
+
+  .note{border-radius:12px;padding:14px 16px 14px 44px;position:relative;margin:16px 0 4px;font-size:14px;border:1px solid}
+  .note::before{position:absolute;left:14px;top:13px;font-size:16px}
+  .note.tip{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3)}
+  .note.tip::before{content:"💡"}
+  .note.warn{background:rgba(251,146,60,.09);border-color:rgba(251,146,60,.32)}
+  .note.warn::before{content:"⚠️"}
+  .note.info{background:rgba(96,165,250,.09);border-color:rgba(96,165,250,.3)}
+  .note.info::before{content:"ℹ️"}
+  .tag{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--grad);padding:2px 9px;border-radius:7px;margin:0 2px}
+  footer{text-align:center;color:var(--dim);font-size:13px;padding:30px 24px 60px}
+  @media(max-width:840px){.shell{grid-template-columns:1fr}nav.toc{display:none}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <span class="badge"><span class="dot"></span>界面版 · 图文点按教程</span>
+  <h1>在管理后台里<span class="grad">点几下，开通一台云端开发机</span></h1>
+  <p>这份教程全程用<strong>网页后台</strong>操作，配真实界面截图。想用命令行/脚本的看「命令版」。</p>
+  <div class="switch">
+    <a href="使用教程-界面版.html" class="on">界面版</a>
+    <a href="使用教程-命令版.html">命令版</a>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc">
+    <p class="t">目录</p>
+    <a href="#login">0 · 登录后台</a>
+    <a href="#panel">1 · 认识界面</a>
+    <a href="#egress">2 · 添加出口 IP</a>
+    <a href="#user">3 · 创建用户</a>
+    <a href="#host">4 · 创建主机并绑定</a>
+    <a href="#deliver">5 · 发接入命令</a>
+    <a href="#more">6 · 进阶操作</a>
+  </nav>
+
+  <main>
+    <!-- 0 -->
+    <section id="login">
+      <div class="card">
+        <h2><span class="n">0</span>登录后台</h2>
+        <p class="lead">启动软件后（Mac 双击 <code class="inl">启动ClaudeDock.command</code>；详见命令版第 1 节），浏览器打开后台地址，用管理员账号登录。</p>
+        <ol class="ops">
+          <li>打开 <b>http://localhost:8080</b>（端口以启动窗口为准，可能是 8082）。</li>
+          <li>用户名填 <b>admin</b>，密码是项目根 <code class="inl">.env</code> 里的 <b>ADMIN_PASSWORD</b>。</li>
+          <li>点 <span class="tag">登录</span>，进入管理后台。</li>
+        </ol>
+        <figure><img src="使用教程-图/01-login.png" alt="登录页" /><figcaption>登录页</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section id="panel">
+      <div class="card">
+        <h2><span class="n">1</span>认识界面</h2>
+        <p class="lead">进来是仪表板。左侧是导航，本教程会依次用到：<b>出口 IP → 用户管理 → 主机管理</b>。</p>
+        <figure><img src="使用教程-图/02-dashboard.png" alt="仪表板" /><figcaption>仪表板：左侧导航 · 顶部状态 · 中间概览卡</figcaption></figure>
+        <div class="note info">左侧导航含：仪表板、用户管理、出口 IP、主机管理、任务列表、事件日志；底部有「用户门户预览」和「退出登录」。</div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="egress">
+      <div class="card">
+        <h2><span class="n">2</span>添加出口 IP（住宅代理）</h2>
+        <p class="lead">这是主机对外上网用的出口。先把你的住宅代理加进来。</p>
+        <ol class="ops">
+          <li>左侧点 <b>出口 IP</b> → 页面右侧点 <span class="tag">＋ 添加出口 IP</span>。</li>
+          <li>右侧弹出表单。<b>最快方式</b>：把 <code class="inl">vmess:// / vless:// / ss:// / trojan://</code> 链接粘进顶部输入框，点 <span class="tag">导入</span>，字段自动填好。</li>
+          <li>或手动填：<b>标签</b>（随便起名，如 us-home-01）、<b>协议类型</b>（如 SOCKS5）、<b>服务器地址</b>、<b>端口</b>、<b>用户名 / 密码</b>（住宅代理给的）。</li>
+          <li>点 <span class="tag">创建</span>。</li>
+          <li>创建后在列表里点该条的 <b>连通性测试</b>，确认「连通 / 出口 IP 匹配 / 无 DNS 泄漏」三项通过。</li>
+        </ol>
+        <figure><img src="使用教程-图/03b-egress-dialog.png" alt="添加出口 IP 表单" /><figcaption>「添加出口 IP」表单：可粘贴链接一键导入，也可手动填协议/地址/端口/账号密码</figcaption></figure>
+        <div class="note tip">出口 IP 建议用<strong>真实家宽住宅 IP</strong>（机房 IP 段易被风控标记）。你之前买的 ISP 静态住宅代理正好填这里。</div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="user">
+      <div class="card">
+        <h2><span class="n">3</span>创建用户</h2>
+        <p class="lead">给要用云主机的人建一个账号。</p>
+        <ol class="ops">
+          <li>左侧点 <b>用户管理</b> → 右上点 <span class="tag">创建用户</span>。</li>
+          <li>填 <b>用户名</b>、<b>初始密码</b>，可选设 <b>过期时间</b>（到期自动停机）。</li>
+          <li>点 <span class="tag">创建</span>。用户后续可被暂停、轮换密码。</li>
+        </ol>
+        <figure><img src="使用教程-图/04-users.png" alt="用户管理" /><figcaption>用户管理页</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="host">
+      <div class="card">
+        <h2><span class="n">4</span>创建主机并绑定出口 IP</h2>
+        <p class="lead">主机 = 一台带 Claude Code 的隔离容器。建好并绑上出口 IP 才能启动。</p>
+        <ol class="ops">
+          <li>左侧点 <b>主机管理</b> → 右上点 <span class="tag">新建主机</span>。</li>
+          <li>选择<b>归属用户</b>（第 3 步建的），创建。</li>
+          <li>在主机上<b>绑定出口 IP</b>（第 2 步加的那个）。<b>至少绑一个</b>才能正常启动。</li>
+          <li>等待任务状态变为「容器已就绪」。可在<b>任务列表 / 事件日志</b>看进度（后台实时推送）。</li>
+        </ol>
+        <figure><img src="使用教程-图/05-hosts.png" alt="主机管理" /><figcaption>主机管理页：新建 · 启动/停止/重建/删除 · 绑定出口 IP</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="deliver">
+      <div class="card">
+        <h2><span class="n">5</span>把接入命令发给用户</h2>
+        <p class="lead">主机就绪后，进「主机详情」页复制接入命令交付给用户。</p>
+        <ol class="ops">
+          <li>点进该主机的<b>详情</b>页。</li>
+          <li>复制页面上的<b>接入命令</b>（形如 <code class="inl">curl -sSf http://YOUR_HOST/entry/SHORT_ID | bash</code>）。</li>
+          <li>把命令连同<b>登录密码</b>发给用户。用户在终端跑一下、输密码，就会自动 SSH 进容器，输入 <code class="inl">claude</code> 即可开写。</li>
+        </ol>
+        <div class="note info">用户当前所在目录会以<strong>同名路径</strong>挂进容器；断线重跑同一命令即可恢复。用户侧更详细的用法见「命令版」第 3 节。</div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="more">
+      <div class="card">
+        <h2><span class="n">6</span>进阶操作（都在后台点）</h2>
+        <ol class="ops">
+          <li><b>远程桌面</b>：主机详情页一键打开容器内 Chromium 桌面（KasmVNC）。</li>
+          <li><b>Bypass 防火墙</b>：给某些域名 / CIDR / 端口开白名单直连，支持 <span class="tag">预览</span> <span class="tag">应用</span> <span class="tag">回滚</span> 快照。</li>
+          <li><b>主机生命周期</b>：启动 / 停止 / 重建（保留或清空 <code class="inl">/workspace</code>）/ 删除。重建保留 home 数据。</li>
+          <li><b>用户运维</b>：暂停、设过期自动停机、轮换密码。</li>
+          <li><b>审计</b>：所有操作写入事件日志，可追溯。</li>
+        </ol>
+        <div class="note warn">Mac 的 Docker Desktop 上「创建真实主机 / 隧道」可能不完整（依赖 Linux 宿主特性）。要完整功能请把软件部署到 <strong>Linux 服务器</strong>。</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>ClaudeDock 使用教程 · 界面版 · 想要命令行版本见 <a href="使用教程-命令版.html">命令版</a></footer>
+
+<script>
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=Object.fromEntries(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('on'));map[e.target.id]?.classList.add('on');}});},{rootMargin:'-20% 0px -70% 0px',threshold:0});
+  document.querySelectorAll('section').forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

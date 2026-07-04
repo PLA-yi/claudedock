@@ -51,12 +51,12 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/add-todo.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/note.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/add-backlog.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/plant-seed.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/check-todos.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ui-brand.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/add-todo.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/note.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/add-backlog.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/plant-seed.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/check-todos.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <context>

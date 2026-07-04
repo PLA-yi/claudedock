@@ -15,8 +15,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // sqliteAccountStore 使用内存 SQLite 实现 AdminClaudeAccountStore。

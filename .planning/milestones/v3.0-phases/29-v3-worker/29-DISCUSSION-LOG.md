@@ -58,7 +58,7 @@
 | C. 双 entrypoint（env 切分） | 维护两套路径，未来升级需双写 | |
 
 **User's choice（auto）:** A — 推荐默认
-**Notes:** Phase 17 CONTEXT.md 已经确立"entrypoint 快速失败 + 串行编排"模式；Phase 29 延续即可。v3 阶段的职责是**预置资源**（目录、agent tarball、FUSE），真正的 mount 动作由 cloud-claude 在 SSH 会话建立后按 `--mount-mode` 执行（Phase 31 边界）。
+**Notes:** Phase 17 CONTEXT.md 已经确立"entrypoint 快速失败 + 串行编排"模式；Phase 29 延续即可。v3 阶段的职责是**预置资源**（目录、agent tarball、FUSE），真正的 mount 动作由 claudedock 在 SSH 会话建立后按 `--mount-mode` 执行（Phase 31 边界）。
 
 ---
 
@@ -68,10 +68,10 @@
 |--------|-------------|----------|
 | A. `deploy/host-preflight.sh` 独立脚本 + 打印修复命令 | 运维手动运行，Phase 34 doctor 可调用；不自动 sudo | ✓ |
 | B. 嵌入控制面启动逻辑自动检测 | 控制面进程不能 sudo，不能真正 apply | |
-| C. 合并到 Phase 34 doctor host 维度 | 部署时机晚于 v3.0 cloud-claude 首次连接，用户会先踩 AppArmor 坑 | |
+| C. 合并到 Phase 34 doctor host 维度 | 部署时机晚于 v3.0 claudedock 首次连接，用户会先踩 AppArmor 坑 | |
 
 **User's choice（auto）:** A — 推荐默认
-**Notes:** Ubuntu 25.04 的 AppArmor override 必须运维在宿主机准备阶段完成，不能延后到 cloud-claude 运行时发现。独立 `host-preflight.sh` + 运维手册是最低摩擦部署形式。Phase 34 doctor 会调用同一脚本做"既有部署是否健康"的 runtime 验证（边界复用而非功能重叠）。
+**Notes:** Ubuntu 25.04 的 AppArmor override 必须运维在宿主机准备阶段完成，不能延后到 claudedock 运行时发现。独立 `host-preflight.sh` + 运维手册是最低摩擦部署形式。Phase 34 doctor 会调用同一脚本做"既有部署是否健康"的 runtime 验证（边界复用而非功能重叠）。
 
 ---
 

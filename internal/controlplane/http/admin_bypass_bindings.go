@@ -10,7 +10,7 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // AdminBypassBindingStore 聚合 Binding CRUD 所需 Repository 方法子集。

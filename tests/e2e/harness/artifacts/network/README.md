@@ -28,7 +28,7 @@ ss -tln       > network/listen-tcp.txt   # 或 netstat -tln 兜底
 
 1. **出口 IP 不对（Phase 46 MVS-02 / Phase 49 LEAK-* 失败）** → 看 `ip-route.txt` 是否走 tun0 作为默认路由；看 `nft-ruleset.txt` 的 `oifname != tun0 drop` 规则是否生效。
 2. **nft drop 规则没生效** → grep `nft-ruleset.txt` 找 `169.254.0.0/16 drop`（Phase 51 QUAL-05 加的）、`tcp dport 53 drop` 等；同时检查 counter 字段（Phase 51 给每条规则加了 counter）确认是否被命中。
-3. **worker netns 漏建** → 看 `ip-netns.txt` 是否有 `cloudproxy-<host_id>` 字面（命名由 `internal/network/container_proxy_provider.go` 决定）。
+3. **worker netns 漏建** → 看 `ip-netns.txt` 是否有 `claudedock-<host_id>` 字面（命名由 `internal/network/container_proxy_provider.go` 决定）。
 4. **kill-switch 失效（Phase 48 MVS-09）** → 看 `ip-link.txt` 中 tun0 是否 UP；`nft-ruleset.txt` 的 `output` chain 是否还有 `accept`。
 5. **监听端口冲突** → 看 `listen-tcp.txt`，确认 control-plane / postgres testcontainer 端口未被占用。
 

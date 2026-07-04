@@ -45,7 +45,7 @@
 
 ### 错误码
 - 新增 `MOUNT_PROMOTER_FAILED`（severity=warn）：watcher 启动失败时输出，附 ≥200 字 ExtendedExplanation
-- `cloud-claude explain MOUNT_PROMOTER_FAILED` 子进程测试通过
+- `claudedock explain MOUNT_PROMOTER_FAILED` 子进程测试通过
 
 ### Runbook 运维手册
 - 文件：`docs/runbooks/v31-cold-promotion.md`
@@ -85,7 +85,7 @@
 ### Established Patterns
 - Go 单测使用标准 `testing` 包 + testify assert
 - 错误码命名：`MOUNT_<COMPONENT>_<FAILURE_MODE>`（大写 + 下划线）
-- 配置从 `~/.cloud-claude/config.yaml` 读取，环境变量覆盖
+- 配置从 `~/.claudedock/config.yaml` 读取，环境变量覆盖
 - stderr 输出格式：`[!] <描述>`（warn）/ `[CODE] <描述>`（带错误码）
 - 中文 UI 约定：doctor check 的 next_action 以"建议:"开头
 

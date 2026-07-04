@@ -60,7 +60,7 @@ metrics:
 
 ```diff
    sing-box-gateway:
-     image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
+     image: ghcr.io/claudedock/claudedock/sing-box-gateway:latest
      pull_policy: always
 -    profiles:
 -      - build-only
@@ -78,7 +78,7 @@ metrics:
      build:
        context: .
        dockerfile: deploy/docker/sing-box-gateway/Dockerfile
-     image: ghcr.io/zanel1u/cloud-cli-proxy/sing-box-gateway:latest
+     image: ghcr.io/claudedock/claudedock/sing-box-gateway:latest
      pull_policy: never
 +    command: ["true"]
 +    profiles:
@@ -107,7 +107,7 @@ $ go test ./internal/controlplane/http/... -run 'ResolveProbeNetworking|ProbeNet
 === RUN   TestResolveProbeNetworking_InspectSucceeds
 --- PASS: TestResolveProbeNetworking_InspectSucceeds (0.00s)
 PASS
-ok      github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http   0.011s
+ok      github.com/claudedock/claudedock/internal/controlplane/http   0.011s
 
 $ docker compose config --services | sort
 admin

@@ -5,7 +5,7 @@
 Docker daemon 当前状态快照：
 
 - `ps.txt` — `docker ps -a`（含 STOPPED / EXITED 状态）
-- `network-ls.txt` — `docker network ls`（所有 docker 网络，含 `cloudproxy-net-*`）
+- `network-ls.txt` — `docker network ls`（所有 docker 网络，含 `claudedock-net-*`）
 - `inspect-<name>.json` — 每个容器的 `docker inspect <name>` 完整输出
 
 ## 采集命令
@@ -21,7 +21,7 @@ done
 ## 典型排障场景
 
 1. **容器没启动** → 看 `ps.txt` 的 STATUS 列；`Exited (137)` 通常是 OOM 或 SIGKILL，`Exited (1)` 是用户程序失败。
-2. **容器跑在错的网络上（Phase 50 KILL-04）** → 看 `inspect-<name>.json` 的 `NetworkSettings.Networks` 字段，确认 `cloudproxy-net-<host_id>` 在不在。
+2. **容器跑在错的网络上（Phase 50 KILL-04）** → 看 `inspect-<name>.json` 的 `NetworkSettings.Networks` 字段，确认 `claudedock-net-<host_id>` 在不在。
 3. **OOM / RestartLoop** → 看 `inspect-<name>.json` 的 `State.OOMKilled` 与 `State.RestartCount`。
 4. **进程 capability 漂移（Phase 49 LEAK-08 / Phase 51 QUAL-06）** → 看 `inspect-<name>.json` 的 `HostConfig.CapAdd` / `CapDrop`，对照 `--cap-drop NET_RAW`、`--cap-add NET_ADMIN` 是否符合预期。
 5. **挂载点漂移** → 看 `inspect-<name>.json` 的 `Mounts` 字段，确认 resolv.conf 是否 ro bind mount（Phase 48 MVS-10）。

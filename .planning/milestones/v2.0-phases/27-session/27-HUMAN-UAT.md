@@ -13,7 +13,7 @@ updated: 2026-04-15
 ## Tests
 
 ### 1. sshfs 挂载实际生效
-expected: 运行 cloud-claude 后容器内 /workspace 内容与本地 CWD 一致
+expected: 运行 claudedock 后容器内 /workspace 内容与本地 CWD 一致
 result: [pending]
 
 ### 2. 双向实时读写

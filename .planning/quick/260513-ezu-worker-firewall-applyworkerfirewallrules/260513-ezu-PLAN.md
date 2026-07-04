@@ -88,7 +88,7 @@ func ApplyWorkerFirewallRules(
 不要新增任何参数、不要新增字段、不要补 mock 对象。
   </action>
   <verify>
-    <automated>cd /Users/zaneliu/Projects/open-source/cloud-cli-proxy-main &amp;&amp; grep -n "ApplyWorkerFirewallRules(" internal/network/worker_firewall_linux_test.go | grep -v "^[[:space:]]*//" | awk -F'ApplyWorkerFirewallRules\\(' '{print $2}' | awk -F')' '{print $1}' | awk -F',' '{print NF}' | sort -u | grep -qx 4</automated>
+    <automated>cd /Users/zaneliu/Projects/open-source/claudedock-main &amp;&amp; grep -n "ApplyWorkerFirewallRules(" internal/network/worker_firewall_linux_test.go | grep -v "^[[:space:]]*//" | awk -F'ApplyWorkerFirewallRules\\(' '{print $2}' | awk -F')' '{print $1}' | awk -F',' '{print NF}' | sort -u | grep -qx 4</automated>
   </verify>
   <done>
 测试文件中所有对 ApplyWorkerFirewallRules 的调用参数数量均为 4；在 linux 构建环境下 `go build ./...` 与 `go vet ./internal/network/...` 不再报 "too many arguments in call to ApplyWorkerFirewallRules" 错误。

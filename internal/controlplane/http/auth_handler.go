@@ -11,7 +11,7 @@ import (
 	"database/sql"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // AuthUserStore 统一登录所需的 store 接口

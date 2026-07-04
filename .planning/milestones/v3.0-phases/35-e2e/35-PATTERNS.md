@@ -18,9 +18,9 @@
 | `scripts/v3-acceptance-checklist.sh` | master checklist runner | 批量 check → `[PASS]/[FAIL]/[SKIP]` → markdown 报告 | `scripts/ci-doctor-grep.sh` + `scripts/verify-fuse-compat.sh` | exact（汇总大全融合两个模板） |
 | `docs/runbooks/v3-upgrade-guide.md` | runbook markdown | human-read | `docs/runbooks/v3-claude-state-volumes.md` | exact |
 | `docs/runbooks/v3-apparmor-deployment.md` | runbook markdown | human-read | `docs/runbooks/v3-claude-state-volumes.md` + `deploy/scripts/host-preflight.sh`（check_apparmor_fusermount3） | exact |
-| `docs/runbooks/v3-doctor-troubleshoot.md` | runbook markdown | human-read → 引用 5 维度 | `docs/runbooks/v3-claude-state-volumes.md` + `internal/cloudclaude/doctor/doctor.go`（维度顺序） | exact |
+| `docs/runbooks/v3-doctor-troubleshoot.md` | runbook markdown | human-read → 引用 5 维度 | `docs/runbooks/v3-claude-state-volumes.md` + `internal/claudedock/doctor/doctor.go`（维度顺序） | exact |
 | `docs/runbooks/v3-persistent-volume-lifecycle.md` | runbook markdown | human-read（整合） | `docs/runbooks/v3-claude-state-volumes.md`（同根同源） | exact — 禁止复制内容，改为 §0 链接跳转 |
-| `docs/runbooks/v3-error-code-index.md` | runbook markdown | 从 `internal/cloudclaude/errcodes/` 生成 → human-read | `docs/runbooks/v3-claude-state-volumes.md`（样式） + `internal/cloudclaude/errcodes/codes.go`（遍历 Registry） | exact |
+| `docs/runbooks/v3-error-code-index.md` | runbook markdown | 从 `internal/claudedock/errcodes/` 生成 → human-read | `docs/runbooks/v3-claude-state-volumes.md`（样式） + `internal/claudedock/errcodes/codes.go`（遍历 Registry） | exact |
 | `.github/workflows/ci.yml`（新增 `perf-benchmark` job） | CI workflow | GH Actions runner → script 调用 | `.github/workflows/ci.yml` 现有 `go-test` job + `build-images.yml`（`strategy.matrix.include`） | exact |
 | `.github/workflows/ci.yml`（新增 `image-size-regression` job） | CI workflow | docker build → `verify-managed-image.sh` | `.github/workflows/build-images.yml`（docker build 流程） + `scripts/verify-managed-image.sh` | exact |
 
@@ -247,13 +247,13 @@ BAD_CODE=$(... | grep -vE '错误码:\s*[A-Z]+_[A-Z]+_[A-Z0-9]+' || true)
 ```bash
 # 破坏 mergerfs 层 → 应触发 MOUNT_MERGERFS_FAILED
 docker exec "$CONTAINER_NAME" pkill -9 mergerfs || true
-OUTPUT=$(docker exec "$CONTAINER_NAME" cloud-claude doctor --json 2>&1 || true)
+OUTPUT=$(docker exec "$CONTAINER_NAME" claudedock doctor --json 2>&1 || true)
 if ! echo "$OUTPUT" | jq -e '.checks[] | select(.code == "MOUNT_MERGERFS_FAILED")' >/dev/null; then
   fail "M13: mergerfs 破坏未触发 MOUNT_MERGERFS_FAILED 错误码"
 fi
 ```
 
-**错误码清单来源：** 遍历 `internal/cloudclaude/errcodes/` 下 8 个域文件的 `const` 块（`codes.go:120-178`）。
+**错误码清单来源：** 遍历 `internal/claudedock/errcodes/` 下 8 个域文件的 `const` 块（`codes.go:120-178`）。
 
 ---
 
@@ -363,8 +363,8 @@ capture_buffer_retry() {
 
 ```bash
 # 3-5 条 copy-paste 即跑的命令
-cloud-claude doctor --json | jq '.summary'
-docker ps --filter label=com.cloud-cli-proxy.managed=true
+claudedock doctor --json | jq '.summary'
+docker ps --filter label=com.claudedock.managed=true
 ...
 ```
 
@@ -375,34 +375,34 @@ docker ps --filter label=com.cloud-cli-proxy.managed=true
 **参考节样式**（`v3-claude-state-volumes.md:233-240`）—引用代码路径时写到函数级：
 
 ```markdown
-- `internal/cloudclaude/doctor/doctor.go`（RunDoctor / 5 维度顺序）
-- `internal/cloudclaude/errcodes/codes.go`（Registry / MustRegister）
+- `internal/claudedock/doctor/doctor.go`（RunDoctor / 5 维度顺序）
+- `internal/claudedock/errcodes/codes.go`（Registry / MustRegister）
 ```
 
 ---
 
 ### Pattern H: v3-error-code-index.md 专用生成逻辑
 
-**分析对象：** `internal/cloudclaude/errcodes/codes.go:87-97`（Registry 浅拷贝 API）+ `explanations.go:19-25`（ExplainExempt）
+**分析对象：** `internal/claudedock/errcodes/codes.go:87-97`（Registry 浅拷贝 API）+ `explanations.go:19-25`（ExplainExempt）
 
 **手册 §2 表格来源：** 遍历 8 个域文件的 `init() MustRegister` 块。
 
 | 域文件 | 对应错误码前缀 |
 |--------|----------------|
-| `internal/cloudclaude/errcodes/auth.go` | `AUTH_*` |
-| `internal/cloudclaude/errcodes/disk.go` | `DISK_*` |
-| `internal/cloudclaude/errcodes/mount.go` | `MOUNT_*` |
-| `internal/cloudclaude/errcodes/net.go` | `NET_*` |
-| `internal/cloudclaude/errcodes/session.go` | `SESSION_*` |
-| `internal/cloudclaude/errcodes/ssh.go` | `SSH_*` |
-| `internal/cloudclaude/errcodes/state.go` | `STATE_*` |
-| `internal/cloudclaude/errcodes/system.go` | `SYSTEM_*` |
+| `internal/claudedock/errcodes/auth.go` | `AUTH_*` |
+| `internal/claudedock/errcodes/disk.go` | `DISK_*` |
+| `internal/claudedock/errcodes/mount.go` | `MOUNT_*` |
+| `internal/claudedock/errcodes/net.go` | `NET_*` |
+| `internal/claudedock/errcodes/session.go` | `SESSION_*` |
+| `internal/claudedock/errcodes/ssh.go` | `SSH_*` |
+| `internal/claudedock/errcodes/state.go` | `STATE_*` |
+| `internal/claudedock/errcodes/system.go` | `SYSTEM_*` |
 
 **建议做法：** 在手册 §2 开头嵌入自动化导出命令，保证手册与代码不漂移：
 
 ```markdown
-> 本表由 `cloud-claude explain --all` 或 `go run ./cmd/errcodes-dump`（如有）生成，
-> 直接映射 `internal/cloudclaude/errcodes/` 下 `init()` 中 `MustRegister` 调用。
+> 本表由 `claudedock explain --all` 或 `go run ./cmd/errcodes-dump`（如有）生成，
+> 直接映射 `internal/claudedock/errcodes/` 下 `init()` 中 `MustRegister` 调用。
 > 若发现本表与实际行为不一致，以代码为准。
 ```
 
@@ -418,7 +418,7 @@ docker ps --filter label=com.cloud-cli-proxy.managed=true
 
 ### Pattern I: v3-doctor-troubleshoot.md 专用结构
 
-**分析对象：** `internal/cloudclaude/doctor/doctor.go:83-84`（5 维度顺序 + 执行时序）
+**分析对象：** `internal/claudedock/doctor/doctor.go:83-84`（5 维度顺序 + 执行时序）
 
 **手册骨架**（每个维度 1 个小节，顺序必须与代码一致）：
 
@@ -571,9 +571,9 @@ ACCEPTANCE_REPORT="${PROJECT_ROOT}/docs/runbooks/v3-acceptance-report-$(date +%Y
 |----------|--------------------------|
 | `v3-upgrade-guide.md` | `deploy/docker/managed-user/image.lock`（镜像版本锁）+ `scripts/install.sh`（客户端升级流程） |
 | `v3-apparmor-deployment.md` | `deploy/scripts/host-preflight.sh:11-73`（check_apparmor_fusermount3，已有部署建议文案） + `scripts/verify-fuse-compat.sh:42-58` |
-| `v3-doctor-troubleshoot.md` | `internal/cloudclaude/doctor/doctor.go:83-84`（5 维度顺序）+ `doctor/{network,auth,ssh,mount,disk}.go`（每维度 check） + `doctor/fix.go`（--fix 幂等修复） |
+| `v3-doctor-troubleshoot.md` | `internal/claudedock/doctor/doctor.go:83-84`（5 维度顺序）+ `doctor/{network,auth,ssh,mount,disk}.go`（每维度 check） + `doctor/fix.go`（--fix 幂等修复） |
 | `v3-persistent-volume-lifecycle.md` | 现有 `v3-claude-state-volumes.md`（跳转链接） + `internal/runtime/tasks/worker.go`（hot/cold 卷生命周期）  |
-| `v3-error-code-index.md` | `internal/cloudclaude/errcodes/codes.go:120-178`（Code 常量） + 8 个域 `init()` 文件 + `explanations.go`（长说明） |
+| `v3-error-code-index.md` | `internal/claudedock/errcodes/codes.go:120-178`（Code 常量） + 8 个域 `init()` 文件 + `explanations.go`（长说明） |
 
 ---
 
@@ -585,8 +585,8 @@ ACCEPTANCE_REPORT="${PROJECT_ROOT}/docs/runbooks/v3-acceptance-report-$(date +%Y
 - `test/bootstrap/*.sh`
 - `docs/runbooks/`（已有 1 份参照）
 - `.github/workflows/*.yml`（4 个）
-- `internal/cloudclaude/errcodes/`（12 个 Go 文件）
-- `internal/cloudclaude/doctor/`（19 个 Go 文件，聚焦 `doctor.go` / `check.go`）
+- `internal/claudedock/errcodes/`（12 个 Go 文件）
+- `internal/claudedock/doctor/`（19 个 Go 文件，聚焦 `doctor.go` / `check.go`）
 
 **关键模板来源文件（按重要性排序）：**
 1. `scripts/verify-fuse-compat.sh` — 阶段式 + 4 函数 + 汇总 skeleton（Phase 35 所有脚本核心骨架）

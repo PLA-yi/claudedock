@@ -15,17 +15,17 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
-	cphttp "github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http"
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/scheduler"
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
-	"github.com/zanel1u/cloud-cli-proxy/internal/runtime"
-	runtimetasks "github.com/zanel1u/cloud-cli-proxy/internal/runtime/tasks"
-	"github.com/zanel1u/cloud-cli-proxy/internal/sshproxy"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/migrator"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/migrations"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/broadcast"
+	cphttp "github.com/claudedock/claudedock/internal/controlplane/http"
+	"github.com/claudedock/claudedock/internal/controlplane/scheduler"
+	"github.com/claudedock/claudedock/internal/network"
+	"github.com/claudedock/claudedock/internal/runtime"
+	runtimetasks "github.com/claudedock/claudedock/internal/runtime/tasks"
+	"github.com/claudedock/claudedock/internal/sshproxy"
+	"github.com/claudedock/claudedock/internal/store/migrator"
+	"github.com/claudedock/claudedock/internal/store/migrations"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type Config struct {

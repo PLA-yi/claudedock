@@ -61,7 +61,7 @@ None - plan executed exactly as written.
 
 ```bash
 go test ./internal/controlplane/http/ -run TestAdmin -count=1
-# ok  github.com/zaneliu/cloud-cli-proxy/internal/controlplane/http  0.225s
+# ok  github.com/zaneliu/claudedock/internal/controlplane/http  0.225s
 ```
 
 所有 58 个 TestAdmin* 测试用例通过，覆盖 5 个 Admin handler 的正常和异常路径。

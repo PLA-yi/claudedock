@@ -16,7 +16,7 @@ completed: 2026-04-18
 | 计划 | 核心交付物 |
 |------|------------|
 | 01 | Dockerfile BuildKit / tini / 预建目录 / ENTRYPOINT |
-| 02 | mergerfs + mutagen tarball + `/etc/cloud-claude/*.version` |
+| 02 | mergerfs + mutagen tarball + `/etc/claudedock/*.version` |
 | 03 | entrypoint v3 阶段 + tmux/profile.d/sshd + COPY |
 | 04 | `VolumeMount` + `buildCreateArgs` + 单测 |
 | 05 | `check_apparmor_fusermount3` + deploy README |

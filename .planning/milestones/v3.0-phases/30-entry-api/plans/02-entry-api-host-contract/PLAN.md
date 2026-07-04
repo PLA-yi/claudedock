@@ -11,8 +11,8 @@ files_modified:
   - internal/controlplane/http/entry.go
   - internal/controlplane/http/entry_auth_test.go
   - internal/controlplane/http/entry_caps_test.go
-  - internal/cloudclaude/entry.go
-  - internal/cloudclaude/entry_compat_test.go
+  - internal/claudedock/entry.go
+  - internal/claudedock/entry_compat_test.go
 autonomous: true
 requirements:
   - REQ-F7-A
@@ -28,7 +28,7 @@ must_haves:
     - path: internal/controlplane/http/entry.go
       provides: "ready 响应扩展 image_version/supports_*/claude_account_id"
       contains: supports_mutagen
-    - path: internal/cloudclaude/entry.go
+    - path: internal/claudedock/entry.go
       provides: "AuthResponse 新字段与向后兼容解析"
       contains: SupportsMergerfs
   key_links:
@@ -46,7 +46,7 @@ must_haves:
 完成 Phase 30 的 API/契约层扩展，形成与 Phase 31/33 对接所需的握手字段，不引入重复数据逻辑。
 
 Purpose: 让 CLI 能在一次 auth 握手里感知镜像能力并拿到账号维度标识，同时保持旧版本兼容。
-Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩展与兼容测试。
+Output: Entry 响应扩展、agentapi 契约扩展、claudedock 响应结构扩展与兼容测试。
 </objective>
 
 <execution_context>
@@ -58,7 +58,7 @@ Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩
 @.planning/ROADMAP.md
 @.planning/REQUIREMENTS.md
 @internal/controlplane/http/entry.go
-@internal/cloudclaude/entry.go
+@internal/claudedock/entry.go
 @internal/agentapi/contracts.go
 </context>
 
@@ -98,9 +98,9 @@ Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 3: cloudclaude AuthResponse 扩展与兼容回归</name>
-  <files>internal/cloudclaude/entry.go, internal/cloudclaude/entry_compat_test.go</files>
-  <read_first>.planning/phases/30-entry-api/30-CONTEXT.md (D-03,D-08), internal/cloudclaude/entry.go</read_first>
+  <name>Task 3: claudedock AuthResponse 扩展与兼容回归</name>
+  <files>internal/claudedock/entry.go, internal/claudedock/entry_compat_test.go</files>
+  <read_first>.planning/phases/30-entry-api/30-CONTEXT.md (D-03,D-08), internal/claudedock/entry.go</read_first>
   <behavior>
     - 新响应结构能读取扩展字段。
     - 缺失扩展字段时不影响既有 SSH ready 校验。
@@ -108,7 +108,7 @@ Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩
   </behavior>
   <action>扩展 `AuthResponse` 字段定义并新增兼容测试，禁止将新字段设为必填，确保旧网关/旧客户端路径可继续工作。</action>
   <verify>
-    <automated>go test ./internal/cloudclaude/... -count=1 -short</automated>
+    <automated>go test ./internal/claudedock/... -count=1 -short</automated>
   </verify>
   <acceptance_criteria>v2/v3 客户端均可使用同一 auth 接口，扩展字段是“增量能力”而不是“强制条件”。</acceptance_criteria>
   <done>客户端契约升级完成，兼容性由测试锁定。</done>
@@ -122,7 +122,7 @@ Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩
 | Boundary | Description |
 |----------|-------------|
 | client → Entry Auth API | 未信任输入进入认证与握手响应路径 |
-| controlplane → cloudclaude JSON contract | 响应字段变更会直接影响客户端行为 |
+| controlplane → claudedock JSON contract | 响应字段变更会直接影响客户端行为 |
 
 ## STRIDE Threat Register
 
@@ -137,7 +137,7 @@ Output: Entry 响应扩展、agentapi 契约扩展、cloudclaude 响应结构扩
 <verification>
 - `go test ./internal/runtime/tasks/... -count=1 -short`
 - `go test ./internal/controlplane/http/... -count=1 -short`
-- `go test ./internal/cloudclaude/... -count=1 -short`
+- `go test ./internal/claudedock/... -count=1 -short`
 </verification>
 
 <success_criteria>

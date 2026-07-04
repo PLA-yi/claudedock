@@ -133,7 +133,7 @@ import (
 func TestBootstrapFullFlow(t *testing.T) {
     ctx := context.Background()
     pgContainer, err := postgres.Run(ctx, "postgres:18.3",
-        postgres.WithDatabase("cloudproxy_test"),
+        postgres.WithDatabase("claudedock_test"),
         postgres.WithUsername("test"),
         postgres.WithPassword("test"),
         postgres.WithInitScripts("../../internal/store/migrations/0001_initial.sql",
@@ -545,8 +545,8 @@ deploy/
 
 **文档锚点（已存在可直接引用的文件）：**
 - `deploy/scripts/host-preflight.sh` — 宿主机依赖检查
-- `deploy/systemd/cloud-cli-proxy-control-plane.service` — 控制面 systemd 单元
-- `deploy/systemd/cloud-cli-proxy-host-agent.service` — host-agent systemd 单元
+- `deploy/systemd/claudedock-control-plane.service` — 控制面 systemd 单元
+- `deploy/systemd/claudedock-host-agent.service` — host-agent systemd 单元
 - `deploy/docker/managed-user/build-managed-image.sh` — 受管镜像构建
 - `deploy/compose/control-plane.dev.yml` — 开发环境参考（生产需独立说明差异）
 

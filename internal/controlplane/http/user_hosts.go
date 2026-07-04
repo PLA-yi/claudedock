@@ -10,8 +10,8 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // UserHostStore defines the data access interface for user host endpoints.
@@ -172,7 +172,7 @@ func (h *UserHostsHandler) RestartVNC() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		if err := restartContainerVNC(containerName); err != nil {
 			h.logger.Error("restart vnc failed", "host_id", hostID, "container", containerName, "error", err)
 			writeJSON(w, nethttp.StatusBadGateway, map[string]string{"error": "restart vnc failed"})

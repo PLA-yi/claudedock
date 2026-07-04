@@ -29,7 +29,7 @@
 - **Store 接口**：定义在 handler 文件内（如 `AdminBypassStore`），聚合需要的 Repository 方法子集 —— 解耦 handler 测试与真实 Repository。
 - **JSON 验证**：每个 raw JSON 字段单独 `validateBypassRule(raw json.RawMessage) error` 函数，错误返回中文提示（与现有项目错误信息风格对齐 —— 现有 `admin_egress_ips.go` 用英文，本阶段沿用英文 error message 给 API/前端解析，但中文文案放在前端 toast）。
 - **路径风格**：复数资源名 `/v1/admin/bypass/presets` / `/v1/admin/bypass/rules`（与现有 `/v1/admin/egress-ips` 风格一致）。
-- **错误码**：HTTP body 含 `{"code":"BYPASS_RULE_TOO_BROAD","message":"..."}` 结构，code 命名全部 `BYPASS_*` 前缀，沿用 `cloud-claude/errcodes/` 现有的 SCREAMING_SNAKE_CASE 模式。
+- **错误码**：HTTP body 含 `{"code":"BYPASS_RULE_TOO_BROAD","message":"..."}` 结构，code 命名全部 `BYPASS_*` 前缀，沿用 `claudedock/errcodes/` 现有的 SCREAMING_SNAKE_CASE 模式。
 - **JWT 鉴权**：复用现有 `middleware.RequireJWT` 链；无新中间件。
 - **Pagination**：preset/rule list 不分页（系统预设少 + 自定义规则单 host < 1000 条上限）；只在 audit_log list 加 `?limit=100&before=<created_at>` cursor。
 - **幂等**：apply 用 `config_hash` 作为 unique key（已在 0019 schema 设计），重复 POST 同 hash 返回 200 + 现有 snapshot id，不重复写。
@@ -64,7 +64,7 @@
 
 - `useBypassPresets()`、`useBypassRules(hostId)`、`useBypassEffective(hostId)`、`useBypassAuditLog(hostId)` 4 个 hook，`staleTime: 30_000`；apply / rollback 成功后 `invalidate(['bypass', hostId])` 全部失效。
 - Optimistic update 仅用于规则启用/禁用 toggle，其他写操作走默认 refetch。
-- error boundary 显示错误码 + 中文文案，复用 `cloud-claude/errcodes` 现有的错误码 → 中文 message 映射（如果不存在则在前端 `lib/bypass-error-codes.ts` 自建）。
+- error boundary 显示错误码 + 中文文案，复用 `claudedock/errcodes` 现有的错误码 → 中文 message 映射（如果不存在则在前端 `lib/bypass-error-codes.ts` 自建）。
 
 ### 前后端契约同步
 
@@ -91,7 +91,7 @@
 | Handler 模板 | `internal/controlplane/http/admin_egress_ips.go` | 仿写 5 个 `Admin*` handler；同样的 Store interface + validate pattern |
 | Handler 测试模板 | `internal/controlplane/http/admin_egress_ips_test.go` | 仿写 5 个 handler test 集 |
 | Probe pattern | `admin_egress_ip_probe.go` | preview / apply / rollback 借鉴 probe 这种「非 CRUD action endpoint」的实现 |
-| 错误码注册 | `internal/cloudclaude/errcodes/` | 新增 BYPASS_* 错误码 |
+| 错误码注册 | `internal/claudedock/errcodes/` | 新增 BYPASS_* 错误码 |
 | middleware.RequireJWT | 现有 admin middleware | 直接复用 |
 | Repository CRUD | `internal/store/repository/queries_bypass.go` (Phase 45) | 19 个方法 + ErrSystemBypassPresetImmutable sentinel 已就绪 |
 | Tab 路由模板 | `web/admin/src/routes/_dashboard/hosts/$hostId.tsx` | 加 Bypass Tab |

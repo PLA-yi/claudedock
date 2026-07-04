@@ -15,7 +15,7 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // stubBypassPresetStore 实现 AdminBypassPresetStore + BypassAuditLogWriter（接口重叠）。

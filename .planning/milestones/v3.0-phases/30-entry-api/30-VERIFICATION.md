@@ -13,7 +13,7 @@ human_verification:
     description: "在真实 Postgres 18.x 宿主上执行 migrator 升级路径（v2.0 → v3.0），确认 0014 在空库与已有数据的升级库上均可 up 且不报错"
     expected: "migrator 输出 0014 已应用，`\\d claude_accounts` 包含可空 `persistent_volume_name TEXT`"
   - id: hv-02
-    description: "生产或预发布 gateway 接入 v2.0 cloud-claude 二进制时，验证旧客户端反序列化 v3 扩展字段不报错"
+    description: "生产或预发布 gateway 接入 v2.0 claudedock 二进制时，验证旧客户端反序列化 v3 扩展字段不报错"
     expected: "v2.0 CLI 成功完成 ready 流并进入 SSH；v3 扩展字段被静默忽略"
 ---
 
@@ -30,7 +30,7 @@ human_verification:
 | # | Criterion | Verdict | Evidence |
 |---|-----------|---------|----------|
 | 1 | migration `0014` 在干净库 + v2.0 库上均能 up 幂等执行 | ✓ PASS | `internal/store/migrations/0014_claude_account_persistent_volume.sql` 使用 `ADD COLUMN IF NOT EXISTS persistent_volume_name TEXT`，无 `NOT NULL`、无 `DEFAULT ''`；`TestMigration0014_FileContent` 锁定必含/禁含 token。Down 路径以 SQL 注释标注由运维手工执行（与 0007~0013 单向 migrator 对齐） |
-| 2 | v2.0 客户端二进制调用新版 Entry API 不返回错误，未知字段被忽略 | ✓ PASS | `internal/cloudclaude/entry_compat_test.go::TestAuthResponse_MissingV3Fields_DefaultZero` 与 `TestAuthenticate_V2Gateway_NoExtensionsRequired` 分别覆盖「v2 gateway 响应缺字段→零值」与「v2 gateway 不强制带 v3 字段仍可完成握手」；`AuthResponse` 全部新字段使用 `omitempty` |
+| 2 | v2.0 客户端二进制调用新版 Entry API 不返回错误，未知字段被忽略 | ✓ PASS | `internal/claudedock/entry_compat_test.go::TestAuthResponse_MissingV3Fields_DefaultZero` 与 `TestAuthenticate_V2Gateway_NoExtensionsRequired` 分别覆盖「v2 gateway 响应缺字段→零值」与「v2 gateway 不强制带 v3 字段仍可完成握手」；`AuthResponse` 全部新字段使用 `omitempty` |
 | 3 | v3.0 客户端能正确读到 `image_version="v3.0.0"` / `supports_mutagen=true` / `supports_mergerfs=true` / `claude_account_id="<uuid>"` | ✓ PASS | `internal/controlplane/http/entry_auth_test.go` 验证 ready 路径响应键值；`internal/controlplane/http/entry_caps_test.go::TestDeriveEntryCapabilities` 覆盖 `v3.0.0` / 带 registry 前缀 / 带端口 / `v3.0.0-rc1` / 空串 / 无冒号等边界；`entry_compat_test.go` 验证 v3 字段在客户端结构中完整回路 |
 | 4 | `HostActionRequest` 在 host-agent 端解析 `Volumes` 字段且不引入新增 endpoint（沿用现有 `/agent/host/action`） | ✓ PASS | `Volumes []VolumeMount` 由 Phase 29 已交付；Phase 30 追加 `ClaudeAccountID string \`json:"claude_account_id,omitempty"\``（`internal/agentapi/contracts.go:54`）；`internal/runtime/tasks/worker_volume_test.go` 覆盖 v2 无字段/v3 含字段的 round-trip 兼容；未新增 endpoint，D-03 得到贯彻 |
 
@@ -56,8 +56,8 @@ go test ./internal/store/repository/... -count=1 -short   → PASS
 go test ./internal/store/repository/... -count=1          → PASS
 go test ./internal/runtime/tasks/... -count=1 -short      → PASS
 go test ./internal/controlplane/http/... -count=1 -short  → PASS
-go test ./internal/cloudclaude/... -count=1 -short        → PASS
-go test ./... -count=1 -short                             → PASS (cloudclaude, controlplane/http, controlplane/scheduler, network, runtime/tasks, store/repository)
+go test ./internal/claudedock/... -count=1 -short        → PASS
+go test ./... -count=1 -short                             → PASS (claudedock, controlplane/http, controlplane/scheduler, network, runtime/tasks, store/repository)
 ```
 
 ## Threat Model Coverage (from PLAN.md threat tables)
@@ -74,7 +74,7 @@ go test ./... -count=1 -short                             → PASS (cloudclaude,
 
 ## Open Questions — Resolved in Discuss Phase
 
-- **Q4** volume 命名：已定稿为单 volume `claude-state-{claude_account_id}` + label `com.cloud-cli-proxy.account_id`（30-CONTEXT D-01）
+- **Q4** volume 命名：已定稿为单 volume `claude-state-{claude_account_id}` + label `com.claudedock.account_id`（30-CONTEXT D-01）
 - **Q5** 扩展方式：已定稿在现有 `/v1/entry/{id}/auth` 加字段，不新增 `/capabilities`（D-03）
 - **Q6** host-agent 是否扩展返回 image labels：定稿不扩展，控制面仅依据 `template_image_ref` 推导（D-04）
 
@@ -88,14 +88,14 @@ go test ./... -count=1 -short                             → PASS (cloudclaude,
 以下项目不在单元测试可覆盖范围内，需真实环境确认（详见 frontmatter `human_verification`）：
 
 1. **hv-01**：在真实 Postgres 18.x 宿主上跑 migrator 升级路径（v2.0 → v3.0），确认 0014 在空库与已有数据的升级库上均可 up。（`ADD COLUMN IF NOT EXISTS` 理论幂等，但真实 DB 回归仅由运维执行。）
-2. **hv-02**：生产或预发布 gateway 接入 v2.0 cloud-claude 二进制时，验证旧客户端可正常完成 ready 流，v3 扩展字段被静默忽略。（自动化仅验证 JSON 结构兼容，未验证端到端进程。）
+2. **hv-02**：生产或预发布 gateway 接入 v2.0 claudedock 二进制时，验证旧客户端可正常完成 ready 流，v3 扩展字段被静默忽略。（自动化仅验证 JSON 结构兼容，未验证端到端进程。）
 
 ## Verdict
 
 **Phase 30 verification passed (4/4 success criteria).**
 
 - 数据模型层（migration 0014、`PersistentVolumeName *string`、`ResolveClaudeAccountIDForEntry`、`HostSSHAuth.TemplateImageRef`）完整就位。
-- API 契约层（`HostActionRequest.ClaudeAccountID`、Entry `/auth` 响应扩展、`cloudclaude.AuthResponse`）向后兼容并有测试锁定。
+- API 契约层（`HostActionRequest.ClaudeAccountID`、Entry `/auth` 响应扩展、`claudedock.AuthResponse`）向后兼容并有测试锁定。
 - Wave 1 / Wave 2 边界清晰，Phase 31（mount 重构）、Phase 33（volume 编排）可直接消费。
 - 存在 2 条人工验证项（真实 DB 升级、v2 客户端端到端）需运维在上线窗口完成。
 

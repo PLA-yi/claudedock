@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/broadcast"
+	"github.com/claudedock/claudedock/internal/network"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // pullImageTimeout 限制 docker pull 单次最长执行时间，防止 registry 卡死无限期 hold task
@@ -24,7 +24,7 @@ import (
 const pullImageTimeout = 5 * time.Minute
 
 const (
-	defaultHostRoot       = "/var/lib/cloud-cli-proxy/hosts/"
+	defaultHostRoot       = "/var/lib/claudedock/hosts/"
 	defaultWorkspaceMount = "/workspace"
 	taskStatePending      = "pending"
 	taskStateRunning      = "running"
@@ -34,8 +34,8 @@ const (
 )
 
 const (
-	sshManagedBeginMarker = "# >>> cloud-cli-proxy managed keys (do not edit) >>>"
-	sshManagedEndMarker   = "# <<< cloud-cli-proxy managed keys <<<"
+	sshManagedBeginMarker = "# >>> claudedock managed keys (do not edit) >>>"
+	sshManagedEndMarker   = "# <<< claudedock managed keys <<<"
 )
 
 type WorkerRepo interface {
@@ -259,8 +259,8 @@ func (w *Worker) buildCreateArgs(request agentapi.HostActionRequest, containerNa
 		"--device", "/dev/net/tun",
 		"--device", "/dev/fuse",
 		"--security-opt", "apparmor=unconfined",
-		"--label", "cloud-cli-proxy.managed=true",
-		"--label", fmt.Sprintf("cloud-cli-proxy.host_id=%s", request.HostID),
+		"--label", "claudedock.managed=true",
+		"--label", fmt.Sprintf("claudedock.host_id=%s", request.HostID),
 		"--hostname", hostname,
 		"--shm-size", "1g",
 		// Phase 47 Plan 02 I6 双保险：disable_ipv6 同时锁 all + default。
@@ -1112,7 +1112,7 @@ func (w *Worker) fixFileOwnership(ctx context.Context, request agentapi.HostActi
 func loadProxyPublicKey() string {
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
-		dataDir = "/var/lib/cloud-cli-proxy"
+		dataDir = "/var/lib/claudedock"
 	}
 	pubKeyPath := dataDir + "/ssh_host_ed25519_key.pub"
 	data, err := os.ReadFile(pubKeyPath)
@@ -1317,7 +1317,7 @@ func (w *Worker) runDocker(ctx context.Context, args ...string) error {
 func (w *Worker) connectContainerNetworks(ctx context.Context, containerName string) error {
 	composeNetwork := os.Getenv("COMPOSE_NETWORK")
 	if composeNetwork == "" {
-		composeNetwork = "cloud-cli-proxy_default"
+		composeNetwork = "claudedock_default"
 	}
 
 	// compose 网络允许控制面通过容器 IP 直连 VNC/SSH 等端口。
@@ -1338,7 +1338,7 @@ func hostHomeDir(hostID string) string {
 }
 
 func containerNameForHost(hostID string) string {
-	return fmt.Sprintf("cloudproxy-%s", hostID)
+	return fmt.Sprintf("claudedock-%s", hostID)
 }
 
 func firstNonEmpty(values ...string) string {
@@ -1363,8 +1363,8 @@ func summarizeError(err error) string {
 const (
 	claudeStateVolumePrefix = "claude-state-"
 	claudeStateMountTarget  = "/var/lib/claude-persist"
-	claudeAccountLabelKey   = "com.cloud-cli-proxy.account_id"
-	claudeManagedLabelKey   = "com.cloud-cli-proxy.managed"
+	claudeAccountLabelKey   = "com.claudedock.account_id"
+	claudeManagedLabelKey   = "com.claudedock.managed"
 	claudeManagedLabelVal   = "true"
 )
 

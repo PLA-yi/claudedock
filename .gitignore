@@ -1,7 +1,7 @@
 # Compiled binaries
 bin/
 /control-plane
-/cloud-claude
+/claudedock
 *.exe
 *.dll
 *.so

@@ -1,0 +1,20 @@
+[Unit]
+Description=ClaudeDock control-plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=claudedock
+Group=claudedock
+WorkingDirectory=/opt/claudedock
+Environment=CONTROL_PLANE_ADDR=:8080
+ExecStart=/opt/claudedock/bin/control-plane
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+AmbientCapabilities=CAP_NET_ADMIN CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN
+
+[Install]
+WantedBy=multi-user.target

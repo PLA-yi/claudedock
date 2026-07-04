@@ -27,7 +27,7 @@ Phase 30（数据模型 + Entry API 扩展）整体实现紧贴 30-CONTEXT 的 D
 ### Minor Issues
 
 - **M1 · `SupportsMutagen`/`SupportsMergerfs` 使用 `omitempty` 会模糊「显式 false」与「服务器未返回」**
-  - 位置：`internal/cloudclaude/entry.go:32`、`internal/cloudclaude/entry.go:33`
+  - 位置：`internal/claudedock/entry.go:32`、`internal/claudedock/entry.go:33`
   - 现象：控制面在 ready 路径走 `map[string]any`，总是显式写入 `supports_mutagen: false / supports_mergerfs: false`（见 `internal/controlplane/http/entry.go:212`-`213`）；但客户端 struct 带 `omitempty`，若客户端再次 marshal 这份 `AuthResponse`，`false` 会被省略，导致下游无法区分「服务器说 false」与「服务器未声明」。
   - 影响：Phase 30 内零影响（客户端只读、不重发）；但若 Phase 31/33 想基于该结构再转发或持久化，D-08「不强制带」和「显式 false」的语义会被压平。
   - 建议：保持现状可接受（Phase 30 D-08 允许非 ready 省略；ready 的 false 本就只是「不启用能力」），但请在 Phase 31/33 引入转发逻辑前复核；或将 `bool` 改为 `*bool` + `omitempty` 以准确保留三态。
@@ -73,11 +73,11 @@ Phase 30（数据模型 + Entry API 扩展）整体实现紧贴 30-CONTEXT 的 D
 ## Wave Boundary Verification
 
 - **Wave 1 commits 仅触达 `internal/store/**`** ：✓
-  - `97b07b2`、`59e982a`、`cba3e14`、`5c5ca66`、`7a09965` 的 `git show --stat` 仅包含 `internal/store/migrations/0014_claude_account_persistent_volume.sql`、`internal/store/repository/models.go`、`internal/store/repository/queries.go`、`internal/store/repository/migration_0014_test.go`，未越界进入 `internal/controlplane` / `internal/cloudclaude` / `internal/agentapi`。
+  - `97b07b2`、`59e982a`、`cba3e14`、`5c5ca66`、`7a09965` 的 `git show --stat` 仅包含 `internal/store/migrations/0014_claude_account_persistent_volume.sql`、`internal/store/repository/models.go`、`internal/store/repository/queries.go`、`internal/store/repository/migration_0014_test.go`，未越界进入 `internal/controlplane` / `internal/claudedock` / `internal/agentapi`。
 - **Wave 2 消费 Wave 1 的产物、未重新实现 SQL**：✓
   - `internal/controlplane/http/entry.go` 通过 `EntryStore.ResolveClaudeAccountIDForEntry` 接口引用 Wave 1 的仓储实现，并读取 `HostSSHAuth.TemplateImageRef` / `Host.TemplateImageRef`（Wave 1 扩展的 `GetHostByShortID` / 既有 `GetPrimaryHostByUserID` 输出），未在 HTTP 层重新写 `SELECT` / 参数化查询。
   - `deriveEntryCapabilities` 仅做字符串解析，没有任何 DB 调用或 host-agent 回路，符合 D-04。
   - `internal/agentapi/contracts.go` 只新增一个 `ClaudeAccountID string` 字段，Wave 2 的 `worker_volume_test.go` 仅测 JSON 契约，没有触达数据层。
 - **artifacts[].contains 与实际代码一致**：✓
   - Wave 1：`persistent_volume_name`（migration、models JSON tag、queries 注释均可查）、`PersistentVolumeName`（`models.go:217`）、`ResolveClaudeAccountIDForEntry`（`queries.go:1200`）。
-  - Wave 2：`claude_account_id`（`contracts.go` 新字段 JSON tag、handler 响应键、`AuthResponse` tag）、`supports_mutagen`（`entry.go:212`）、`SupportsMergerfs`（`cloudclaude/entry.go:33`）。
+  - Wave 2：`claude_account_id`（`contracts.go` 新字段 JSON tag、handler 响应键、`AuthResponse` tag）、`supports_mutagen`（`entry.go:212`）、`SupportsMergerfs`（`claudedock/entry.go:33`）。

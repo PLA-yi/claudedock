@@ -21,7 +21,7 @@ import (
 	"database/sql"
 	"golang.org/x/net/proxy"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
+	"github.com/claudedock/claudedock/internal/containerregistry"
 )
 
 // probeImageRef 固定 sing-box 版本（v1.13.3），避免 latest 版本配置格式不兼容导致探针失败。
@@ -236,7 +236,7 @@ func startLocalSingBox(ctx context.Context, proxyConfig json.RawMessage) (port i
 func probeConfigDir() string {
 	base := os.Getenv("DATA_DIR")
 	if base == "" {
-		base = "/var/lib/cloud-cli-proxy"
+		base = "/var/lib/claudedock"
 	}
 	return filepath.Join(base, "probe")
 }

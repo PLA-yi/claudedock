@@ -13,7 +13,7 @@ status: completed
 ## 实施决策
 
 - **D-01**: docker-compose.yml 只保留 control-plane + managed-user，移除 postgres/admin/sing-box
-- **D-02**: DATABASE_URL 改为 `file:/data/cloud-cli-proxy.db`，SQLite 数据通过 volume 持久化
+- **D-02**: DATABASE_URL 改为 `file:/data/claudedock.db`，SQLite 数据通过 volume 持久化
 - **D-03**: 所有环境变量引用统一为 SQLite 路径，CONTROL_PLANE_ADDR=:8080
 
 ## 相关需求

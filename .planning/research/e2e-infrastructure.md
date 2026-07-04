@@ -1,4 +1,4 @@
-# Cloud CLI Proxy — e2e 测试框架与 CI 基础设施研究
+# ClaudeDock — e2e 测试框架与 CI 基础设施研究
 
 > 研究范围：测试框架选型 + CI 基础设施 + 测试运行环境。
 > 仅用于辅助决策，不修改任何项目代码。
@@ -38,7 +38,7 @@
 
 ### 2.2 选型理由
 
-- **`testcontainers-go` 作为主力**：模块生态、Ryuk 兜底、等待策略覆盖、社区活跃度都是 dockertest 给不出来的。Cloud CLI Proxy 的 e2e 至少要起 Postgres + 用户容器 + sing-box 容器，等待策略和清理都是高频痛点。
+- **`testcontainers-go` 作为主力**：模块生态、Ryuk 兜底、等待策略覆盖、社区活跃度都是 dockertest 给不出来的。ClaudeDock 的 e2e 至少要起 Postgres + 用户容器 + sing-box 容器，等待策略和清理都是高频痛点。
 - **`testify/suite` 做用例组织**：本项目 e2e 一定会复用「起 Postgres → 起控制面 → 注入种子数据 → 跑断言」这条公共前置；suite 的 `SetupSuite`/`SetupTest`/`TearDownSuite` 比 `TestMain` 灵活，又能直接和 testcontainers 的 helper 拼接。参考 testcontainers-go 官方示例里用 `testhelpers/containers.go` 提取容器构造的写法。
 - **`dockertest` 不选**：v4 已经够好用，但模块生态相比 testcontainers 还是落后一个量级；本项目里没有「必须 Go-only 极简依赖」的硬要求，不值得为它降低长期可维护性。
 - **裸写 `testing` 留作 fallback**：当 testcontainers 把简单事搞复杂时（比如直接拉起 host-agent 这种 Go 二进制），用 `exec.Command` 起一个长生命周期子进程更直接。
@@ -55,7 +55,7 @@
 
 ## 3. CI 环境矩阵
 
-Cloud CLI Proxy 的网络强约束（tun 设备、`ip netns`、`nft`、`iptables-nft`、`MASQUERADE`、`ip_forward`）让 CI 环境的可行域比一般 Go 项目窄很多。
+ClaudeDock 的网络强约束（tun 设备、`ip netns`、`nft`、`iptables-nft`、`MASQUERADE`、`ip_forward`）让 CI 环境的可行域比一般 Go 项目窄很多。
 
 ### 3.1 能力矩阵
 
@@ -115,9 +115,9 @@ Cloud CLI Proxy 的网络强约束（tun 设备、`ip netns`、`nft`、`iptables
 | testcontainers-go 正常 case | `testcontainers.CleanupContainer(t, ctr)` **放在 `require.NoError(t, err)` 之前**，nil 安全；不要再手写 `t.Cleanup(func(){ ctr.Terminate(ctx) })` |
 | testcontainers-go 在 self-hosted runner | 保持 Ryuk 开启；如果 runner 是长寿命的，孤儿容器会被 Ryuk 标签 `org.testcontainers=true` 自动回收 |
 | testcontainers-go 在 DinD/k8s runner | `TESTCONTAINERS_RYUK_DISABLED=true` + `TESTCONTAINERS_CHECKS_DISABLE=true`；用 Kubedock 或 Testcontainers Cloud 顶替清理 |
-| 自起的 docker 容器（非 testcontainers） | 一律打 `--label cloudcliproxy.e2e.run=$RUN_ID`，suite teardown 里用 `docker ps -aq --filter label=cloudcliproxy.e2e.run=$RUN_ID` 一锅端 |
+| 自起的 docker 容器（非 testcontainers） | 一律打 `--label claudedock.e2e.run=$RUN_ID`，suite teardown 里用 `docker ps -aq --filter label=claudedock.e2e.run=$RUN_ID` 一锅端 |
 | netns / 物理 tun 设备 | 用 `defer netlink.LinkDel(link)` + `defer netns.DeleteNamed(name)`；测试名作为命名空间名前缀 `e2e_<test>_<run>`，便于事后人工清理 |
-| nftables 规则 | 给本项目自己用的 table 加专属名字 `inet cloudcliproxy_e2e`，teardown 直接 `nft delete table inet cloudcliproxy_e2e` |
+| nftables 规则 | 给本项目自己用的 table 加专属名字 `inet claudedock_e2e`，teardown 直接 `nft delete table inet claudedock_e2e` |
 
 ### 4.2 数据库隔离
 
@@ -125,7 +125,7 @@ Cloud CLI Proxy 的网络强约束（tun 设备、`ip netns`、`nft`、`iptables
 
 | 策略 | 适用 | 不适用 |
 |---|---|---|
-| Transaction rollback（go-txdb） | 测试代码本身不开事务；最快 | **不适用**于 Cloud CLI Proxy：控制面要做容器生命周期、出口 IP 绑定，肯定有自己的 `BEGIN/COMMIT`，rollback 法会污染语义 |
+| Transaction rollback（go-txdb） | 测试代码本身不开事务；最快 | **不适用**于 ClaudeDock：控制面要做容器生命周期、出口 IP 绑定，肯定有自己的 `BEGIN/COMMIT`，rollback 法会污染语义 |
 | Schema-per-test（`search_path`） | 测试代码可以开事务；速度居中 | 如果代码里有 `SET search_path` 或跨 schema 引用就会被污染 |
 | Database-per-test（template clone） | 强隔离、可并行；IntegreSQL 把 template clone 做到接近瞬时 | 增加一个外部组件（IntegreSQL）或要自己包装 `CREATE DATABASE ... TEMPLATE`；为小项目可能过度 |
 

@@ -87,7 +87,7 @@ DO UPDATE SET
 | 残留空白行自检 | `grep -A1 'host_mounts = EXCLUDED.host_mounts,' ...` | 下一行直接是 `updated_at = NOW()` |
 | 静态检查 | `go vet ./internal/store/...` | 退出码 0（输出仅 `VET_OK`） |
 | 编译 | `go build ./internal/store/...` | 退出码 0（输出仅 `BUILD_OK`） |
-| 单元测试 | `go test ./internal/store/repository/... -count=1` | `ok  github.com/zanel1u/cloud-cli-proxy/internal/store/repository  0.600s` |
+| 单元测试 | `go test ./internal/store/repository/... -count=1` | `ok  github.com/claudedock/claudedock/internal/store/repository  0.600s` |
 
 ## 提交
 

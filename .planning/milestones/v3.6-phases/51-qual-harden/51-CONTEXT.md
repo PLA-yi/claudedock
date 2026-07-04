@@ -28,7 +28,7 @@
 | Phase 47 D-47-3 | `host_egress_bindings` 缺 pre-check + 无 4xx error code | **51-09**（新增） |
 | Phase 49 GAP-1 | worker `--cap-add NET_ADMIN/SYS_ADMIN`，docker 默认含 NET_RAW | **51-06** |
 | Phase 49 GAP-2 | 缺 IPv4 `169.254.0.0/16` 显式 drop nft 规则 | **51-05**（扩展） |
-| Phase 50 KILL-04 | gateway 接 `cloudproxy-net-*` 自定义 bridge（源码已就绪） | 无需修源码，已用 skip 兜底 |
+| Phase 50 KILL-04 | gateway 接 `claudedock-net-*` 自定义 bridge（源码已就绪） | 无需修源码，已用 skip 兜底 |
 
 **不在本 phase 范围**：
 
@@ -92,7 +92,7 @@
   - 更新 `.github/workflows/ci.yml` 主 test job 加 `-race -shuffle=on`
   - **保留** `tests/e2e/` 不带 `-race`（e2e 跑容器，race detector 性能开销大，且不适合 e2e 用例）
 - **QUAL-08 goleak.VerifyTestMain**：
-  - 在主 package（control-plane / host-agent / cloud-claude）`TestMain` 加 `goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("github.com/sagernet/sing-box/..."), goleak.IgnoreTopFunction("github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck"))`
+  - 在主 package（control-plane / host-agent / claudedock）`TestMain` 加 `goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("github.com/sagernet/sing-box/..."), goleak.IgnoreTopFunction("github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck"))`
   - **新依赖**：`go.uber.org/goleak`，写入 `go.mod`（这是本里程碑唯一允许新增的依赖）
   - 先跑一遍现有测试，把所有未知 goroutine 泄漏的 top function 加入 IgnoreList，避免噪音
 
@@ -121,7 +121,7 @@
 ### Claude's Discretion
 
 - worker `--cap-drop NET_RAW` 与 `--cap-add NET_ADMIN` 的精确权衡（按源码实际依赖决定保留哪些 cap）
-- `goleak.VerifyTestMain` 在哪些 package 接入（建议至少 `cmd/control-plane` / `cmd/host-agent` / `cmd/cloud-claude` 三个主包）
+- `goleak.VerifyTestMain` 在哪些 package 接入（建议至少 `cmd/control-plane` / `cmd/host-agent` / `cmd/claudedock` 三个主包）
 - `verify.go` 重构是否同时拆分文件（建议不拆，保持兼容）
 - 51-09 双绑 error code 命名（`egress_ip_already_bound` 还是 `EGRESS_IP_ALREADY_BOUND`，按现有 error code 命名风格）
 
@@ -183,7 +183,7 @@
   ```
 - **`worker_firewall_linux.go` 新 nft 规则**（伪 nft 表达式）：
   ```
-  add rule ip cloudproxy worker-output ip daddr 169.254.0.0/16 counter drop comment "linklocal-drop"
+  add rule ip claudedock worker-output ip daddr 169.254.0.0/16 counter drop comment "linklocal-drop"
   ```
 - **51-09 admin_bindings.go 双绑 pre-check**（伪代码）：
   ```go

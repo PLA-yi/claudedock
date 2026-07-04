@@ -66,7 +66,7 @@ completed: 2026-05-16
   4. JSON `host_id` = 既有占用者 host id（不是请求者）
   5. JSON `egress_ip_id` = 请求体回显
 - admin_bindings.go 业务代码严格 0 diff（V6 git diff --stat 空）
-- V2 三条 grep 守护：admin_bindings.go 不依赖 internal/network、不引用 docker/gateway/cloudproxy-net/bridge、AdminBindingStore 接口 5 方法签名稳定
+- V2 三条 grep 守护：admin_bindings.go 不依赖 internal/network、不引用 docker/gateway/claudedock-net/bridge、AdminBindingStore 接口 5 方法签名稳定
 - V5 字面量值 `ErrCodeEgressIPAlreadyBound = "egress_ip_already_bound"` 未改
 
 ## Task Commits
@@ -119,7 +119,7 @@ None.
 |---|---|---|---|
 | V1 新增测试 PASS | `Test_Phase54_DoubleBindingContract_PreservedAfterSingleContainerRefactor` PASS | PASS（0.00s，5 项契约全断言通过） | ✅ |
 | V2.1 admin_bindings.go 不 import internal/network | 0 命中 | 0 命中 | ✅ |
-| V2.2 admin_bindings.go 不引用 docker/gateway/cloudproxy-net/bridge | 0 命中 | 0 命中 | ✅ |
+| V2.2 admin_bindings.go 不引用 docker/gateway/claudedock-net/bridge | 0 命中 | 0 命中 | ✅ |
 | V2.3 AdminBindingStore 接口 5 方法签名 | 5 行命中 | 5 行命中（GetHost / BindEgressIPToHost / UnbindEgressIPFromHost / GetBindingHostID / GetBindingHostIDByEgressIP） | ✅ |
 | V3 v3.6 既有 11+1 用例不破 | TestAdminBindingsHandler 全 10 个子用例 + TestAdminBindings_DoubleBind_ErrorCode PASS | 全 PASS | ✅ |
 | V4 完整 controlplane test | `go test -short ./internal/controlplane/...` 全 PASS | 4 个 package 全 PASS（app / credgen / http / scheduler） | ✅ |

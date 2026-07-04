@@ -1,0 +1,9 @@
+# 本地构建覆盖（macOS / 本机原生架构）
+# 与 docker-compose.yml + docker-compose.build.yaml 叠加使用：
+#   docker compose -f docker-compose.yml -f docker-compose.build.yaml -f docker-compose.macbuild.yml ...
+# 作用：从源码本地构建控制面镜像（含我们改过的前端），不再拉取私有 ghcr 镜像；
+#      并按 CD_PLATFORM 用本机架构构建，避免 Apple Silicon 上模拟 amd64 导致极慢。
+services:
+  control-plane:
+    platform: ${CD_PLATFORM:-linux/arm64}
+    pull_policy: never

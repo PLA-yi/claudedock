@@ -11,7 +11,7 @@
 1. 数据库：`claude_accounts` 增加 `persistent_volume_name`（与 REQ-F7-A 单 volume 命名一致）。
 2. API 契约：`HostActionRequest` 增加 `ClaudeAccountID`（`Volumes` 已在 Phase 29 落地，本阶段与之对齐完成账号维度）。
 3. Entry API：`POST /v1/entry/{shortId}/auth` 在保持 v2.0 字段不变的前提下，追加 `image_version`、`supports_mutagen`、`supports_mergerfs`、`claude_account_id`（全部 `omitempty`，旧客户端忽略未知 JSON 字段）。
-4. `internal/cloudclaude.AuthResponse` 同步扩展字段与向后兼容语义。
+4. `internal/claudedock.AuthResponse` 同步扩展字段与向后兼容语义。
 5. 单元测试：旧结构反序列化新 JSON；新字段缺失时客户端降级默认值。
 
 </domain>
@@ -21,7 +21,7 @@
 
 ### Q4 · 持久化 volume 命名（ROADMAP Open question）
 
-- **D-01**：锁定 **单 named volume**：`claude-state-{claude_account_id}`（UUID 无连字符或与 DB 一致，由实现选定但全仓库一致）；Docker label `com.cloud-cli-proxy.account_id={claude_account_id}` 由 Phase 33 在 `volume create` 时写入。本阶段 migration 仅提供列，不强制非空。
+- **D-01**：锁定 **单 named volume**：`claude-state-{claude_account_id}`（UUID 无连字符或与 DB 一致，由实现选定但全仓库一致）；Docker label `com.claudedock.account_id={claude_account_id}` 由 Phase 33 在 `volume create` 时写入。本阶段 migration 仅提供列，不强制非空。
 - **D-02**：`persistent_volume_name` 列语义：**`NULL` = 尚未由控制面/任务分配名称**；一旦分配则与 D-01 规范一致，便于 Phase 33 `ensureDockerVolume` 幂等查找。禁止用空字符串表示「未分配」，减少三态。
 
 ### Q5 · 能力字段暴露面
@@ -79,7 +79,7 @@
 ### 实现锚点（代码）
 
 - `internal/controlplane/http/entry.go` — Entry `Auth` 处理器与当前 JSON 响应形状
-- `internal/cloudclaude/entry.go` — `AuthResponse` 与 `Authenticate` 反序列化路径
+- `internal/claudedock/entry.go` — `AuthResponse` 与 `Authenticate` 反序列化路径
 - `internal/agentapi/contracts.go` — `HostActionRequest` / `VolumeMount`
 - `internal/runtime/tasks/worker.go` — `createHost` 消费 `Volumes`（Phase 29）；本阶段规划需预留 `ClaudeAccountID` 传参落点
 - `internal/store/migrations/0007_auth_unification.sql` — `claude_accounts` 表基线定义
@@ -103,7 +103,7 @@
 ### Integration Points
 
 - `EntryHandler` 依赖 `EntryStore` 接口；扩展读路径时需同步 mock（如 `admin_hosts_test` 中的 stub）与实现类型。
-- `cloudclaude.EntryClient.Authenticate` 在 `ready` 时校验 SSH 四元组；扩展后 v3 客户端可读取新字段，**不得**破坏现有四元组校验。
+- `claudedock.EntryClient.Authenticate` 在 `ready` 时校验 SSH 四元组；扩展后 v3 客户端可读取新字段，**不得**破坏现有四元组校验。
 
 </code_context>
 

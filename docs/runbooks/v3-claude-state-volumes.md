@@ -24,8 +24,8 @@ Phase 33 引入了基于 **Docker named volume** 的 Claude Code 状态持久化
 | 项 | 规范 | 示例 |
 |----|------|------|
 | Volume 名 | `claude-state-{claude_account_id}` | `claude-state-<account_id>` |
-| 必带 label | `com.cloud-cli-proxy.account_id=<uuid>` | 唯一性键 |
-| 必带 label | `com.cloud-cli-proxy.managed=true` | 二级保险，可批量过滤 |
+| 必带 label | `com.claudedock.account_id=<uuid>` | 唯一性键 |
+| 必带 label | `com.claudedock.managed=true` | 二级保险，可批量过滤 |
 | Mount target | `/var/lib/claude-persist` | 容器内统一路径 |
 
 > account_id 使用 UUID 原格式（含连字符），不做截断或哈希。
@@ -133,7 +133,7 @@ set -euo pipefail
 
 # (a) 列出所有受管 claude-state-* volume
 echo "=== Managed claude-state volumes (docker side) ==="
-docker volume ls --filter label=com.cloud-cli-proxy.managed=true --format '{{.Name}}'
+docker volume ls --filter label=com.claudedock.managed=true --format '{{.Name}}'
 
 # (b) 与 DB 对比找出孤儿（DB 中无对应 account 但 docker 仍存在的 volume）
 TMPDIR=$(mktemp -d)
@@ -141,7 +141,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 psql "$DATABASE_URL" -tAc "SELECT 'claude-state-' || id FROM claude_accounts" \
   | sort > "$TMPDIR/db-volumes.txt"
-docker volume ls --filter label=com.cloud-cli-proxy.managed=true --format '{{.Name}}' \
+docker volume ls --filter label=com.claudedock.managed=true --format '{{.Name}}' \
   | grep '^claude-state-' | sort > "$TMPDIR/docker-volumes.txt"
 
 echo

@@ -4,17 +4,17 @@
 
 ### Control Plane Won't Start
 
-`systemctl status cloud-cli-proxy-control-plane` shows `failed`.
+`systemctl status claudedock-control-plane` shows `failed`.
 
 **Check:**
 
-1. `journalctl -u cloud-cli-proxy-control-plane --no-pager -n 50`
-2. `grep DATABASE_URL /etc/cloud-cli-proxy/env`
-3. `file /data/cloud-cli-proxy.db` — check database file exists
-4. `sqlite3 /data/cloud-cli-proxy.db "PRAGMA integrity_check"` — check database integrity
+1. `journalctl -u claudedock-control-plane --no-pager -n 50`
+2. `grep DATABASE_URL /etc/claudedock/env`
+3. `file /data/claudedock.db` — check database file exists
+4. `sqlite3 /data/claudedock.db "PRAGMA integrity_check"` — check database integrity
 4. `ss -tlnp | grep 8080`
 
-**Causes and fixes:** If the database is unreachable, check the SQLite file path and permissions. If the port is in use, stop the conflicting process or change `CONTROL_PLANE_ADDR`. Verify the `cloudproxy` user has write access to `/data/`.
+**Causes and fixes:** If the database is unreachable, check the SQLite file path and permissions. If the port is in use, stop the conflicting process or change `CONTROL_PLANE_ADDR`. Verify the `claudedock` user has write access to `/data/`.
 
 ### User Can't Log In
 
@@ -28,7 +28,7 @@ The bootstrap script shows "authentication failed".
 
 Task status is `failed`.
 
-**Check:** View task details (Admin API) → `docker info` → `docker images | grep managed-user` → `df -h /var/lib/docker` → `journalctl -u cloud-cli-proxy-host-agent`.
+**Check:** View task details (Admin API) → `docker info` → `docker images | grep managed-user` → `df -h /var/lib/docker` → `journalctl -u claudedock-host-agent`.
 
 **Fix:** Start Docker if it is not running, rebuild the image if missing, `docker system prune` if disk is full.
 
@@ -36,7 +36,7 @@ Task status is `failed`.
 
 Host cannot reach the internet or the exit IP does not match.
 
-**Check:** `docker exec {container} ps aux | grep sing-box` → view sing-box logs → `nsenter --net=/var/run/netns/cloudproxy-{hostID} ip link show` → verify the proxy server is reachable from the host.
+**Check:** `docker exec {container} ps aux | grep sing-box` → view sing-box logs → `nsenter --net=/var/run/netns/claudedock-{hostID} ip link show` → verify the proxy server is reachable from the host.
 
 **Fix:** Rebuild the host if sing-box is not running, check proxy server status and firewall if unreachable, update `proxy_config` and rebuild if configuration is wrong.
 
@@ -59,7 +59,7 @@ Restart the control plane for a temporary fix. Increase `max_connections` for a 
 
 ### Host Agent Won't Start
 
-`journalctl -u cloud-cli-proxy-host-agent --no-pager -n 50` → `sudo bash deploy/scripts/host-preflight.sh` → `docker info` → `which sing-box` → `ls -la /run/cloud-cli-proxy/`.
+`journalctl -u claudedock-host-agent --no-pager -n 50` → `sudo bash deploy/scripts/host-preflight.sh` → `docker info` → `which sing-box` → `ls -la /run/claudedock/`.
 
 ### SSH Proxy Connection Failure
 
@@ -84,15 +84,15 @@ When the host is unavailable and you need to restore on a new machine:
 1. Prepare a new host meeting prerequisites
 2. Deploy services:
    ```bash
-   git clone https://github.com/ZaneL1u/cloud-cli-proxy.git /opt/cloud-cli-proxy
-   cd /opt/cloud-cli-proxy
+   git clone https://github.com/claudedock/claudedock.git /opt/claudedock
+   cd /opt/claudedock
    sudo bash deploy/scripts/deploy.sh
    ```
 3. Restore database:
    ```bash
-   systemctl stop cloud-cli-proxy-control-plane
-   pg_restore --clean -d cloudproxy /path/to/backup.dump
-   systemctl start cloud-cli-proxy-control-plane
+   systemctl stop claudedock-control-plane
+   pg_restore --clean -d claudedock /path/to/backup.dump
+   systemctl start claudedock-control-plane
    ```
 4. Rebuild managed image: `bash deploy/docker/managed-user/build-managed-image.sh`
 5. Verify: `curl -s http://127.0.0.1:8080/healthz`
@@ -104,22 +104,22 @@ After recovery, user containers must be recreated and started. User accounts, eg
 ### Database-only Recovery
 
 ```bash
-systemctl stop cloud-cli-proxy-control-plane
-pg_restore -d cloudproxy /var/backups/cloud-cli-proxy/latest.dump
-systemctl start cloud-cli-proxy-control-plane
+systemctl stop claudedock-control-plane
+pg_restore -d claudedock /var/backups/claudedock/latest.dump
+systemctl start claudedock-control-plane
 ```
 
 ## Viewing Logs
 
 ```bash
 # Control plane
-journalctl -u cloud-cli-proxy-control-plane -f
+journalctl -u claudedock-control-plane -f
 
 # Host agent
-journalctl -u cloud-cli-proxy-host-agent -f
+journalctl -u claudedock-host-agent -f
 
 # Last 100 lines
-journalctl -u cloud-cli-proxy-control-plane --no-pager -n 100
+journalctl -u claudedock-control-plane --no-pager -n 100
 
 # Docker Compose
 docker compose logs -f control-plane

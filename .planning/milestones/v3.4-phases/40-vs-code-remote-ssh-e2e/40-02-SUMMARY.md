@@ -19,7 +19,7 @@ Plan 02 包含 2 个 `checkpoint:human-action` 任务，需要用户手动执行
 
 ```bash
 # 1. 启动容器
-cloud-claude local up --egress-config /path/to/sing-box-outbound.json
+claudedock local up --egress-config /path/to/sing-box-outbound.json
 
 # 2. 运行 UAT 脚本
 bash tests/scripts/uat-vscode-remote-ssh.sh --confirm-destructive \

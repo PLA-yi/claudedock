@@ -30,24 +30,24 @@ done
 
 # ── 2. 系统用户和目录 ────────────────────────────────────────
 log "创建系统用户和目录..."
-if ! id cloudproxy >/dev/null 2>&1; then
-  useradd --system --no-create-home --shell /usr/sbin/nologin cloudproxy
-  usermod -aG docker cloudproxy
-  log "创建系统用户 cloudproxy"
+if ! id claudedock >/dev/null 2>&1; then
+  useradd --system --no-create-home --shell /usr/sbin/nologin claudedock
+  usermod -aG docker claudedock
+  log "创建系统用户 claudedock"
 else
-  log "系统用户 cloudproxy 已存在"
+  log "系统用户 claudedock 已存在"
 fi
 
-mkdir -p /var/lib/cloud-cli-proxy /run/cloud-cli-proxy /etc/cloud-cli-proxy /opt/cloud-cli-proxy/bin
-chown cloudproxy:cloudproxy /var/lib/cloud-cli-proxy /run/cloud-cli-proxy /etc/cloud-cli-proxy
+mkdir -p /var/lib/claudedock /run/claudedock /etc/claudedock /opt/claudedock/bin
+chown claudedock:claudedock /var/lib/claudedock /run/claudedock /etc/claudedock
 
 # ── 3. 环境变量配置 ──────────────────────────────────────────
-ENV_FILE="/etc/cloud-cli-proxy/env"
+ENV_FILE="/etc/claudedock/env"
 if [[ ! -f "$ENV_FILE" ]]; then
   log "生成环境变量配置文件..."
 
   if [[ -z "${DATABASE_URL:-}" ]]; then
-    read -rp "数据库路径 (DATABASE_URL, 默认 file:/data/cloud-cli-proxy.db): " DATABASE_URL
+    read -rp "数据库路径 (DATABASE_URL, 默认 file:/data/claudedock.db): " DATABASE_URL
   fi
 
   if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
@@ -65,7 +65,7 @@ ADMIN_JWT_SECRET=${JWT_SECRET}
 EOF
 
   chmod 600 "$ENV_FILE"
-  chown cloudproxy:cloudproxy "$ENV_FILE"
+  chown claudedock:claudedock "$ENV_FILE"
   log "环境变量写入 $ENV_FILE"
   log "ADMIN_JWT_SECRET 已自动生成，请妥善保管"
 else
@@ -82,11 +82,11 @@ log "数据库连接正常"
 
 # ── 5. 构建二进制 ────────────────────────────────────────────
 log "构建控制面..."
-go build -o /opt/cloud-cli-proxy/bin/control-plane ./cmd/control-plane
+go build -o /opt/claudedock/bin/control-plane ./cmd/control-plane
 log "控制面构建完成"
 
 log "构建 host-agent..."
-go build -o /opt/cloud-cli-proxy/bin/host-agent ./cmd/host-agent
+go build -o /opt/claudedock/bin/host-agent ./cmd/host-agent
 log "host-agent 构建完成"
 
 # ── 6. 构建受管镜像 ──────────────────────────────────────────
@@ -96,32 +96,32 @@ log "受管用户镜像构建完成"
 
 # ── 7. 安装 systemd 服务 ─────────────────────────────────────
 log "安装 systemd 服务..."
-cp deploy/systemd/cloud-cli-proxy-control-plane.service /etc/systemd/system/
-cp deploy/systemd/cloud-cli-proxy-host-agent.service /etc/systemd/system/
+cp deploy/systemd/claudedock-control-plane.service /etc/systemd/system/
+cp deploy/systemd/claudedock-host-agent.service /etc/systemd/system/
 
-mkdir -p /etc/systemd/system/cloud-cli-proxy-control-plane.service.d
-cat > /etc/systemd/system/cloud-cli-proxy-control-plane.service.d/env.conf <<'UNIT'
+mkdir -p /etc/systemd/system/claudedock-control-plane.service.d
+cat > /etc/systemd/system/claudedock-control-plane.service.d/env.conf <<'UNIT'
 [Service]
-EnvironmentFile=/etc/cloud-cli-proxy/env
+EnvironmentFile=/etc/claudedock/env
 UNIT
 
-mkdir -p /etc/systemd/system/cloud-cli-proxy-host-agent.service.d
-cat > /etc/systemd/system/cloud-cli-proxy-host-agent.service.d/env.conf <<'UNIT'
+mkdir -p /etc/systemd/system/claudedock-host-agent.service.d
+cat > /etc/systemd/system/claudedock-host-agent.service.d/env.conf <<'UNIT'
 [Service]
-EnvironmentFile=/etc/cloud-cli-proxy/env
+EnvironmentFile=/etc/claudedock/env
 UNIT
 
 # ── 8. 部署项目文件 ──────────────────────────────────────────
-log "同步项目文件到 /opt/cloud-cli-proxy/..."
+log "同步项目文件到 /opt/claudedock/..."
 rsync -a --exclude='.git' --exclude='node_modules' --exclude='.planning' \
-  "$REPO_ROOT/" /opt/cloud-cli-proxy/ 2>/dev/null || \
-  cp -r "$REPO_ROOT"/{deploy,internal,cmd,docs} /opt/cloud-cli-proxy/ 2>/dev/null || true
+  "$REPO_ROOT/" /opt/claudedock/ 2>/dev/null || \
+  cp -r "$REPO_ROOT"/{deploy,internal,cmd,docs} /opt/claudedock/ 2>/dev/null || true
 
 # ── 9. 启动服务 ──────────────────────────────────────────────
 log "启动服务..."
 systemctl daemon-reload
-systemctl enable --now cloud-cli-proxy-control-plane
-systemctl enable --now cloud-cli-proxy-host-agent
+systemctl enable --now claudedock-control-plane
+systemctl enable --now claudedock-host-agent
 
 # ── 10. 健康检查 ─────────────────────────────────────────────
 log "等待控制面就绪..."
@@ -132,16 +132,16 @@ for i in $(seq 1 15); do
     break
   fi
   if [[ $i -eq 15 ]]; then
-    die "控制面健康检查超时 (15s)，请检查: journalctl -u cloud-cli-proxy-control-plane --no-pager -n 30"
+    die "控制面健康检查超时 (15s)，请检查: journalctl -u claudedock-control-plane --no-pager -n 30"
   fi
   sleep 1
 done
 
 log "检查 host-agent 状态..."
-if systemctl is-active --quiet cloud-cli-proxy-host-agent; then
+if systemctl is-active --quiet claudedock-host-agent; then
   log "host-agent 运行正常"
 else
-  err "host-agent 未正常启动，请检查: journalctl -u cloud-cli-proxy-host-agent --no-pager -n 30"
+  err "host-agent 未正常启动，请检查: journalctl -u claudedock-host-agent --no-pager -n 30"
 fi
 
 # ── 完成 ─────────────────────────────────────────────────────

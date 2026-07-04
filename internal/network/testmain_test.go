@@ -16,6 +16,6 @@ import (
 // 后续 sing-box / pgx 等第三方常驻 goroutine 若被本包测试触达再追加。
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
-		goleak.IgnoreTopFunction("github.com/zanel1u/cloud-cli-proxy/internal/broadcast.(*Hub).cleanupLoop"),
+		goleak.IgnoreTopFunction("github.com/claudedock/claudedock/internal/broadcast.(*Hub).cleanupLoop"),
 	)
 }

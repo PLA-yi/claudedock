@@ -90,7 +90,7 @@ func (s *Scenario) startPostgres(ctx context.Context) error {
         ExposedPorts: []string{"5432/tcp"},
         Env: map[string]string{
             "POSTGRES_PASSWORD": "e2e-postgres-pw",
-            "POSTGRES_DB":       "cloud_cli_proxy_e2e",
+            "POSTGRES_DB":       "claudedock_e2e",
             "POSTGRES_USER":     "postgres",
         },
         WaitingFor: wait.ForLog("database system is ready to accept connections").
@@ -99,7 +99,7 @@ func (s *Scenario) startPostgres(ctx context.Context) error {
     c, err := testcontainers.GenericContainer(ctx, ...)
     host, _ := c.Host(ctx); mappedPort, _ := c.MappedPort(ctx, "5432/tcp")
     s.cpHandle = &ControlPlaneHandle{
-        DBURL: fmt.Sprintf("postgres://postgres:e2e-postgres-pw@%s:%s/cloud_cli_proxy_e2e?sslmode=disable", host, mappedPort.Port()),
+        DBURL: fmt.Sprintf("postgres://postgres:e2e-postgres-pw@%s:%s/claudedock_e2e?sslmode=disable", host, mappedPort.Port()),
     }
     s.cleanups = append(s.cleanups, func(ctx) error { return c.Terminate(ctx) })
 }

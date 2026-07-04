@@ -14,7 +14,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| `cmd/cloud-claude/main.go::startSession` 入口闸门（cwd 解析后、auth 之前） | 与 ParseMode 同位置；不发起任何 SSH/SFTP；与 `--mount-mode` 正交 | ✓ |
+| `cmd/claudedock/main.go::startSession` 入口闸门（cwd 解析后、auth 之前） | 与 ParseMode 同位置；不发起任何 SSH/SFTP；与 `--mount-mode` 正交 | ✓ |
 | `mount_strategy.MountWorkspace` 内部检查 | 太晚——已建立 SSH 连接，违反 REQ-01「不发起任何 SSH 文件操作」字面要求 | |
 | cobra `PreRunE` hook | 与 ParseMode 等其它入口校验风格不一致；测试 mock 难度高 | |
 
@@ -29,7 +29,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| `~/.cloud-claude/config.yaml` 新增 `hot_sync_max_file_mb` 字段 | 与 `proxy_commands` 一致的 Effective<Field>() 默认值兜底模式 | ✓ |
+| `~/.claudedock/config.yaml` 新增 `hot_sync_max_file_mb` 字段 | 与 `proxy_commands` 一致的 Effective<Field>() 默认值兜底模式 | ✓ |
 | 命令行 flag `--hot-sync-max-mb` | 增加 cobra flag 表面积，与 ROADMAP「配置/校验/参数级改动」叙述偏离 | |
 | 环境变量 `CLOUD_CLAUDE_HOT_SYNC_MAX_MB` | 不便于持久化，多端不一致 | |
 
@@ -128,7 +128,7 @@
 |--------|-------------|----------|
 | 5 项 check 全部不提供 `--fix`，走 NextAction 提示 | 用户意图不可猜（git init / .gitignore / 配置编辑都需用户决策） | ✓ |
 | `default_ignore_loaded` 提供 unset 环境变量修复 | 涉及 shell 配置修改，副作用大 | |
-| `git_proxy_enabled` 自动 `cloud-claude init` 重新生成 | 会覆盖用户已有配置 | |
+| `git_proxy_enabled` 自动 `claudedock init` 重新生成 | 会覆盖用户已有配置 | |
 
 **[auto] 选择：** 全部走 NextAction（D-15）
 
@@ -194,7 +194,7 @@
 ## Deferred Ideas
 
 - Phase 37 配套（cold-promoter / PromotionEngine / runbook / e2e UAT 脚本）— 全部 REQ-MOUNT-V31-07..16
-- `cloud-claude init` 文案优化（hot_sync_max_file_mb 引导）— v3.4
+- `claudedock init` 文案优化（hot_sync_max_file_mb 引导）— v3.4
 - 错误码英文 i18n — v3.4
 - `--fix` 自动修复 5 项新 check — v3.4 视用户反馈
 - doctor `oversized_files_count` 跨会话历史聚合 — v3.4 metrics

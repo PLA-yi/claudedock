@@ -6,13 +6,13 @@ import (
 )
 
 // bypassRuleSetDir 容器内白名单 rule-set 文件目录，与 bypass_reload_apply.go::bypassContainerDir 对齐。
-const bypassRuleSetDir = "/etc/cloud-claude/bypass"
+const bypassRuleSetDir = "/etc/claudedock/bypass"
 
 // buildContainerSingBoxConfig 渲染 v4.0 单容器架构 sing-box config JSON。
 //
 // bypass 白名单通过 route.rule_set (type=local) 引用容器内文件：
-//   - /etc/cloud-claude/bypass/whitelist-cidrs.json   → rule_set "bypass-cidrs"
-//   - /etc/cloud-claude/bypass/whitelist-domains.json → rule_set "bypass-domains"
+//   - /etc/claudedock/bypass/whitelist-cidrs.json   → rule_set "bypass-cidrs"
+//   - /etc/claudedock/bypass/whitelist-domains.json → rule_set "bypass-domains"
 //
 // DNS 和 route 规则均引用这些 rule_set。sing-box 1.12+ 支持 rule_set 在 route 块内
 // 定义 + DNS/route 规则引用，文件 watcher 自动热加载。

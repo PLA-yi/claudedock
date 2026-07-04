@@ -17,15 +17,15 @@
 | disk | 磁盘空间，inode 使用率 |
 
 ```bash
-cloud-claude doctor                  # 五项全检
-cloud-claude doctor network          # 仅检查网络
-cloud-claude doctor mount --fix      # 检查挂载并自动修复
+claudedock doctor                  # 五项全检
+claudedock doctor network          # 仅检查网络
+claudedock doctor mount --fix      # 检查挂载并自动修复
 ```
 
 ### env check — 远端环境检查
 
 ```bash
-cloud-claude env check
+claudedock env check
 ```
 
 输出远端容器的时区、语言环境、出口 IP、FUSE 状态、工具链版本等信息。
@@ -33,7 +33,7 @@ cloud-claude env check
 ### explain — 错误码解释
 
 ```bash
-cloud-claude explain MOUNT_SSHFS_DISCONNECTED
+claudedock explain MOUNT_SSHFS_DISCONNECTED
 ```
 
 输出该错误码的含义、可能原因和修复建议。
@@ -44,20 +44,20 @@ cloud-claude explain MOUNT_SSHFS_DISCONNECTED
 
 ### 环境变量
 
-创建 `/etc/cloud-cli-proxy/env`（systemd 部署）或 `.env`（Docker Compose 部署）。推荐使用 `setup-env.sh` 交互式生成。
+创建 `/etc/claudedock/env`（systemd 部署）或 `.env`（Docker Compose 部署）。推荐使用 `setup-env.sh` 交互式生成。
 
 #### 控制面
 
 | 变量 | 必需 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DATABASE_URL` | 否 | `file:/data/cloud-cli-proxy.db` | SQLite 数据库文件路径 |
+| `DATABASE_URL` | 否 | `file:/data/claudedock.db` | SQLite 数据库文件路径 |
 | `CONTROL_PLANE_ADDR` | 否 | `:8080` | HTTP API 监听地址 |
 | `ADMIN_USERNAME` | 否 | `admin` | 管理员用户名 |
 | `ADMIN_PASSWORD` | 是 | — | 管理员密码（首次启动种子） |
 | `ADMIN_JWT_SECRET` | 是 | — | JWT 签名密钥（至少 32 字符） |
 | `HOST_AGENT_MODE` | 否 | `socket` | `socket` 独立进程 / `embedded` 嵌入控制面 |
-| `HOST_AGENT_SOCKET` | 否 | `/run/cloud-cli-proxy/host-agent.sock` | Agent socket 路径 |
-| `DATA_DIR` | 否 | `/var/lib/cloud-cli-proxy` | 数据目录 |
+| `HOST_AGENT_SOCKET` | 否 | `/run/claudedock/host-agent.sock` | Agent socket 路径 |
+| `DATA_DIR` | 否 | `/var/lib/claudedock` | 数据目录 |
 | `SSH_PROXY_ADDR` | 否 | `:2222` | SSH 代理监听地址 |
 | `LOG_FORMAT` | 否 | `json` | 日志格式：`json` / `text` |
 | `LOG_LEVEL` | 否 | `info` | 日志级别：`debug` / `info` / `warn` / `error` |
@@ -66,7 +66,7 @@ cloud-claude explain MOUNT_SSHFS_DISCONNECTED
 
 | 变量 | 必需 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DATABASE_URL` | 否 | `file:/data/cloud-cli-proxy.db` | SQLite 数据库文件路径 |
+| `DATABASE_URL` | 否 | `file:/data/claudedock.db` | SQLite 数据库文件路径 |
 
 #### 服务端口
 
@@ -75,9 +75,9 @@ cloud-claude explain MOUNT_SSHFS_DISCONNECTED
 | `CONTROL_PLANE_ADDR` | `:8080` | 控制面监听地址（API + 管理后台 + SSH 代理） |
 | `SSH_PROXY_PORT` | `2222` | SSH 代理端口 |
 
-### cloud-claude 配置
+### claudedock 配置
 
-`~/.cloud-claude/config.yaml`：
+`~/.claudedock/config.yaml`：
 
 ```yaml
 gateway: https://gw.example.com
@@ -202,8 +202,8 @@ nft add rule inet filter input tcp dport 2222 accept
 
 | 镜像 | 地址 |
 |------|------|
-| control-plane | `ghcr.io/zanel1u/cloud-cli-proxy/control-plane` |
-| managed-user | `ghcr.io/zanel1u/cloud-cli-proxy/managed-user` |
+| control-plane | `ghcr.io/claudedock/claudedock/control-plane` |
+| managed-user | `ghcr.io/claudedock/claudedock/managed-user` |
 
 标签规则：
 

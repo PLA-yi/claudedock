@@ -37,7 +37,7 @@ Output: updated SECURITY.md.
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/secure-phase.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/secure-phase.md
 </execution_context>
 
 <context>

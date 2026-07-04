@@ -1,6 +1,6 @@
 {
-  "name": "Cloud CLI Proxy Dev Container",
-  "image": "ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest",
+  "name": "ClaudeDock Dev Container",
+  "image": "ghcr.io/claudedock/claudedock/managed-user:latest",
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "containerEnv": {

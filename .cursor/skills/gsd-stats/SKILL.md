@@ -32,7 +32,7 @@ Display comprehensive project statistics including phase progress, plan executio
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/stats.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/stats.md
 </execution_context>
 
 <process>

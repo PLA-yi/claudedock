@@ -12,21 +12,21 @@ import (
 
 func TestWorkerContainerName(t *testing.T) {
 	got := workerContainerName("my-host")
-	want := "cloudproxy-my-host"
+	want := "claudedock-my-host"
 	if got != want {
 		t.Errorf("workerContainerName = %q, want %q", got, want)
 	}
 }
 
 // TestSingBoxConfigDir_DefaultBase 锁 Phase 54-01 D-54-9 路径契约：
-// 不设 DATA_DIR 时落 /var/lib/cloud-cli-proxy/gateway/<host_id>。
+// 不设 DATA_DIR 时落 /var/lib/claudedock/gateway/<host_id>。
 // 路径名 "gateway" 是 v3.x 历史遗留（D-54-10），v4.0 保留以避免跨包改动。
 func TestSingBoxConfigDir_DefaultBase(t *testing.T) {
 	if err := os.Unsetenv("DATA_DIR"); err != nil {
 		t.Fatalf("unset DATA_DIR: %v", err)
 	}
 	got := SingBoxConfigDir("abc")
-	want := "/var/lib/cloud-cli-proxy/gateway/abc"
+	want := "/var/lib/claudedock/gateway/abc"
 	if got != want {
 		t.Errorf("SingBoxConfigDir(\"abc\") = %q, want %q", got, want)
 	}
@@ -65,10 +65,10 @@ func TestGatewayConfigDir_PathSanitization(t *testing.T) {
 		hostID string
 		want   string
 	}{
-		{"host-1", "/var/lib/cloud-cli-proxy/gateway/host-1"},
-		{"host/with/slash", "/var/lib/cloud-cli-proxy/gateway/host/with/slash"},
-		{"host..dot", "/var/lib/cloud-cli-proxy/gateway/host..dot"},
-		{"host space", "/var/lib/cloud-cli-proxy/gateway/host space"},
+		{"host-1", "/var/lib/claudedock/gateway/host-1"},
+		{"host/with/slash", "/var/lib/claudedock/gateway/host/with/slash"},
+		{"host..dot", "/var/lib/claudedock/gateway/host..dot"},
+		{"host space", "/var/lib/claudedock/gateway/host space"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.hostID, func(t *testing.T) {

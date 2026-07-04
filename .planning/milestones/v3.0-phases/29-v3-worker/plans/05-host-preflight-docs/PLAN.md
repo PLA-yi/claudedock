@@ -54,7 +54,7 @@ must_haves:
      - 工具门禁：无 `aa-status` 命令 → `echo ... >&2` 提示 `apt-get install apparmor-utils` 后 `return 0`（工具缺失视为跳过，advisory）
      - Profile 门禁：`aa-status` 无 `fusermount3` profile → `echo ... >&2` 后 `return 0`（内核禁用 AppArmor 或早于 25.04 内核的场景）
      - 例外规则检测：`grep -qE '^\s*capability\s+dac_override' /etc/apparmor.d/local/fusermount3 2>/dev/null` → 若缺失则 `echo ... >&2` 打印修复指引（heredoc 3 行 shell snippet 让 operator 手动粘贴）后 `return 1`
-   - 调用入口插在 `require_cmd curl`（现 41 行）**之后**、`mkdir -p /var/lib/cloud-cli-proxy`（现 43 行）**之前**，形式为 `check_apparmor_fusermount3 || true`
+   - 调用入口插在 `require_cmd curl`（现 41 行）**之后**、`mkdir -p /var/lib/claudedock`（现 43 行）**之前**，形式为 `check_apparmor_fusermount3 || true`
    - **`|| true` 必要性**：本检测是 advisory（宿主侧 AppArmor 策略不通过不应阻断 docker / nft / fuse 等核心 preflight 的 `mkdir` 初始化）；若未来引入 `AUTO_FIX=1` 模式再考虑升级为 hard fail
    - **严禁**自动执行 `sudo tee` / `apparmor_parser -r`（D-24 延后）
    - **严禁**引入 `log_info` / `log_warn` / `log_fail` / `log_ok` / `log_skip` / `main()` / `PREFLIGHT_HAD_WARN` 等现网不存在的 helper（会引发 `command not found`；若未来需要统一日志格式应作为独立 refactor 提交，不在本 plan scope）
@@ -66,13 +66,13 @@ must_haves:
 
 ### Out（属于其他 plan 的职责 / 跨 phase defer，本 plan 禁止触碰）
 - AppArmor 自动修复 / `AUTO_FIX=1` 环境变量（D-24 明确 deferred；未来阶段引入）
-- `host-preflight.sh` 现有 `require_cmd docker/ip/systemctl/nsenter/nft/curl` + FUSE 设备检查 + `mkdir -p /var/lib/cloud-cli-proxy` 等既有逻辑（已存在，本 plan 不动；**不引入** `log_*` / `main()` / `check_*` 统一包装结构）
+- `host-preflight.sh` 现有 `require_cmd docker/ip/systemctl/nsenter/nft/curl` + FUSE 设备检查 + `mkdir -p /var/lib/claudedock` 等既有逻辑（已存在，本 plan 不动；**不引入** `log_*` / `main()` / `check_*` 统一包装结构）
 - C6 防御的 `docker/daemon.json fuse` 配置 → 后续阶段按需补（本 plan 只做 AppArmor 宿主检测）
 
 **其余 5 plan 归属（cross-plan boundary 显式列出，traceability 闭合）：**
 - **Plan 01 — Sub-scope A 镜像构建基线 — 负责** `deploy/docker/managed-user/Dockerfile`：BuildKit cache mount / `tini` 安装 / 预建 `/home/claude` 家族 + `chown 1000:1000` / ENTRYPOINT tini 化（与本 plan 无文件交集）
-- **Plan 02 — Sub-scope B 二进制预置 — 负责** `deploy/docker/managed-user/Dockerfile`：mergerfs 2.41.1 `.deb` 下载 + dpkg 安装 / Mutagen agent tarball 预放 `/opt/` / 版本元数据 `/etc/cloud-claude/*.version`（与本 plan 无文件交集）
-- **Plan 03 — Sub-scope C entrypoint & 配置 — 负责** `deploy/docker/managed-user/{entrypoint.sh,tmux.conf,profile.d-cloud-claude.sh,sshd_config,Dockerfile}`：v3 串行阶段函数 / tmux + profile.d 静态配置 / sshd KeepAlive + MaxSessions（与本 plan 无文件交集）
+- **Plan 02 — Sub-scope B 二进制预置 — 负责** `deploy/docker/managed-user/Dockerfile`：mergerfs 2.41.1 `.deb` 下载 + dpkg 安装 / Mutagen agent tarball 预放 `/opt/` / 版本元数据 `/etc/claudedock/*.version`（与本 plan 无文件交集）
+- **Plan 03 — Sub-scope C entrypoint & 配置 — 负责** `deploy/docker/managed-user/{entrypoint.sh,tmux.conf,profile.d-claudedock.sh,sshd_config,Dockerfile}`：v3 串行阶段函数 / tmux + profile.d 静态配置 / sshd KeepAlive + MaxSessions（与本 plan 无文件交集）
 - **Plan 04 — Sub-scope D Worker volumes contract — 负责** `internal/agentapi/contracts.go` + `internal/runtime/tasks/worker.go` + `internal/runtime/tasks/worker_volume_test.go`：`VolumeMount` 结构 + `HostActionRequest.Volumes` 字段 + `--mount type=volume` args 拼接 + 测试（与本 plan 无文件交集）
 - **Plan 06 — Sub-scope F image.lock + CI gate — 负责** `deploy/docker/managed-user/image.lock` + `.github/workflows/build-images.yml`：6 字段能力清单追加 + `docker image inspect` ≤ 700 MiB 硬 gate（与本 plan 无文件交集）
 
@@ -97,7 +97,7 @@ must_haves:
 
 **插入点（严格）：**
 - 函数定义：紧随 `require_cmd` helper 结束行（现 9 行 `}`）**之后**、空行保留，再紧邻第一条 `require_cmd docker`（现 11 行）**之前** 追加一个空行 + 函数定义
-- 调用入口：在 `require_cmd curl`（现 41 行）**之后**、`mkdir -p /var/lib/cloud-cli-proxy`（现 43 行）**之前** 插入单行调用 `check_apparmor_fusermount3 || true`（加注释说明 advisory）
+- 调用入口：在 `require_cmd curl`（现 41 行）**之后**、`mkdir -p /var/lib/claudedock`（现 43 行）**之前** 插入单行调用 `check_apparmor_fusermount3 || true`（加注释说明 advisory）
 
 **函数体（严格遵循现网 `echo >&2` + `exit/return` 风格，不引入任何 `log_*` helper）：**
 
@@ -151,7 +151,7 @@ must_haves:
   To fix on Ubuntu 25.04+ (run as root on the host):
 
       sudo tee /etc/apparmor.d/local/fusermount3 >/dev/null <<'APPARMOR'
-      # Cloud CLI Proxy v3.0 — allow mergerfs DAC override for multi-branch readdir
+      # ClaudeDock v3.0 — allow mergerfs DAC override for multi-branch readdir
       capability dac_override,
       APPARMOR
 
@@ -177,7 +177,7 @@ must_haves:
 
 **严禁清单：**
 - **严禁**引入 `log_info` / `log_warn` / `log_fail` / `log_ok` / `log_skip` / `main()` / `PREFLIGHT_HAD_WARN` 等现网脚本不存在的 helper（会引发 `command not found` 直接 `set -e` 中断）
-- **严禁**把调用改为 `check_apparmor_fusermount3` 裸调（不加 `|| true`）—— 本检测失败不应阻断后续 `mkdir -p /var/lib/cloud-cli-proxy` 等核心初始化
+- **严禁**把调用改为 `check_apparmor_fusermount3` 裸调（不加 `|| true`）—— 本检测失败不应阻断后续 `mkdir -p /var/lib/claudedock` 等核心初始化
 - **严禁**执行 `sudo tee` / `apparmor_parser -r` 的自动修复逻辑（D-24：AUTO_FIX=1 明确 defer）
 - **严禁**硬编码绝对路径到 `/Users/` / `/home/zaneliu` 等（CLAUDE.md 规范）
 - **严禁**把非 Ubuntu / 版本不足分支写成 `exit 0` —— 必须是 `return 0`，否则会终止整个宿主 preflight 流程
@@ -193,7 +193,7 @@ must_haves:
 **改动要点：**
 - 先 `ls deploy/README.md` 确认是否存在；若存在读最后一段，在文档**末尾**追加本章节（不覆盖现有章节）；若不存在则创建最小化 README 骨架：
   ```
-  # Cloud CLI Proxy — Deploy 运维手册
+  # ClaudeDock — Deploy 运维手册
 
   本目录收纳宿主侧部署与运维脚本、配置样例与故障处置指引。
 
@@ -217,7 +217,7 @@ must_haves:
   在宿主执行（需要 root 权限）：
 
       sudo tee /etc/apparmor.d/local/fusermount3 >/dev/null <<'APPARMOR'
-      # Cloud CLI Proxy v3.0 — allow mergerfs DAC override for multi-branch readdir
+      # ClaudeDock v3.0 — allow mergerfs DAC override for multi-branch readdir
       capability dac_override,
       APPARMOR
 
@@ -262,11 +262,11 @@ grep -F 'ubuntu' deploy/scripts/host-preflight.sh
 grep -F 'aa-status' deploy/scripts/host-preflight.sh
 # 调用入口断言：调用行存在且带 `|| true`（advisory 非阻断）
 grep -F 'check_apparmor_fusermount3 || true' deploy/scripts/host-preflight.sh
-# 调用位置断言：必须位于 `require_cmd curl` 之后、`mkdir -p /var/lib/cloud-cli-proxy` 之前
+# 调用位置断言：必须位于 `require_cmd curl` 之后、`mkdir -p /var/lib/claudedock` 之前
 awk '
   /^require_cmd curl$/             { curl=NR }
   /^check_apparmor_fusermount3[[:space:]]*\|\|[[:space:]]*true/ { call=NR }
-  /^mkdir -p \/var\/lib\/cloud-cli-proxy/ { mkdir=NR }
+  /^mkdir -p \/var\/lib\/claudedock/ { mkdir=NR }
   END { exit !(curl>0 && call>curl && mkdir>call) }
 ' deploy/scripts/host-preflight.sh
 # R1 反向断言：严禁引入现网不存在的 log_* / main / PREFLIGHT_HAD_WARN helper

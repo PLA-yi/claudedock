@@ -49,9 +49,9 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/settings.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/settings-advanced.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/settings-integrations.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/settings.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/settings-advanced.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/settings-integrations.md
 </execution_context>
 
 <context>

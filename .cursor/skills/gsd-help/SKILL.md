@@ -38,7 +38,7 @@ Output ONLY the reference content below. Do NOT add:
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/help.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/help.md
 </execution_context>
 
 <process>

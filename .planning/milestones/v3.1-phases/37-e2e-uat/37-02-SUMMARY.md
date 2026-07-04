@@ -29,9 +29,9 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/last_session.go - LastSessionSnapshot 新增 3 个 promotion 字段
-    - internal/cloudclaude/mount_strategy.go - tryModeReal Full 路径 ColdPromoter 集成
-    - internal/cloudclaude/last_session_test.go - promotion 字段 omitempty 测试
+    - internal/claudedock/last_session.go - LastSessionSnapshot 新增 3 个 promotion 字段
+    - internal/claudedock/mount_strategy.go - tryModeReal Full 路径 ColdPromoter 集成
+    - internal/claudedock/last_session_test.go - promotion 字段 omitempty 测试
 
 key-decisions:
   - "promotion stats 在 tryModeReal 返回前刷入 snapshot（writeLastSessionWarn 之前），此时 promoter 刚启动统计为 0——plan 明确接受此为 mount 就绪时的快照语义"
@@ -78,9 +78,9 @@ Each task was committed atomically:
 **Plan metadata:** TBD (docs commit after SUMMARY)
 
 ## Files Created/Modified
-- `internal/cloudclaude/last_session.go` - LastSessionSnapshot struct 末尾追加 3 个 promotion 字段（omitempty + schema_version=1 不变）
-- `internal/cloudclaude/last_session_test.go` - 新增 TestLastSession_PromotionFields_Omitempty 验证空值不在 JSON 中出现
-- `internal/cloudclaude/mount_strategy.go` - tryModeReal Full 路径集成 ColdPromoter（PID cleanup + NO_PROMOTION gate + promoter start + cleanup LIFO + stats flush）；新增 import strconv/strings/path/filepath；tryMode/tryModeReal 签名新增 *LastSessionSnapshot 参数
+- `internal/claudedock/last_session.go` - LastSessionSnapshot struct 末尾追加 3 个 promotion 字段（omitempty + schema_version=1 不变）
+- `internal/claudedock/last_session_test.go` - 新增 TestLastSession_PromotionFields_Omitempty 验证空值不在 JSON 中出现
+- `internal/claudedock/mount_strategy.go` - tryModeReal Full 路径集成 ColdPromoter（PID cleanup + NO_PROMOTION gate + promoter start + cleanup LIFO + stats flush）；新增 import strconv/strings/path/filepath；tryMode/tryModeReal 签名新增 *LastSessionSnapshot 参数
 
 ## Decisions Made
 1. **promotion stats 刷新时机**：在 tryModeReal 返回前刷入 snapshot（writeLastSessionWarn 之前）。此时 promoter 刚启动，统计为 (0, 0, 0)——plan 明确接受此为 mount 就绪时的快照语义，与 Phase 36 OversizedFiles 在 writeLastSessionWarn 之前赋值的模式一致
@@ -101,15 +101,15 @@ None.
 
 ```bash
 # 验证 watcher 不启动
-CLOUD_CLAUDE_NO_PROMOTION=1 cloud-claude --mount-mode full 2>&1 | grep -c "cold-promoter"
+CLOUD_CLAUDE_NO_PROMOTION=1 claudedock --mount-mode full 2>&1 | grep -c "cold-promoter"
 # 期望输出 0
 
 # 验证 promotion_count 不出现在 last-session.json
-cat ~/.cloud-claude/last-session.json | jq '.promotion_count'
+cat ~/.claudedock/last-session.json | jq '.promotion_count'
 # 期望 null
 
 # 验证 PID 文件不存在（NO_PROMOTION 时不写入）
-ls ~/.cloud-claude/cold-promoter.pid
+ls ~/.claudedock/cold-promoter.pid
 # 期望 No such file or directory
 ```
 
@@ -125,9 +125,9 @@ ls ~/.cloud-claude/cold-promoter.pid
 ## Self-Check: PASSED
 
 All files and commits verified:
-- `internal/cloudclaude/last_session.go` — FOUND
-- `internal/cloudclaude/mount_strategy.go` — FOUND
-- `internal/cloudclaude/last_session_test.go` — FOUND
+- `internal/claudedock/last_session.go` — FOUND
+- `internal/claudedock/mount_strategy.go` — FOUND
+- `internal/claudedock/last_session_test.go` — FOUND
 - `.planning/phases/37-e2e-uat/37-02-SUMMARY.md` — FOUND
 - Commit `f905cf2` — FOUND
 - Commit `1c2a0f9` — FOUND

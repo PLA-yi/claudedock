@@ -45,7 +45,7 @@ v3.0 把 Phase 29-34 引入的所有 user-visible 能力（mergerfs 三路 mount
 - Apple Silicon 或 Intel mac、macOS 14+
 - 文件系统 APFS（`diskutil info / | grep -i 'File System Personality'` 含 `APFS`）
 - Docker Desktop 4.30+（`docker info` 可达）
-- 已 `cloud-claude login`，至少有一个 claude_account
+- 已 `claudedock login`，至少有一个 claude_account
 
 ### 2.4 Ubuntu 25.04 真机
 
@@ -78,8 +78,8 @@ CI 不跑 `--track=all`（环境不全），只覆盖 BASE-01（perf）+ BASE-04
 ### 3.2 macOS APFS 真机执行
 
 ```bash
-# 步骤 1：启动 cloud-claude 到目标容器（保持终端 1 活跃）
-cloud-claude --mount-mode=auto
+# 步骤 1：启动 claudedock 到目标容器（保持终端 1 活跃）
+claudedock --mount-mode=auto
 
 # 步骤 2：另开终端 2 跑验收（替换 <ctr> 为 step 1 的容器名）
 bash scripts/v3-acceptance-checklist.sh \
@@ -135,7 +135,7 @@ bash scripts/verify-fuse-compat.sh
 ### 签字流程（4 步固定）
 
 1. 在目标环境跑 §3.2 / §3.3 → 主脚本生成 JSON + MD 双报告
-2. **必须在 MD 报告中填写机器信息**（hostname / uname / docker --version / cloud-claude --version；macOS 补 `diskutil info /`；Ubuntu 补 `. /etc/os-release`）
+2. **必须在 MD 报告中填写机器信息**（hostname / uname / docker --version / claudedock --version；macOS 补 `diskutil info /`；Ubuntu 补 `. /etc/os-release`）
 3. MD 报告附于 Phase 35 PR description
 4. PR 合并 = 签字通过；任何场景 FAIL → 不合并 + 触发 `/gsd-plan-phase 35 --gaps`
 
@@ -145,7 +145,7 @@ bash scripts/verify-fuse-compat.sh
 echo "hostname: $(hostname)"
 echo "uname:    $(uname -a)"
 echo "docker:   $(docker --version 2>/dev/null)"
-echo "cloud-claude: $(cloud-claude --version 2>/dev/null)"
+echo "claudedock: $(claudedock --version 2>/dev/null)"
 # macOS 补充：
 diskutil info / | grep -E 'Type|Encrypted|File System Personality'
 # Ubuntu 补充：
@@ -191,7 +191,7 @@ bash scripts/v3-acceptance-checklist.sh --track=all --dry-run \
 # 2. 只跑 BASE 性能基线
 bash scripts/v3-acceptance-checklist.sh --track=base --env=auto
 
-# 3. 只跑 doctor 维度（容器内已起 cloud-claude）
+# 3. 只跑 doctor 维度（容器内已起 claudedock）
 bash scripts/v3-acceptance-checklist.sh --track=req-f6 --target-container=<ctr>
 
 # 4. 看最近一次报告 head

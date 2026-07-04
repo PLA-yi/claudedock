@@ -11,25 +11,25 @@ requirements:
   - REQ-F3-C
   - REQ-F3-D
 files_modified:
-  - internal/cloudclaude/keepalive.go
-  - internal/cloudclaude/keepalive_linux.go
-  - internal/cloudclaude/keepalive_darwin.go
-  - internal/cloudclaude/keepalive_other.go
-  - internal/cloudclaude/keepalive_test.go
-  - internal/cloudclaude/reconnect.go
-  - internal/cloudclaude/reconnect_test.go
-  - internal/cloudclaude/input_buffer.go
-  - internal/cloudclaude/input_buffer_test.go
-  - internal/cloudclaude/errcodes/codes.go
-  - internal/cloudclaude/errcodes/session.go
-  - internal/cloudclaude/errcodes/net.go
-  - internal/cloudclaude/colors.go
-  - internal/cloudclaude/last_session.go
-  - internal/cloudclaude/last_session_test.go
-  - internal/cloudclaude/ssh.go
+  - internal/claudedock/keepalive.go
+  - internal/claudedock/keepalive_linux.go
+  - internal/claudedock/keepalive_darwin.go
+  - internal/claudedock/keepalive_other.go
+  - internal/claudedock/keepalive_test.go
+  - internal/claudedock/reconnect.go
+  - internal/claudedock/reconnect_test.go
+  - internal/claudedock/input_buffer.go
+  - internal/claudedock/input_buffer_test.go
+  - internal/claudedock/errcodes/codes.go
+  - internal/claudedock/errcodes/session.go
+  - internal/claudedock/errcodes/net.go
+  - internal/claudedock/colors.go
+  - internal/claudedock/last_session.go
+  - internal/claudedock/last_session_test.go
+  - internal/claudedock/ssh.go
 must_haves:
   truths:
-    - "客户端 keepalive_interval < 15s 时 cloud-claude 启动期 stderr 输出 [SESSION_KEEPALIVE_TOO_AGGRESSIVE] + 退出 ExitConfigError(=4)（REQ-F3-A / PITFALLS M11）"
+    - "客户端 keepalive_interval < 15s 时 claudedock 启动期 stderr 输出 [SESSION_KEEPALIVE_TOO_AGGRESSIVE] + 退出 ExitConfigError(=4)（REQ-F3-A / PITFALLS M11）"
     - "sshConnect 拨号成功后立即对 *net.TCPConn 启用 SO_KEEPALIVE + SetKeepAlivePeriod(15s)；Linux 追加 TCP_USER_TIMEOUT=30000、macOS 追加 TCP_KEEPALIVE=15；其它平台 stderr 输出 [NET_TCP_KEEPALIVE_UNSUPPORTED] 警告但不阻塞（D-04）"
     - "keepalive.RunKeepAlive(ctx, conn, interval, countMax) goroutine 每 interval 发一次 SendRequest(\"keepalive@openssh.com\", true, nil)；单次调用必须 goroutine + select <-time.After(interval) 包 timeout（dead network 防永久阻塞，RESEARCH §1.2）；连续 countMax 次失败后 conn.Close() + return（让 reconnect 感知 io.EOF）"
     - "reconnect.Reconnector.Run(ctx) 退避序列硬编码 [1s,2s,4s,8s,30s]，30s 后维持 30s 周期；每次重连调 sshConnect 复用启动期已缓存 SSHConfig.Password，过程不弹密码（REQ-F3-D）"
@@ -42,40 +42,40 @@ must_haves:
     - "last_session.go LastSessionSnapshot 追加 TmuxSession / ClientRole / ReconnectCount 三字段全部 omitempty，schema_version 保持 1（D-27 / SP-07）"
     - "ssh.go::sshConnect 在 net.DialTimeout 后、ssh.NewClientConn 前插入 ConfigureTCPKeepAlive(tc, 15*time.Second) 调用（best-effort，错误仅打 NET_TCP_KEEPALIVE_UNSUPPORTED warning 不 return error）"
   artifacts:
-    - path: "internal/cloudclaude/keepalive.go"
+    - path: "internal/claudedock/keepalive.go"
       provides: "RunKeepAlive(ctx, conn, interval, countMax) + sendKeepaliveWithTimeout + ConfigureTCPKeepAlive(*net.TCPConn, time.Duration) + 公共 configurePlatformSpecific 接口声明"
       contains: "func RunKeepAlive"
-    - path: "internal/cloudclaude/keepalive_linux.go"
+    - path: "internal/claudedock/keepalive_linux.go"
       provides: "//go:build linux configurePlatformSpecific 实现：setsockopt(IPPROTO_TCP, 18 /*TCP_USER_TIMEOUT*/, 30000)"
       contains: "//go:build linux"
-    - path: "internal/cloudclaude/keepalive_darwin.go"
+    - path: "internal/claudedock/keepalive_darwin.go"
       provides: "//go:build darwin configurePlatformSpecific 实现：setsockopt(IPPROTO_TCP, 0x10 /*TCP_KEEPALIVE*/, 15)"
       contains: "//go:build darwin"
-    - path: "internal/cloudclaude/keepalive_other.go"
+    - path: "internal/claudedock/keepalive_other.go"
       provides: "//go:build !linux && !darwin configurePlatformSpecific noop + NET_TCP_KEEPALIVE_UNSUPPORTED warning"
       contains: "//go:build !linux && !darwin"
-    - path: "internal/cloudclaude/reconnect.go"
+    - path: "internal/claudedock/reconnect.go"
       provides: "Reconnector struct + Run(ctx) 退避循环 + Trigger() + renderStatus + ConnState 枚举 + backoffSeq[]time.Duration"
       contains: "type Reconnector struct"
-    - path: "internal/cloudclaude/input_buffer.go"
+    - path: "internal/claudedock/input_buffer.go"
       provides: "BufferedStdin{src, pipeW, ringBuf, state, localEcho, noColor, onEnter} + NewBufferedStdin(src, localEcho, noColor, onEnter) (*BufferedStdin, io.Reader) + Run(ctx) + Flush()"
       contains: "type BufferedStdin struct"
-    - path: "internal/cloudclaude/errcodes/session.go"
+    - path: "internal/claudedock/errcodes/session.go"
       provides: "init() MustRegister 7 条 SESSION_* 错误码（Message / NextAction 与 RESEARCH §8 行 1056-1092 逐字符对齐）"
       contains: "SESSION_KEEPALIVE_TOO_AGGRESSIVE"
-    - path: "internal/cloudclaude/errcodes/codes.go"
+    - path: "internal/claudedock/errcodes/codes.go"
       provides: "追加 10 条 Code 常量（7 SESSION_* + 3 NET_*），与字面值完全相同（grep 友好）"
       contains: "SESSION_BUFFER_OVERFLOW"
-    - path: "internal/cloudclaude/errcodes/net.go"
+    - path: "internal/claudedock/errcodes/net.go"
       provides: "第二个 init() 追加 3 条 NET_RECONNECT_* / NET_TCP_KEEPALIVE_UNSUPPORTED（不动现有 NET_OAUTH_* 注册块）"
       contains: "NET_RECONNECT_BACKOFF"
-    - path: "internal/cloudclaude/colors.go"
+    - path: "internal/claudedock/colors.go"
       provides: "追加 ansiGray = \\033[90m 常量"
       contains: "ansiGray"
-    - path: "internal/cloudclaude/last_session.go"
+    - path: "internal/claudedock/last_session.go"
       provides: "LastSessionSnapshot 追加 TmuxSession / ClientRole / ReconnectCount 三字段，全部 omitempty"
       contains: "TmuxSession"
-    - path: "internal/cloudclaude/ssh.go"
+    - path: "internal/claudedock/ssh.go"
       provides: "sshConnect 在 DialTimeout 后插入 ConfigureTCPKeepAlive 调用"
       contains: "ConfigureTCPKeepAlive"
   key_links:
@@ -130,25 +130,25 @@ Output: 7 个新文件 + 6 个改造文件；零新增依赖；构建产物在 L
 @.planning/phases/29-v3-worker/29-CONTEXT.md
 @.planning/phases/30-entry-api/30-CONTEXT.md
 @.planning/phases/31-cli/31-CONTEXT.md
-@internal/cloudclaude/ssh.go
-@internal/cloudclaude/sshfs_watcher.go
-@internal/cloudclaude/colors.go
-@internal/cloudclaude/last_session.go
-@internal/cloudclaude/exitcodes.go
-@internal/cloudclaude/errcodes/codes.go
-@internal/cloudclaude/errcodes/mount.go
-@internal/cloudclaude/errcodes/net.go
-@internal/cloudclaude/errcodes/codes_test.go
-@internal/cloudclaude/mount_strategy.go
-@internal/cloudclaude/mount.go
+@internal/claudedock/ssh.go
+@internal/claudedock/sshfs_watcher.go
+@internal/claudedock/colors.go
+@internal/claudedock/last_session.go
+@internal/claudedock/exitcodes.go
+@internal/claudedock/errcodes/codes.go
+@internal/claudedock/errcodes/mount.go
+@internal/claudedock/errcodes/net.go
+@internal/claudedock/errcodes/codes_test.go
+@internal/claudedock/mount_strategy.go
+@internal/claudedock/mount.go
 
 <interfaces>
 <!-- 本 plan 创建的对外 API（Plan 02 / Plan 03 直接消费）。 -->
 
-internal/cloudclaude/keepalive.go 导出：
+internal/claudedock/keepalive.go 导出：
 
 ```go
-package cloudclaude
+package claudedock
 
 import (
     "context"
@@ -172,10 +172,10 @@ func RunKeepAlive(ctx context.Context, conn ssh.Conn, interval time.Duration, co
 func ConfigureTCPKeepAlive(tcpConn *net.TCPConn, period time.Duration) error
 ```
 
-internal/cloudclaude/reconnect.go 导出：
+internal/claudedock/reconnect.go 导出：
 
 ```go
-package cloudclaude
+package claudedock
 
 import (
     "context"
@@ -226,10 +226,10 @@ func (r *Reconnector) State() ConnState
 var ErrReconnectGaveUp = errors.New("reconnect gave up after fast-retry budget exceeded")
 ```
 
-internal/cloudclaude/input_buffer.go 导出：
+internal/claudedock/input_buffer.go 导出：
 
 ```go
-package cloudclaude
+package claudedock
 
 import (
     "context"
@@ -270,7 +270,7 @@ func (b *BufferedStdin) Flush() error
 const RingBufCapacity = 4096
 ```
 
-internal/cloudclaude/last_session.go LastSessionSnapshot 字段（追加，omitempty）：
+internal/claudedock/last_session.go LastSessionSnapshot 字段（追加，omitempty）：
 
 ```go
 TmuxSession    string `json:"tmux_session,omitempty"`     // Plan 02 写入
@@ -278,13 +278,13 @@ ClientRole     string `json:"client_role,omitempty"`      // "primary" | "second
 ReconnectCount int    `json:"reconnect_count,omitempty"`  // Reconnector 每次成功重连 +1
 ```
 
-internal/cloudclaude/colors.go 追加常量：
+internal/claudedock/colors.go 追加常量：
 
 ```go
 ansiGray = "\033[90m" // [Phase 32 D-22 / D-23] reconnect 灰色 / input_buffer 未确认字符
 ```
 
-internal/cloudclaude/errcodes/codes.go 追加 10 条常量：
+internal/claudedock/errcodes/codes.go 追加 10 条常量：
 
 ```go
 SESSION_KEEPALIVE_TOO_AGGRESSIVE Code = "SESSION_KEEPALIVE_TOO_AGGRESSIVE"
@@ -322,12 +322,12 @@ func init() {
     MustRegister(Entry{
         Code: SESSION_TMUX_UNAVAILABLE, Severity: SeverityWarn,
         Message:    "容器内 tmux 不可用：%s，会话恢复已禁用",
-        NextAction: "检查容器镜像是否升级到 v3.0.0，或运行 cloud-claude doctor mount",
+        NextAction: "检查容器镜像是否升级到 v3.0.0，或运行 claudedock doctor mount",
     })
     MustRegister(Entry{
         Code: SESSION_NOT_FOUND, Severity: SeverityError,
         Message:    "tmux 会话 %s 不存在",
-        NextAction: "运行 cloud-claude sessions ls 查看当前会话列表",
+        NextAction: "运行 claudedock sessions ls 查看当前会话列表",
     })
     MustRegister(Entry{
         Code: SESSION_TAKEOVER_NOTIFIED, Severity: SeverityInfo,
@@ -337,12 +337,12 @@ func init() {
     MustRegister(Entry{
         Code: SESSION_TAKEOVER_FAILED, Severity: SeverityError,
         Message:    "tmux detach-client 命令失败: %s",
-        NextAction: "运行 cloud-claude sessions ls 检查会话状态，或 cloud-claude doctor",
+        NextAction: "运行 claudedock sessions ls 检查会话状态，或 claudedock doctor",
     })
     MustRegister(Entry{
         Code: SESSION_SYNC_LOCKED, Severity: SeverityWarn,
         Message:    "账号 %s 已有另一端在执行 Mutagen sync，本端只读 sshfs 视图",
-        NextAction: "无需操作；如需独占同步，请先关闭另一端 cloud-claude",
+        NextAction: "无需操作；如需独占同步，请先关闭另一端 claudedock",
     })
     MustRegister(Entry{
         Code: SESSION_BUFFER_OVERFLOW, Severity: SeverityWarn,
@@ -364,7 +364,7 @@ func init() {
     MustRegister(Entry{
         Code: NET_RECONNECT_GAVE_UP, Severity: SeverityFatal,
         Message:    "重连失败（已重试 %d 次，耗时 %s）",
-        NextAction: "请检查网络后重新运行 cloud-claude，或运行 cloud-claude doctor 诊断",
+        NextAction: "请检查网络后重新运行 claudedock，或运行 claudedock doctor 诊断",
     })
     MustRegister(Entry{
         Code: NET_TCP_KEEPALIVE_UNSUPPORTED, Severity: SeverityWarn,
@@ -381,43 +381,43 @@ func init() {
 <task type="auto">
   <name>Task 1.1: errcodes 常量 + session.go 注册 + net.go 追加（无依赖，先行）</name>
   <files>
-    internal/cloudclaude/errcodes/codes.go
-    internal/cloudclaude/errcodes/session.go
-    internal/cloudclaude/errcodes/net.go
+    internal/claudedock/errcodes/codes.go
+    internal/claudedock/errcodes/session.go
+    internal/claudedock/errcodes/net.go
   </files>
   <read_first>
-    - internal/cloudclaude/errcodes/codes.go（看 const 块行号 119-136 + 命名正则 line 56 + Format helper line 99-117）
-    - internal/cloudclaude/errcodes/mount.go（mirror 模板：init() + MustRegister 写法）
-    - internal/cloudclaude/errcodes/net.go（看 NET_OAUTH_* init 块；本 task 在末尾追加第二个 init()，不破坏既有块）
-    - internal/cloudclaude/errcodes/codes_test.go（line 20 命名正则、line 43 NextAction ≤ 80 runes、整表唯一性 — 本 task 提交后必须 pass）
+    - internal/claudedock/errcodes/codes.go（看 const 块行号 119-136 + 命名正则 line 56 + Format helper line 99-117）
+    - internal/claudedock/errcodes/mount.go（mirror 模板：init() + MustRegister 写法）
+    - internal/claudedock/errcodes/net.go（看 NET_OAUTH_* init 块；本 task 在末尾追加第二个 init()，不破坏既有块）
+    - internal/claudedock/errcodes/codes_test.go（line 20 命名正则、line 43 NextAction ≤ 80 runes、整表唯一性 — 本 task 提交后必须 pass）
     - .planning/phases/32-ssh-tmux/32-RESEARCH.md §8（行 1056-1130 的 10 条完整文案；planner 禁止自创 Message/NextAction）
     - .planning/phases/32-ssh-tmux/32-PATTERNS.md SP-06（init+MustRegister 严格 mirror；Code 必须匹配正则 ^[A-Z]+_[A-Z]+_[A-Z0-9]+(_[A-Z0-9]+)*$；NextAction ≤ 80 runes）
     - .planning/phases/32-ssh-tmux/32-CONTEXT.md D-20 / D-21（10 条码表 + 不引入新 Format helper）
   </read_first>
   <action>
-    1. internal/cloudclaude/errcodes/codes.go：在 const 块的 NET_OAUTH_NOT_FOUND 之后**追加 10 行**（顺序与上方 <interfaces> 块完全一致）；保持列对齐（Code 字面值与变量名完全相同，便于 grep）。
+    1. internal/claudedock/errcodes/codes.go：在 const 块的 NET_OAUTH_NOT_FOUND 之后**追加 10 行**（顺序与上方 <interfaces> 块完全一致）；保持列对齐（Code 字面值与变量名完全相同，便于 grep）。
 
-    2. internal/cloudclaude/errcodes/session.go（新文件）：完全 mirror errcodes/mount.go 写法 — package errcodes / 顶部注释 `// SESSION_* 错误码注册（Phase 32）。文案与 32-RESEARCH.md §8 行 1056-1092 逐字符对齐。` + `//nolint:lll` 行 + 单个 init() 内 7 个 MustRegister。Message / NextAction 必须**逐字符**复制上方 <errcode_registry> 块（不要"优化"措辞）。
+    2. internal/claudedock/errcodes/session.go（新文件）：完全 mirror errcodes/mount.go 写法 — package errcodes / 顶部注释 `// SESSION_* 错误码注册（Phase 32）。文案与 32-RESEARCH.md §8 行 1056-1092 逐字符对齐。` + `//nolint:lll` 行 + 单个 init() 内 7 个 MustRegister。Message / NextAction 必须**逐字符**复制上方 <errcode_registry> 块（不要"优化"措辞）。
 
-    3. internal/cloudclaude/errcodes/net.go：**不修改**现有 init()（含 NET_OAUTH_* 三条）；在文件末尾**追加第二个 func init()** 注册 NET_RECONNECT_BACKOFF / NET_RECONNECT_GAVE_UP / NET_TCP_KEEPALIVE_UNSUPPORTED（Go 允许同包同文件多 init；与 mount.go 单 init 模式不同是为了不污染 OAuth 注册块）。
+    3. internal/claudedock/errcodes/net.go：**不修改**现有 init()（含 NET_OAUTH_* 三条）；在文件末尾**追加第二个 func init()** 注册 NET_RECONNECT_BACKOFF / NET_RECONNECT_GAVE_UP / NET_TCP_KEEPALIVE_UNSUPPORTED（Go 允许同包同文件多 init；与 mount.go 单 init 模式不同是为了不污染 OAuth 注册块）。
 
     4. **不**改 errcodes/codes.go 的命名正则 / 不**新增** Severity 等级（Info/Warn/Error/Fatal 已足够覆盖）。
 
     5. NextAction ≤ 80 runes 自检：`SESSION_KEEPALIVE_TOO_AGGRESSIVE` 的 NextAction = "调整 keepalive_interval 至 >= 15s，或移除该配置使用默认值"（≈ 28 runes，OK）；其余 9 条均已在 RESEARCH 段验证 ≤ 80。
   </action>
   <acceptance_criteria>
-    - `go build ./internal/cloudclaude/errcodes/...` 成功
-    - `go test ./internal/cloudclaude/errcodes/... -run TestRegistry -count=1` PASS（codes_test.go 现有遍历测试覆盖唯一性 + NextAction ≤ 80 runes + 命名正则）
-    - `rg -n "SESSION_KEEPALIVE_TOO_AGGRESSIVE" internal/cloudclaude/errcodes/` 至少 2 次命中（codes.go 常量 + session.go 注册）
-    - `rg -n "SESSION_BUFFER_OVERFLOW" internal/cloudclaude/errcodes/` ≥ 2 次命中
-    - `rg -n "NET_RECONNECT_GAVE_UP" internal/cloudclaude/errcodes/` ≥ 2 次命中
-    - `rg -n "NET_TCP_KEEPALIVE_UNSUPPORTED" internal/cloudclaude/errcodes/` ≥ 2 次命中
-    - `rg -c "func init" internal/cloudclaude/errcodes/net.go` 输出 = 2（追加第二个 init 不破坏第一个）
-    - `go vet ./internal/cloudclaude/errcodes/...` 通过
+    - `go build ./internal/claudedock/errcodes/...` 成功
+    - `go test ./internal/claudedock/errcodes/... -run TestRegistry -count=1` PASS（codes_test.go 现有遍历测试覆盖唯一性 + NextAction ≤ 80 runes + 命名正则）
+    - `rg -n "SESSION_KEEPALIVE_TOO_AGGRESSIVE" internal/claudedock/errcodes/` 至少 2 次命中（codes.go 常量 + session.go 注册）
+    - `rg -n "SESSION_BUFFER_OVERFLOW" internal/claudedock/errcodes/` ≥ 2 次命中
+    - `rg -n "NET_RECONNECT_GAVE_UP" internal/claudedock/errcodes/` ≥ 2 次命中
+    - `rg -n "NET_TCP_KEEPALIVE_UNSUPPORTED" internal/claudedock/errcodes/` ≥ 2 次命中
+    - `rg -c "func init" internal/claudedock/errcodes/net.go` 输出 = 2（追加第二个 init 不破坏第一个）
+    - `go vet ./internal/claudedock/errcodes/...` 通过
     - `errcodes.Format(errcodes.SESSION_TMUX_UNAVAILABLE, "tmux: command not found")` 在 REPL/test 中返回字符串以 `[SESSION_TMUX_UNAVAILABLE]` 开头并含中文 `建议:` 段（结构由 Format helper 保证；本 task 不需新增 Format 测试）
   </acceptance_criteria>
   <verify>
-    <automated>go test ./internal/cloudclaude/errcodes/... -count=1 &amp;&amp; go vet ./internal/cloudclaude/errcodes/...</automated>
+    <automated>go test ./internal/claudedock/errcodes/... -count=1 &amp;&amp; go vet ./internal/claudedock/errcodes/...</automated>
   </verify>
   <done>10 条 Code 常量 + 10 条 init MustRegister 全部就位；errcodes 包测试 PASS；下游 plan 可直接 import 这些常量。</done>
 </task>
@@ -425,30 +425,30 @@ func init() {
 <task type="auto">
   <name>Task 1.2: keepalive.go + 三平台 build-tag 文件 + ssh.go::sshConnect 接入 + 单测</name>
   <files>
-    internal/cloudclaude/keepalive.go
-    internal/cloudclaude/keepalive_linux.go
-    internal/cloudclaude/keepalive_darwin.go
-    internal/cloudclaude/keepalive_other.go
-    internal/cloudclaude/keepalive_test.go
-    internal/cloudclaude/ssh.go
-    internal/cloudclaude/colors.go
+    internal/claudedock/keepalive.go
+    internal/claudedock/keepalive_linux.go
+    internal/claudedock/keepalive_darwin.go
+    internal/claudedock/keepalive_other.go
+    internal/claudedock/keepalive_test.go
+    internal/claudedock/ssh.go
+    internal/claudedock/colors.go
   </files>
   <read_first>
-    - internal/cloudclaude/ssh.go（sshConnect line 144-166 改造点；不要改 runClaude / ConnectAndRunClaudeV3）
-    - internal/cloudclaude/sshfs_watcher.go（Run 主循环 line 51-76 — keepalive Run 同构）
-    - internal/cloudclaude/colors.go（行 9-16 const 块；本 task 仅追加 ansiGray 一行）
-    - internal/cloudclaude/mount_strategy.go（line 346-351 — go watcher.Run(ctx) 启动模式参考；本 plan 不在 mount_strategy 启动 keepalive，由 Plan 02 在 ConnectAndRunClaudeV3 启动）
-    - internal/cloudclaude/errcodes/net.go（NET_TCP_KEEPALIVE_UNSUPPORTED 注册位置）
-    - internal/cloudclaude/mutagen_bin.go line 40-44（runtime.GOOS switch + 平台不支持 fallthrough 范式）
+    - internal/claudedock/ssh.go（sshConnect line 144-166 改造点；不要改 runClaude / ConnectAndRunClaudeV3）
+    - internal/claudedock/sshfs_watcher.go（Run 主循环 line 51-76 — keepalive Run 同构）
+    - internal/claudedock/colors.go（行 9-16 const 块；本 task 仅追加 ansiGray 一行）
+    - internal/claudedock/mount_strategy.go（line 346-351 — go watcher.Run(ctx) 启动模式参考；本 plan 不在 mount_strategy 启动 keepalive，由 Plan 02 在 ConnectAndRunClaudeV3 启动）
+    - internal/claudedock/errcodes/net.go（NET_TCP_KEEPALIVE_UNSUPPORTED 注册位置）
+    - internal/claudedock/mutagen_bin.go line 40-44（runtime.GOOS switch + 平台不支持 fallthrough 范式）
     - .planning/phases/32-ssh-tmux/32-RESEARCH.md §1.1-1.3（SendRequest 阻塞语义 + sendKeepaliveWithTimeout 模板）+ §2.1-2.5（TCP setsockopt 平台模板 + sshConnect 接入）
     - .planning/phases/32-ssh-tmux/32-PATTERNS.md keepalive.go / keepalive_*.go 段（exact 模板复用）
     - .planning/phases/32-ssh-tmux/32-CONTEXT.md D-03 / D-04 / D-23
   </read_first>
   <action>
-    1. **internal/cloudclaude/keepalive.go**（公共部分）：
+    1. **internal/claudedock/keepalive.go**（公共部分）：
 
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "context"
@@ -515,12 +515,12 @@ func init() {
        }
        ```
 
-    2. **internal/cloudclaude/keepalive_linux.go**：
+    2. **internal/claudedock/keepalive_linux.go**：
 
        ```go
        //go:build linux
 
-       package cloudclaude
+       package claudedock
 
        import (
            "net"
@@ -546,12 +546,12 @@ func init() {
        }
        ```
 
-    3. **internal/cloudclaude/keepalive_darwin.go**：
+    3. **internal/claudedock/keepalive_darwin.go**：
 
        ```go
        //go:build darwin
 
-       package cloudclaude
+       package claudedock
 
        import (
            "net"
@@ -577,12 +577,12 @@ func init() {
        }
        ```
 
-    4. **internal/cloudclaude/keepalive_other.go**：
+    4. **internal/claudedock/keepalive_other.go**：
 
        ```go
        //go:build !linux && !darwin
 
-       package cloudclaude
+       package claudedock
 
        import (
            "fmt"
@@ -590,7 +590,7 @@ func init() {
            "os"
            "runtime"
 
-           "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+           "github.com/claudedock/claudedock/internal/claudedock/errcodes"
        )
 
        func configurePlatformSpecific(tcpConn *net.TCPConn) error {
@@ -602,15 +602,15 @@ func init() {
        }
        ```
 
-       **import path 注意**：用 `github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes` — 与 PATTERNS §keepalive_other.go 引用一致（与 mount_mutagen.go / errcodes/mount.go 现有 import 完全相同）。
+       **import path 注意**：用 `github.com/claudedock/claudedock/internal/claudedock/errcodes` — 与 PATTERNS §keepalive_other.go 引用一致（与 mount_mutagen.go / errcodes/mount.go 现有 import 完全相同）。
 
-    5. **internal/cloudclaude/colors.go**：在 const 块末尾追加一行：
+    5. **internal/claudedock/colors.go**：在 const 块末尾追加一行：
 
        ```go
        ansiGray   = "\033[90m"  // [Phase 32 D-23] reconnect "..." / input_buffer 未确认字符
        ```
 
-    6. **internal/cloudclaude/ssh.go**（**仅** sshConnect 内部插入；不动 ConnectAndRunClaudeV3 / runClaude）：
+    6. **internal/claudedock/ssh.go**（**仅** sshConnect 内部插入；不动 ConnectAndRunClaudeV3 / runClaude）：
 
        在 line 155-160 区间，把：
 
@@ -641,12 +641,12 @@ func init() {
        sshConn, chans, reqs, err := ssh.NewClientConn(tcpConn, addr, clientCfg)
        ```
 
-       注意：errcodes 包应该已在 ssh.go import（Phase 31 已用）；如未 import 则补上 `"github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"` 与 `"os"`（os 通常已 import — 检查）。
+       注意：errcodes 包应该已在 ssh.go import（Phase 31 已用）；如未 import 则补上 `"github.com/claudedock/claudedock/internal/claudedock/errcodes"` 与 `"os"`（os 通常已 import — 检查）。
 
-    7. **internal/cloudclaude/keepalive_test.go**（单测，至少 4 个用例）：
+    7. **internal/claudedock/keepalive_test.go**（单测，至少 4 个用例）：
 
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "context"
@@ -724,24 +724,24 @@ func init() {
   </action>
   <acceptance_criteria>
     - `go build ./...` 在 darwin / linux 均成功（CI 即可验证）
-    - `GOOS=linux GOARCH=amd64 go vet ./internal/cloudclaude/...` 通过（验证 keepalive_linux.go build tag 正确）
-    - `GOOS=darwin GOARCH=arm64 go vet ./internal/cloudclaude/...` 通过
-    - `GOOS=windows GOARCH=amd64 go build ./internal/cloudclaude/...` 通过（验证 keepalive_other.go fallback；Windows cloud-claude 可能未测试但不应破坏编译）
-    - `go test ./internal/cloudclaude/... -run TestRunKeepAlive -count=1` 4 个用例 PASS
-    - `go test ./internal/cloudclaude/... -run TestConfigureTCPKeepAlive -count=1` PASS
-    - `rg -n "func RunKeepAlive" internal/cloudclaude/keepalive.go` 命中 1 行
-    - `rg -n "func sendKeepaliveWithTimeout" internal/cloudclaude/keepalive.go` 命中 1 行（必须有 timeout 包装）
-    - `rg -n "func ConfigureTCPKeepAlive" internal/cloudclaude/keepalive.go` 命中 1 行
-    - `rg -n "//go:build linux" internal/cloudclaude/keepalive_linux.go` 命中 1 行
-    - `rg -n "//go:build darwin" internal/cloudclaude/keepalive_darwin.go` 命中 1 行
-    - `rg -n "//go:build !linux && !darwin" internal/cloudclaude/keepalive_other.go` 命中 1 行
-    - `rg -n "tcpUserTimeout" internal/cloudclaude/keepalive_linux.go` 命中（值 = 18）
-    - `rg -n "ConfigureTCPKeepAlive" internal/cloudclaude/ssh.go` 命中 1 行（在 sshConnect 内）
-    - `rg -n "ansiGray" internal/cloudclaude/colors.go` 命中 1 行
-    - `rg -n "TCP_USER_TIMEOUT" internal/cloudclaude/keepalive_linux.go` 命中（注释中说明常量含义，可选）
+    - `GOOS=linux GOARCH=amd64 go vet ./internal/claudedock/...` 通过（验证 keepalive_linux.go build tag 正确）
+    - `GOOS=darwin GOARCH=arm64 go vet ./internal/claudedock/...` 通过
+    - `GOOS=windows GOARCH=amd64 go build ./internal/claudedock/...` 通过（验证 keepalive_other.go fallback；Windows claudedock 可能未测试但不应破坏编译）
+    - `go test ./internal/claudedock/... -run TestRunKeepAlive -count=1` 4 个用例 PASS
+    - `go test ./internal/claudedock/... -run TestConfigureTCPKeepAlive -count=1` PASS
+    - `rg -n "func RunKeepAlive" internal/claudedock/keepalive.go` 命中 1 行
+    - `rg -n "func sendKeepaliveWithTimeout" internal/claudedock/keepalive.go` 命中 1 行（必须有 timeout 包装）
+    - `rg -n "func ConfigureTCPKeepAlive" internal/claudedock/keepalive.go` 命中 1 行
+    - `rg -n "//go:build linux" internal/claudedock/keepalive_linux.go` 命中 1 行
+    - `rg -n "//go:build darwin" internal/claudedock/keepalive_darwin.go` 命中 1 行
+    - `rg -n "//go:build !linux && !darwin" internal/claudedock/keepalive_other.go` 命中 1 行
+    - `rg -n "tcpUserTimeout" internal/claudedock/keepalive_linux.go` 命中（值 = 18）
+    - `rg -n "ConfigureTCPKeepAlive" internal/claudedock/ssh.go` 命中 1 行（在 sshConnect 内）
+    - `rg -n "ansiGray" internal/claudedock/colors.go` 命中 1 行
+    - `rg -n "TCP_USER_TIMEOUT" internal/claudedock/keepalive_linux.go` 命中（注释中说明常量含义，可选）
   </acceptance_criteria>
   <verify>
-    <automated>go test ./internal/cloudclaude/... -run "TestRunKeepAlive|TestConfigureTCPKeepAlive" -count=1 &amp;&amp; GOOS=linux go vet ./internal/cloudclaude/... &amp;&amp; GOOS=darwin go vet ./internal/cloudclaude/... &amp;&amp; GOOS=windows go build ./internal/cloudclaude/...</automated>
+    <automated>go test ./internal/claudedock/... -run "TestRunKeepAlive|TestConfigureTCPKeepAlive" -count=1 &amp;&amp; GOOS=linux go vet ./internal/claudedock/... &amp;&amp; GOOS=darwin go vet ./internal/claudedock/... &amp;&amp; GOOS=windows go build ./internal/claudedock/...</automated>
   </verify>
   <done>SSH KeepAlive 应用层 + TCP 平台特化 + sshConnect 接入完成；三平台 build tag 正确；ansiGray 常量就绪。Plan 02 可在 ConnectAndRunClaudeV3 内 `go RunKeepAlive(ctx, connA, mountCfg.KeepAliveInterval, mountCfg.KeepAliveCountMax)`。</done>
 </task>
@@ -749,30 +749,30 @@ func init() {
 <task type="auto">
   <name>Task 1.3: reconnect.go + input_buffer.go + last_session.go 字段 + 单测</name>
   <files>
-    internal/cloudclaude/reconnect.go
-    internal/cloudclaude/reconnect_test.go
-    internal/cloudclaude/input_buffer.go
-    internal/cloudclaude/input_buffer_test.go
-    internal/cloudclaude/last_session.go
-    internal/cloudclaude/last_session_test.go
+    internal/claudedock/reconnect.go
+    internal/claudedock/reconnect_test.go
+    internal/claudedock/input_buffer.go
+    internal/claudedock/input_buffer_test.go
+    internal/claudedock/last_session.go
+    internal/claudedock/last_session_test.go
   </files>
   <read_first>
-    - internal/cloudclaude/sshfs_watcher.go（line 51-76 — Run select{ctx,ticker} + 失败计数模板，reconnect.Run 同构）
-    - internal/cloudclaude/colors.go（colorEnabled / colorize；Task 1.2 已加 ansiGray）
-    - internal/cloudclaude/last_session.go（line 15-25 现有 struct；本 task 在 APFSCaseInsensitive 之后追加 3 字段）
-    - internal/cloudclaude/last_session_test.go（看现有 round-trip JSON 测试模式 — 追加新字段的覆盖用例）
-    - internal/cloudclaude/mount_strategy.go（line 382-393 printBanner — colorize + colorEnabled 用法参考）
-    - internal/cloudclaude/mount.go（line 105-112 sshRun helper；本 task 不调远程命令，仅参考 ctx 模式）
-    - internal/cloudclaude/exitcodes.go（ExitNetworkError=2 — Plan 02 在 ErrReconnectGaveUp 时退出此码；本 task 仅需暴露错误）
+    - internal/claudedock/sshfs_watcher.go（line 51-76 — Run select{ctx,ticker} + 失败计数模板，reconnect.Run 同构）
+    - internal/claudedock/colors.go（colorEnabled / colorize；Task 1.2 已加 ansiGray）
+    - internal/claudedock/last_session.go（line 15-25 现有 struct；本 task 在 APFSCaseInsensitive 之后追加 3 字段）
+    - internal/claudedock/last_session_test.go（看现有 round-trip JSON 测试模式 — 追加新字段的覆盖用例）
+    - internal/claudedock/mount_strategy.go（line 382-393 printBanner — colorize + colorEnabled 用法参考）
+    - internal/claudedock/mount.go（line 105-112 sshRun helper；本 task 不调远程命令，仅参考 ctx 模式）
+    - internal/claudedock/exitcodes.go（ExitNetworkError=2 — Plan 02 在 ErrReconnectGaveUp 时退出此码；本 task 仅需暴露错误）
     - .planning/phases/32-ssh-tmux/32-RESEARCH.md §3 / §4（reconnect 状态机 + input_buffer 实现细节）
     - .planning/phases/32-ssh-tmux/32-PATTERNS.md reconnect.go / input_buffer.go 段
     - .planning/phases/32-ssh-tmux/32-CONTEXT.md D-05 / D-06 / D-22 / D-23 / D-27
   </read_first>
   <action>
-    1. **internal/cloudclaude/reconnect.go**（关键骨架，详细行为见 RESEARCH §3）：
+    1. **internal/claudedock/reconnect.go**（关键骨架，详细行为见 RESEARCH §3）：
 
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "context"
@@ -783,7 +783,7 @@ func init() {
            "time"
            "golang.org/x/crypto/ssh"
 
-           "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+           "github.com/claudedock/claudedock/internal/claudedock/errcodes"
        )
 
        type ConnState int32
@@ -964,10 +964,10 @@ func init() {
        }
        ```
 
-    2. **internal/cloudclaude/input_buffer.go**：
+    2. **internal/claudedock/input_buffer.go**：
 
        ```go
-       package cloudclaude
+       package claudedock
 
        import (
            "context"
@@ -977,7 +977,7 @@ func init() {
            "sync"
            "sync/atomic"
 
-           "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+           "github.com/claudedock/claudedock/internal/claudedock/errcodes"
        )
 
        const RingBufCapacity = 4096
@@ -1099,7 +1099,7 @@ func init() {
        }
        ```
 
-    3. **internal/cloudclaude/last_session.go**：在 LastSessionSnapshot struct 末尾追加 3 个字段（保持 schema_version 常量不变）：
+    3. **internal/claudedock/last_session.go**：在 LastSessionSnapshot struct 末尾追加 3 个字段（保持 schema_version 常量不变）：
 
        ```go
        type LastSessionSnapshot struct {
@@ -1339,24 +1339,24 @@ func init() {
     7. **不**在 reconnect.go 中调用 Plan 02 才有的 SessionConfig / SyncSessionLock — 本 plan 仅暴露接口；启动 Reconnector 的位置由 Plan 02 在 ConnectAndRunClaudeV3 内决定。
   </action>
   <acceptance_criteria>
-    - `go build ./internal/cloudclaude/...` 成功
-    - `go vet ./internal/cloudclaude/...` 通过
-    - `go test ./internal/cloudclaude/... -run "TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot_NewFields|TestLastSessionSnapshot_Omitempty" -count=1` 全部 PASS
-    - `rg -n "var backoffSeq" internal/cloudclaude/reconnect.go` 命中；序列严格 = `[1s,2s,4s,8s,30s]`（test 已断言）
-    - `rg -n "ErrReconnectGaveUp" internal/cloudclaude/reconnect.go` 命中
-    - `rg -n "func \(r \*Reconnector\) Trigger" internal/cloudclaude/reconnect.go` 命中
-    - `rg -n "func renderDisconnectStatus" internal/cloudclaude/reconnect.go` 命中（且为非导出函数）
-    - `rg -n "RingBufCapacity" internal/cloudclaude/input_buffer.go` 命中
-    - `rg -n "TmuxSession\s+string" internal/cloudclaude/last_session.go` 命中
-    - `rg -n "ClientRole\s+string" internal/cloudclaude/last_session.go` 命中
-    - `rg -n "ReconnectCount\s+int" internal/cloudclaude/last_session.go` 命中
-    - `rg -n "schema_version" internal/cloudclaude/last_session.go` 验证 SchemaVersion 仍 = 1（不应被改）
-    - `rg -n "json:\"tmux_session,omitempty\"" internal/cloudclaude/last_session.go` 命中（omitempty 必须）
-    - `rg -n "json:\"client_role,omitempty\"" internal/cloudclaude/last_session.go` 命中
-    - `rg -n "json:\"reconnect_count,omitempty\"" internal/cloudclaude/last_session.go` 命中
+    - `go build ./internal/claudedock/...` 成功
+    - `go vet ./internal/claudedock/...` 通过
+    - `go test ./internal/claudedock/... -run "TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot_NewFields|TestLastSessionSnapshot_Omitempty" -count=1` 全部 PASS
+    - `rg -n "var backoffSeq" internal/claudedock/reconnect.go` 命中；序列严格 = `[1s,2s,4s,8s,30s]`（test 已断言）
+    - `rg -n "ErrReconnectGaveUp" internal/claudedock/reconnect.go` 命中
+    - `rg -n "func \(r \*Reconnector\) Trigger" internal/claudedock/reconnect.go` 命中
+    - `rg -n "func renderDisconnectStatus" internal/claudedock/reconnect.go` 命中（且为非导出函数）
+    - `rg -n "RingBufCapacity" internal/claudedock/input_buffer.go` 命中
+    - `rg -n "TmuxSession\s+string" internal/claudedock/last_session.go` 命中
+    - `rg -n "ClientRole\s+string" internal/claudedock/last_session.go` 命中
+    - `rg -n "ReconnectCount\s+int" internal/claudedock/last_session.go` 命中
+    - `rg -n "schema_version" internal/claudedock/last_session.go` 验证 SchemaVersion 仍 = 1（不应被改）
+    - `rg -n "json:\"tmux_session,omitempty\"" internal/claudedock/last_session.go` 命中（omitempty 必须）
+    - `rg -n "json:\"client_role,omitempty\"" internal/claudedock/last_session.go` 命中
+    - `rg -n "json:\"reconnect_count,omitempty\"" internal/claudedock/last_session.go` 命中
   </acceptance_criteria>
   <verify>
-    <automated>go test ./internal/cloudclaude/... -run "TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot" -count=1 &amp;&amp; go vet ./internal/cloudclaude/...</automated>
+    <automated>go test ./internal/claudedock/... -run "TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot" -count=1 &amp;&amp; go vet ./internal/claudedock/...</automated>
   </verify>
   <done>reconnect.Reconnector + input_buffer.BufferedStdin + last_session 三新字段全部就位，单测 PASS。Plan 02 可在 runClaudeWithSession 内：(a) NewReconnector(...)；(b) NewBufferedStdin(os.Stdin, &reconnector.state(待暴露), os.Stdout, noColor, reconnector.Trigger)；(c) reconnector.Run(ctx) 在 io.EOF 后启动；(d) onReconnected 回调中 bufferedStdin.Flush() + 重新挂 RunKeepAlive。</done>
 </task>
@@ -1396,30 +1396,30 @@ func init() {
 <verification>
 本 plan 完成时，可断言下列 ROADMAP §Phase 32 Success Criteria 子集（其余 Plan 02 / Plan 03 验收）：
 
-1. **SC1（REQ-F3-A）**：执行 `KEEPALIVE_INTERVAL_OVERRIDE=10s ./cloud-claude`（或等价 mock 调用 `RunKeepAlive(ctx, conn, 10*time.Second, 4)`）必须立即返回 `errors.New("keepalive interval 必须 >= 15s")`；同时 `errcodes.Format(SESSION_KEEPALIVE_TOO_AGGRESSIVE, "10s")` 必须包含「[SESSION_KEEPALIVE_TOO_AGGRESSIVE]」与中文「建议:」段
+1. **SC1（REQ-F3-A）**：执行 `KEEPALIVE_INTERVAL_OVERRIDE=10s ./claudedock`（或等价 mock 调用 `RunKeepAlive(ctx, conn, 10*time.Second, 4)`）必须立即返回 `errors.New("keepalive interval 必须 >= 15s")`；同时 `errcodes.Format(SESSION_KEEPALIVE_TOO_AGGRESSIVE, "10s")` 必须包含「[SESSION_KEEPALIVE_TOO_AGGRESSIVE]」与中文「建议:」段
 2. **SC4（REQ-F3-D 退避序列与不弹密码）**：单测 `TestBackoffSeq` PASS（断言 `backoffSeq == [1s,2s,4s,8s,30s]`）；reconnect.Run 内部对 sshConnect 的调用复用 SSHConfig.Password（grep `r.cfg` / `sshConnect(r.cfg)` 命中），过程不读 stdin / 不调 askpass
 3. **SC5（REQ-F3-B 灰色未确认 echo + 重连后按序提交）**：单测 `TestBufferedStdin_ReconnectingBuffersAndGrayEchoes` PASS（echo 含 ansiGray）+ `TestBufferedStdin_FlushClearsBuffer` PASS（Flush 后 pipeR 读到 ringBuf 内容）
-4. **SC6（REQ-F3-C 重连失败 prompt 两要素）**：`errcodes.Format(NET_RECONNECT_GAVE_UP, 5, 60*time.Second)` 必须同时包含中文原因（"重连失败"）与中文下一步（"请检查网络后重新运行 cloud-claude，或运行 cloud-claude doctor 诊断"）
+4. **SC6（REQ-F3-C 重连失败 prompt 两要素）**：`errcodes.Format(NET_RECONNECT_GAVE_UP, 5, 60*time.Second)` 必须同时包含中文原因（"重连失败"）与中文下一步（"请检查网络后重新运行 claudedock，或运行 claudedock doctor 诊断"）
 5. **三态 UX 阈值（D-22）**：单测 `TestRenderDisconnectStatus_Thresholds` 6 个用例 PASS（< 1.5s 空 / 1.5-8s 灰 / 8-30s 黄 / > 30s 红 + NO_COLOR 去 ANSI）
 
 **全 plan 综合 verify 命令**：
 
 ```bash
 go build ./... \
-  && GOOS=linux go vet ./internal/cloudclaude/... \
-  && GOOS=darwin go vet ./internal/cloudclaude/... \
-  && GOOS=windows go build ./internal/cloudclaude/... \
-  && go test ./internal/cloudclaude/... -run "TestRunKeepAlive|TestConfigureTCPKeepAlive|TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot" -count=1 \
-  && go test ./internal/cloudclaude/errcodes/... -count=1
+  && GOOS=linux go vet ./internal/claudedock/... \
+  && GOOS=darwin go vet ./internal/claudedock/... \
+  && GOOS=windows go build ./internal/claudedock/... \
+  && go test ./internal/claudedock/... -run "TestRunKeepAlive|TestConfigureTCPKeepAlive|TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|TestBufferedStdin|TestLastSessionSnapshot" -count=1 \
+  && go test ./internal/claudedock/errcodes/... -count=1
 ```
 </verification>
 
 <success_criteria>
 - 7 个新文件 + 6 个改造文件全部就位且 git status clean（提交后）
 - 所有新增单测 PASS（≥ 15 个用例）
-- 全平台编译通过：linux/amd64 / darwin/arm64 / windows/amd64 三组 `go build ./internal/cloudclaude/...`
+- 全平台编译通过：linux/amd64 / darwin/arm64 / windows/amd64 三组 `go build ./internal/claudedock/...`
 - errcodes 包测试 PASS（10 条新码全部注册 + 唯一 + 命名合法 + NextAction ≤ 80 runes）
-- ssh.go 改动仅在 sshConnect 内插入一段 TCP keepalive 配置 + import errcodes/os；其它函数 zero diff（用 `git diff internal/cloudclaude/ssh.go` 复核）
+- ssh.go 改动仅在 sshConnect 内插入一段 TCP keepalive 配置 + import errcodes/os；其它函数 zero diff（用 `git diff internal/claudedock/ssh.go` 复核）
 - last_session.go 改动仅追加 3 个 omitempty 字段；SchemaVersion 仍 = 1
 - colors.go 改动仅追加 1 行 ansiGray 常量；既有 5 个常量 zero diff
 - 不引入任何新 go.mod 依赖（`go mod tidy` 后 diff 为空）

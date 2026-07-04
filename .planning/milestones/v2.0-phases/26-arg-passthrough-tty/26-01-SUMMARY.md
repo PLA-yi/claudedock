@@ -5,7 +5,7 @@ subsystem: cli
 tags: [cobra, ssh, shellescape, tty, exit-code, signal]
 
 requires:
-  - phase: 25-cloud-claude-cli
+  - phase: 25-claudedock-cli
     provides: "cobra 入口、SSHConfig、ConnectAndRunClaude、PTY/SIGWINCH 基础实现"
 provides:
   - "ConnectAndRunClaude(cfg, claudeArgs) 接受用户参数并返回退出码"
@@ -22,8 +22,8 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/ssh.go
-    - cmd/cloud-claude/main.go
+    - internal/claudedock/ssh.go
+    - cmd/claudedock/main.go
     - go.mod
     - go.sum
 
@@ -58,7 +58,7 @@ completed: 2026-04-15
 ## Accomplishments
 
 - ConnectAndRunClaude 接受 claudeArgs 参数，用 shellescape.QuoteCommand 构建 POSIX 安全远程命令行，缓解 T-26-01 命令注入威胁
-- 非 TTY 路径（管道/脚本调用）跳过 MakeRaw、RequestPty、SIGWINCH 监听，`echo "query" | cloud-claude -p -` 可正常工作
+- 非 TTY 路径（管道/脚本调用）跳过 MakeRaw、RequestPty、SIGWINCH 监听，`echo "query" | claudedock -p -` 可正常工作
 - 退出码通过 (int, error) 返回值上浮到 main，defer term.Restore 始终执行，修复 Phase 25 HI-01 终端恢复缺陷（T-26-02 缓解）
 - cobra 根命令 DisableFlagParsing + ArbitraryArgs 使 `-p`、`--model` 等 flag 不被拦截，init 子命令路由不受影响
 
@@ -71,8 +71,8 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `internal/cloudclaude/ssh.go` - ConnectAndRunClaude 签名重构、shellescape 命令构建、TTY/非 TTY 分支、退出码返回值
-- `cmd/cloud-claude/main.go` - DisableFlagParsing 透传、前导 -- 剥离、退出码统一处理
+- `internal/claudedock/ssh.go` - ConnectAndRunClaude 签名重构、shellescape 命令构建、TTY/非 TTY 分支、退出码返回值
+- `cmd/claudedock/main.go` - DisableFlagParsing 透传、前导 -- 剥离、退出码统一处理
 - `go.mod` - 新增 shellescape v1.6.0 依赖
 - `go.sum` - 依赖校验和更新
 
@@ -96,7 +96,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- 参数透传和终端体验完成，`cloud-claude` 可作为 `claude` 的透明替代
+- 参数透传和终端体验完成，`claudedock` 可作为 `claude` 的透明替代
 - Phase 27（sshfs 目录映射）可在此基础上添加本地目录同步能力
 
 ## Self-Check: PASSED

@@ -1,6 +1,6 @@
 package tasks
 
-import "github.com/zanel1u/cloud-cli-proxy/internal/network"
+import "github.com/claudedock/claudedock/internal/network"
 
 // BuildSSHHandoffMetadata produces the machine-readable metadata
 // that downstream consumers (handoff API, bootstrap script) need

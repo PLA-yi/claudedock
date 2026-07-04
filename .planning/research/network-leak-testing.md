@@ -1,6 +1,6 @@
 # 容器全隧道网络的对抗性测试与防泄漏验证方法
 
-> 研究范围：仅围绕 Cloud CLI Proxy 单宿主机方案中"每个用户容器的所有出网流量必须强制走 sing-box tun 隧道、不允许 DNS/WebRTC/IPv6/ICMP/raw socket 旁路泄漏"这一安全承诺，调研业界对抗性测试与自动化断言方法。本文不修改任何项目代码，输出供决策参考。
+> 研究范围：仅围绕 ClaudeDock 单宿主机方案中"每个用户容器的所有出网流量必须强制走 sing-box tun 隧道、不允许 DNS/WebRTC/IPv6/ICMP/raw socket 旁路泄漏"这一安全承诺，调研业界对抗性测试与自动化断言方法。本文不修改任何项目代码，输出供决策参考。
 >
 > 假设的攻击者模型：拥有用户容器内的 root shell（用户本人就是潜在攻击者），可以任意修改 `/etc/resolv.conf`、任意发起到任意目的的 socket、加载内核模块以外的任何用户态操作。host 与 worker 之间的边界（nftables、netns、sing-box）被视为可信防御层。
 
@@ -45,7 +45,7 @@
 
 | 子向量 | 威胁描述 | 攻击者手段 | 测试方法 | 通过判据 |
 |---|---|---|---|---|
-| **默认 IPv6 出网** | 容器有 v6 地址并直连 v6 公网（Docker 在 host 启用 IPv6 时尤其危险） | `curl -6 https://ipv6.google.com`、`ping6 2001:4860:4860::8888` | 当前已有 `--sysctl net.ipv6.conf.all.disable_ipv6=1` + nftables `ip6 filter` 双 chain 全 DROP，再用 `tcpdump -i any 'ip6'` 旁证 | worker netns 内**任何** v6 流量都失败；host 上 `ip6tables`/`nft list ruleset` 显示 cloudproxy6 表 input6/output6 默认 DROP；`curl -6` 必须 timeout |
+| **默认 IPv6 出网** | 容器有 v6 地址并直连 v6 公网（Docker 在 host 启用 IPv6 时尤其危险） | `curl -6 https://ipv6.google.com`、`ping6 2001:4860:4860::8888` | 当前已有 `--sysctl net.ipv6.conf.all.disable_ipv6=1` + nftables `ip6 filter` 双 chain 全 DROP，再用 `tcpdump -i any 'ip6'` 旁证 | worker netns 内**任何** v6 流量都失败；host 上 `ip6tables`/`nft list ruleset` 显示 claudedock6 表 input6/output6 默认 DROP；`curl -6` 必须 timeout |
 | **SLAAC / RA 攻击面** | 不可控的 IPv6 路由器通告改写 worker 路由 | 攻击者无法主动注入 RA（需要 L2），但需要确认 worker 不会自动接受 | 启动后检查 `cat /proc/sys/net/ipv6/conf/eth0/accept_ra` 应该为 0（因为 disable_ipv6=1 时 RA 不会被处理）| `disable_ipv6=1` 隐含禁止 RA |
 | **临时地址 / privacy ext** | 同上 | 同上 | 同上 | 同上 |
 | **回环 v6（`::1`）** | 不构成出网泄漏，但会触发用户工具误认为有 v6 | n/a | n/a | n/a |
@@ -73,12 +73,12 @@
 
 | 子向量 | 威胁描述 | 攻击者手段 | 测试方法 | 通过判据 |
 |---|---|---|---|---|
-| **sing-box 进程崩溃** | gateway 容器 OOM / panic，worker 不应自动回退到 host 默认路由 | `docker kill -s SIGKILL cloudproxy-gw-<id>` | 立刻在 worker 内 `curl --max-time 3 https://1.1.1.1` | 必须 100% timeout 或 `Couldn't connect to server`，不允许任何 2xx |
+| **sing-box 进程崩溃** | gateway 容器 OOM / panic，worker 不应自动回退到 host 默认路由 | `docker kill -s SIGKILL claudedock-gw-<id>` | 立刻在 worker 内 `curl --max-time 3 https://1.1.1.1` | 必须 100% timeout 或 `Couldn't connect to server`，不允许任何 2xx |
 | **tun 设备被关掉** | sing-box 仍在但 tun 设备 down | `docker exec gw ip link set tun0 down` | 同上 | 同上 |
 | **默认路由被改写** | 攻击者用 root 改 worker 的默认路由指向 bridgeGW 而非 gwIP | `ip route replace default via 10.99.x.1` | 改完路由不重要——nftables `output` 仍然 DROP 一切非 gwIP 的目的；可在测试里同时验证：① 路由改完后 `curl --max-time 3 https://1.1.1.1`；② 路由改完后 `curl --max-time 3 https://<gateway_ip>`（应该也会被 DROP，因为 nftables 是按目的 IP 匹配 gwIP，bridgeGW 不在白名单）| `curl` 失败；nftables drop 计数应增加 |
-| **gateway 容器被拔网** | 模拟"上游 IP 黑了" | `docker network disconnect bridge cloudproxy-gw-<id>`（保留 cloudproxy-net）| sing-box outbound 失败，worker 通过 tun 发出的所有 TCP 都会 timeout 但**不会回落到 host** | worker `curl` 失败；host 的 eth0 上看不到任何 worker IP 的源流量 |
+| **gateway 容器被拔网** | 模拟"上游 IP 黑了" | `docker network disconnect bridge claudedock-gw-<id>`（保留 claudedock-net）| sing-box outbound 失败，worker 通过 tun 发出的所有 TCP 都会 timeout 但**不会回落到 host** | worker `curl` 失败；host 的 eth0 上看不到任何 worker IP 的源流量 |
 | **预连接窗口期** | 容器启动早期、防火墙还没装、用户进程已经在跑（gluetun issue #3285 的核心问题）| 难以从 worker 内主动复现，但要审计代码：`configureWorkerEgress` 前是否曾允许默认路由出网？| 检视 `container_proxy_provider.go` 的启动顺序：当前是 disconnect bridge → set default route → apply firewall → verify。中间窗口存在但很短；可以加测试断言：在 firewall apply 之前 worker 不应该被允许执行任何用户代码（v1 不必、v2 必须）| 启动流程内不应有"网络可用、防火墙未就绪、用户脚本已运行"的中间状态 |
-| **reboot leak** | Mullvad / ProtonVPN 都在重启时存在短暂泄漏；本项目同样需考虑：宿主机 reboot 后 control-plane / host-agent 起步前，旧的 worker 容器仍在 → 此时若 docker daemon 也自动启动，worker 可能短暂可达旧的失效隧道 | host 系统重启 | 测试：reboot 后 host eth0 抓 5 分钟，检查是否有 worker IP 的流量 | 推荐做法：在 docker run 时给 worker 加 `restart: no`，或在 control-plane 启动前先 `docker rm -f` 所有 cloudproxy-* 容器；可在 systemd unit `ExecStartPre=` 加这一步 |
+| **reboot leak** | Mullvad / ProtonVPN 都在重启时存在短暂泄漏；本项目同样需考虑：宿主机 reboot 后 control-plane / host-agent 起步前，旧的 worker 容器仍在 → 此时若 docker daemon 也自动启动，worker 可能短暂可达旧的失效隧道 | host 系统重启 | 测试：reboot 后 host eth0 抓 5 分钟，检查是否有 worker IP 的流量 | 推荐做法：在 docker run 时给 worker 加 `restart: no`，或在 control-plane 启动前先 `docker rm -f` 所有 claudedock-* 容器；可在 systemd unit `ExecStartPre=` 加这一步 |
 
 **业界 kill-switch 测试模式参考**：
 - **gluetun**：核心是把消费容器用 `network_mode: service:gluetun`，共享 gateway 网络栈，gateway 一倒消费容器整个失去网络。等价于本项目"worker 在独立 netns、唯一出口是 gateway"。测试方法：`docker restart gluetun` 后立即在消费容器内 curl，必须 hang/timeout。参考 [SimpleHomelab Gluetun guide](https://www.simplehomelab.com/gluetun-docker-guide/)、[DEV.to gluetun killswitch](https://dev.to/gab_builds/how-to-actually-set-up-the-gluetun-vpn-killswitch-49j6)
@@ -149,8 +149,8 @@ docker run --rm --network=container:gluetun alpine:3.22 \
 docker run --rm --network=container:gluetun alpine:3.22 \
   sh -c "apk add curl && curl -6 --silent https://ipv6.ipleak.net/json/"
 # kill switch：重启 gateway 后立即测试
-docker restart cloudproxy-gw-<id>; sleep 1
-docker exec cloudproxy-<id> curl --max-time 3 https://1.1.1.1   # 必须失败
+docker restart claudedock-gw-<id>; sleep 1
+docker exec claudedock-<id> curl --max-time 3 https://1.1.1.1   # 必须失败
 ```
 来源：[gluetun-wiki/setup/test-your-setup.md](https://github.com/qdm12/gluetun-wiki/blob/main/setup/test-your-setup.md)、[gluetun-wiki advanced ipv6](https://github.com/qdm12/gluetun-wiki/blob/main/setup/advanced/ipv6.md)、[gluetun deepwiki troubleshooting](https://deepwiki.com/qdm12/gluetun-wiki/6-troubleshooting)。
 
@@ -171,7 +171,7 @@ table inet mullvad_killswitch {
   }
 }
 ```
-完全等价于本项目 `cloudproxy` 表的 output 链。来源：[Mullvad VPN Linux Killswitch](https://sites.google.com/view/mullvad-vpn-on-linux-advanced-/home)。
+完全等价于本项目 `claudedock` 表的 output 链。来源：[Mullvad VPN Linux Killswitch](https://sites.google.com/view/mullvad-vpn-on-linux-advanced-/home)。
 
 ### 3.5 WireGuard fwmark killswitch pattern
 ```
@@ -216,10 +216,10 @@ PostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) \
 | icmp-blocked | `ping -c1 -W2 8.8.8.8` | 必须失败 | 成功 → output 链漏放或 ICMP 协议在白名单里 | **N** |
 | raw-socket-denied | `python -c "import socket; socket.socket(socket.AF_INET, socket.SOCK_RAW, 1)"` | 必须 `PermissionError` | 成功 → CAP_NET_RAW 未 drop | **N**（建议 docker run 加 `--cap-drop=NET_RAW` 后再加测试）|
 | sctp-denied | `python -c "import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM, 132).connect(('1.1.1.1', 80))"` | 必须失败 | 成功 → nftables 按 l4proto 应自动 drop（白名单仅 UDP 53、TCP 53、TCP+UDP to gwIP），但要测试覆盖确认 | **N** |
-| killswitch-gateway-down | `docker kill -s SIGKILL cloudproxy-gw-<id>; sleep 1; docker exec worker curl -m3 https://1.1.1.1` | curl 必须失败 | 成功 → worker 路由或防火墙允许了非 gateway 流量；nft drop counter 应同时增 | **N**（最关键的红线测试，必须加） |
+| killswitch-gateway-down | `docker kill -s SIGKILL claudedock-gw-<id>; sleep 1; docker exec worker curl -m3 https://1.1.1.1` | curl 必须失败 | 成功 → worker 路由或防火墙允许了非 gateway 流量；nft drop counter 应同时增 | **N**（最关键的红线测试，必须加） |
 | killswitch-tun-down | `docker exec gw ip link set tun0 down; docker exec worker curl -m3 https://1.1.1.1` | 同上 | 同上 | **N** |
 | killswitch-route-rewrite | `docker exec worker ip route replace default via 10.99.x.1; docker exec worker curl -m3 https://1.1.1.1` | curl 必须失败 | 成功 → output 白名单按目的 IP 漏放 bridgeGW（当前实现实际允许了 bridgeGW input，但 output 没明显放 bridgeGW，需要测试再确认）| **N** |
-| reboot-leak | host 重启后 5 分钟内 host eth0 抓包 | 不应有 worker IP 的源流量 | 出现包 → control-plane 启动前残留容器；建议加 systemd `ExecStartPre=docker rm -f cloudproxy-*` | **N**（运维侧 SOP） |
+| reboot-leak | host 重启后 5 分钟内 host eth0 抓包 | 不应有 worker IP 的源流量 | 出现包 → control-plane 启动前残留容器；建议加 systemd `ExecStartPre=docker rm -f claudedock-*` | **N**（运维侧 SOP） |
 | capability-audit | `cat /proc/1/status \| grep Cap` | CapEff、CapBnd 不含 NET_RAW、NET_ADMIN、SYS_ADMIN | 含 → docker run 参数缺 --cap-drop | **N**（v1 前必须审计 worker 启动参数）|
 | firewall-counter-increment | 每次反向断言失败前后对比 `nft list ruleset -a` 的 counter | 每条反向断言执行后对应 chain 的 drop counter 应 +N | counter 不增 → nftables 规则根本没匹配上，可能匹配字段错误 | **N**（建议在 nftables 规则里全部带 `counter` 表达式，便于断言） |
 | metadata-egress-trap | sing-box 一侧捕获 DNS 解析的所有目标；若出现 `metadata.google.internal`、`instance-data` 等敏感名 | sing-box log + 规则 reject | 出现 → 业务层 SSRF，但本项目不必拦截（用户自愿）| 可选 |
@@ -232,9 +232,9 @@ PostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) \
 
 这些都是单元测试级别，复用 `worker_firewall_linux_test.go` 已经验证可用的 `newTestNetNS` + `nftables.New(WithNetNSFd)` 模式：
 
-1. **`TestApplyWorkerFirewallRules_OutputPolicyIsDrop`** —— 显式断言 cloudproxy IPv4 output chain 的 policy 是 `ChainPolicyDrop`（防 regression：避免有人某次重构把 policy 改成 Accept 还能跑通其他用例）。
+1. **`TestApplyWorkerFirewallRules_OutputPolicyIsDrop`** —— 显式断言 claudedock IPv4 output chain 的 policy 是 `ChainPolicyDrop`（防 regression：避免有人某次重构把 policy 改成 Accept 还能跑通其他用例）。
 2. **`TestApplyWorkerFirewallRules_NoWildcardOutput`** —— 遍历 output 链所有 rule，断言不存在"出向 ACCEPT 且 dst IP 不在 `[gwIP]`、目的端口不在 `[53]`"的规则。可以通过解析 `expr.Any` 切片实现。
-3. **`TestApplyWorkerFirewallRules_NoLinkLocalAccept`** —— 断言 cloudproxy 表里没有任何放行 169.254.0.0/16 的规则；并建议**新增**一条显式 `ip daddr 169.254.0.0/16 drop` 在白名单之前（即便不必要，做安全网），同时新增 `TestApplyWorkerFirewallRules_ExplicitLinkLocalDrop`。
+3. **`TestApplyWorkerFirewallRules_NoLinkLocalAccept`** —— 断言 claudedock 表里没有任何放行 169.254.0.0/16 的规则；并建议**新增**一条显式 `ip daddr 169.254.0.0/16 drop` 在白名单之前（即便不必要，做安全网），同时新增 `TestApplyWorkerFirewallRules_ExplicitLinkLocalDrop`。
 4. **`TestApplyWorkerFirewallRules_IPv6OutputOnlyLo`** —— 当前已经有，但建议把"只允许 lo"做成可枚举的断言：遍历 output6 所有 rule，断言仅一条 iif=lo accept，policy=drop。**已部分有**（`TestApplyWorkerFirewallRules_IPv6Rules` 检验数量为 1），保留。
 5. **`TestApplyWorkerFirewallRules_RulesHaveCounters`** —— 建议把 nftables 规则全加 `&expr.Counter{}`，单测断言每条 rule 至少含一个 counter expr，方便集成测试用 `nft list ruleset` diff counters。需要先改实现（在 `worker_firewall_linux.go` 的 `addOifAcceptRule` 等 helper 里加 counter expr）。
 6. **`TestVerifyResult_AllChecks_ExpandedTargets`** —— 把 `verify.go::verifyLeakBlocked` 的目标列表参数化（当前硬编码 1.1.1.1:80），加入 8.8.8.8:443、169.254.169.254:80、9.9.9.9:443，每个独立报告。VerifyResult 增加 `LeakTargetsBlocked map[string]bool`。
@@ -251,7 +251,7 @@ PostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) \
 12. **`leak-probe-dot.bats`**：`kdig +tls @1.1.1.1 example.com` → 失败。
 13. **`leak-probe-icmp.bats`**：`ping -c1 -W2 8.8.8.8` → 失败。
 14. **`leak-probe-imds-aws.bats`** 与 **`leak-probe-imds-ecs.bats`**：分别对 169.254.169.254 与 169.254.170.2。
-15. **`killswitch-gateway-kill.bats`**：`docker kill -s SIGKILL cloudproxy-gw-<id>`，3 秒内 curl 必须失败；sing-box 重新拉起后，验证 worker 自愈或保持 drop。
+15. **`killswitch-gateway-kill.bats`**：`docker kill -s SIGKILL claudedock-gw-<id>`，3 秒内 curl 必须失败；sing-box 重新拉起后，验证 worker 自愈或保持 drop。
 16. **`killswitch-tun-down.bats`**：`docker exec gw ip link set tun0 down`。
 17. **`reboot-leak.bats`**：手动用例（无法自动化重启 CI runner），但写明 SOP 即可。
 18. **`pcap-assert.bats`**：在 host eth0 上 `tcpdump -i eth0 -w out.pcap` 跑 5 秒，期间在 worker 容器内主动制造 10 种攻击；测试后 `tcpdump -r out.pcap 'not host <singbox_server_ip>'` 输出必须为空，否则报告哪个攻击穿透了。这是最强的"黑盒"断言。
@@ -272,7 +272,7 @@ PostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) \
 ### 5.5 持续运营建议
 
 26. nftables 所有规则带 `counter`，host-agent 周期性把 drop counter delta 上报；任何 worker 的 drop counter 持续上涨意味着用户在尝试某种泄漏，可以用来做 anomaly detection。
-27. 在 control-plane 启动前 `ExecStartPre=` 一次性 `docker rm -f cloudproxy-* && nft delete table inet cloudproxy && nft delete table ip6 cloudproxy6 || true`，避免 reboot 后残留容器形成 race。
+27. 在 control-plane 启动前 `ExecStartPre=` 一次性 `docker rm -f claudedock-* && nft delete table inet claudedock && nft delete table ip6 claudedock6 || true`，避免 reboot 后残留容器形成 race。
 28. `verify.go::VerifyNetworkIntegrity` 现在只在创建容器后跑一次；建议加一个"定期 reverify"循环（host-agent 每 N 分钟跑一次），把 drop / route 漂移当 incident 上报。
 
 ---

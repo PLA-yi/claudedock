@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
 )
 
 func TestGenerateEd25519KeyPairProducesOpenSSHPrivateKey(t *testing.T) {

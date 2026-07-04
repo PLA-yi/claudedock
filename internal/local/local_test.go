@@ -320,7 +320,7 @@ func TestValidateEgressConfig(t *testing.T) {
 
 func TestEgressMountArg(t *testing.T) {
 	arg := egressMountArg("/path/to/outbound.json")
-	if !strings.Contains(arg, ":/etc/cloud-claude/sing-box-outbound.json:ro") {
+	if !strings.Contains(arg, ":/etc/claudedock/sing-box-outbound.json:ro") {
 		t.Errorf("mount arg should contain target path, got: %s", arg)
 	}
 }

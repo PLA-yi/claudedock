@@ -19,7 +19,7 @@
 6. **测试 + UAT** — Worker `ensureDockerVolume` 幂等单测、agentapi `ActionVolumeRemove` round-trip、admin handler 回滚单测、entrypoint symlink seed 行为脚本测试；人工 UAT 删 account 后 `docker volume ls --filter label=...` 必须空。
 
 本阶段**不**交付：
-- `cloud-claude` 客户端任何变更（持久化对客户端透明）
+- `claudedock` 客户端任何变更（持久化对客户端透明）
 - 独立 GC / orphan volume 清扫定时任务（推迟到 v3.1 backlog）
 - 双 volume / 子目录直挂等替代拓扑（Q4 已在 Phase 30 D-01 锁定单 volume）
 
@@ -32,9 +32,9 @@
 
 - **D-01**：volume 名 `claude-state-{claude_account_id}`，其中 `{claude_account_id}` **保留 PostgreSQL UUID 原格式（含连字符）** 与 `claude_accounts.id` 字面一致。理由：(1) Docker volume name 允许 `-`；(2) DB 与 volume 名一一可视对照便于运维 `grep`；(3) Phase 30 D-01 措辞 "由实现选定但全仓库一致" 在此具体化。
 - **D-02**：volume 创建时强制写入两条 label：
-  - `com.cloud-cli-proxy.account_id={claude_account_id}` —— 唯一性键，filter 入口
-  - `com.cloud-cli-proxy.managed=true` —— 二级保险，配合 `docker volume ls --filter label=com.cloud-cli-proxy.managed` 做存量审计
-  本阶段**不**写 `com.cloud-cli-proxy.created_at`（避免与 Docker 自带 `CreatedAt` 重复 + 不便于 label-filter 精确匹配）。
+  - `com.claudedock.account_id={claude_account_id}` —— 唯一性键，filter 入口
+  - `com.claudedock.managed=true` —— 二级保险，配合 `docker volume ls --filter label=com.claudedock.managed` 做存量审计
+  本阶段**不**写 `com.claudedock.created_at`（避免与 Docker 自带 `CreatedAt` 重复 + 不便于 label-filter 精确匹配）。
 - **D-03**：`hosts.template_image_ref` 与 `image_version` 不影响 volume 名。volume 完全按 `claude_account_id` 切分，与镜像版本解耦。
 
 ### Volume 创建触发链路（Worker 端）
@@ -44,7 +44,7 @@
   2. 不存在则 `docker volume create --label k=v --label k=v <name>`，失败返回 `volume_create_failed` 错误码；
   3. 总是返回 `(name, nil)`，后续 `--mount` 拼装才能继续。
 - **D-04a**：D-04 第 1 条的 "label 比对" 推迟到 v3.1 backlog。理由：当前 v3.0 单 worker 实现路径下不会出现 label 漂移（worker 自动写 label 是包级常量），引入 inspect JSON 解析增加复杂度但风险面极低；M16 的覆盖由 admin DELETE 联动 + 运维手册 orphan 审计脚本兜底。Plan 01 Task 1.3 `realEnsureDockerVolume` `inspect` 成功直接 `return nil` 与本决策一致；D-25.2 测试覆盖只保留 "NotExists_RunsCreate" + "AlreadyExists_SkipsCreate"。
-- **D-05**：worker 在 `request.ClaudeAccountID != ""` 时**自动补一条** `VolumeMount{Name: BuildClaudeStateVolumeName(id), Target: "/var/lib/claude-persist", Labels: map[string]string{"com.cloud-cli-proxy.account_id": id, "com.cloud-cli-proxy.managed": "true"}}`，避免上游 dispatcher 每个调用方都重复拼。若 `request.Volumes` 已显式包含同 `Name`，跳过补写（显式优先）。
+- **D-05**：worker 在 `request.ClaudeAccountID != ""` 时**自动补一条** `VolumeMount{Name: BuildClaudeStateVolumeName(id), Target: "/var/lib/claude-persist", Labels: map[string]string{"com.claudedock.account_id": id, "com.claudedock.managed": "true"}}`，避免上游 dispatcher 每个调用方都重复拼。若 `request.Volumes` 已显式包含同 `Name`，跳过补写（显式优先）。
 - **D-06**：worker `createHost` 成功后调用 `repo.UpsertClaudeAccountPersistentVolumeName(ctx, accountID, name)`（仓储侧新增方法，仅在当前列为 NULL 时写入；非空一致跳过、非空冲突写 audit event）。`persistent_volume_name` 列从 `NULL` 变为已分配后**永不回写 NULL**，与 Phase 30 D-02 三态消除一致。
 - **D-07**：本阶段**不**改 dispatcher / scheduler 链路上传入 `ClaudeAccountID` 的来源——已在 Phase 30 D-09 由控制面 `EntryHandler` / `runtime_service.go` 注入；Phase 33 仅消费现有字段。如果某一调用路径仍未填 `ClaudeAccountID`（例如 v2.0 旧 host 重建），worker 跳过 volume 补写 + entrypoint symlink 走 fallback（`/var/lib/claude-persist` 内空 + symlink 仍生效但无持久化数据），**不**报错阻塞 host 启动（M16 风险但不破坏现有路径）。
 
@@ -134,7 +134,7 @@
   6. `Repository.GetHostWithClaudeAccount` LEFT JOIN 返回 `nil` 与命中两条路径；
   7. `Repository.UpsertClaudeAccountPersistentVolumeName` 只在 NULL 时写入 + 一致跳过 + 冲突写 audit（用 mock recorder）。
 - **D-26**：人工 UAT 清单（Plan 02 收尾）：
-  1. 删除一个未运行 host 的 account → `docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id>` 必须空；
+  1. 删除一个未运行 host 的 account → `docker volume ls --filter label=com.claudedock.account_id=<id>` 必须空；
   2. 删除一个有运行 host 的 account（默认 force=false）→ HTTP 409 + 中文提示 + DB 行仍在；
   3. 加 `?force=true` 重试 → HTTP 200 + DB 行删 + volume 删；
   4. 同一 account 容器 stop → start 后 `~/.claude/.credentials.json` 内容不变；
@@ -195,7 +195,7 @@
 ### 前置阶段上下文
 
 - `.planning/phases/29-v3-worker/29-CONTEXT.md` — D-09 entrypoint 串行编排 + D-16 `/var/lib/claude-persist` 预建 + D-18..D-22 `VolumeMount` / `HostActionRequest.Volumes` 契约 + D-22 向后兼容 omitempty + D-21 `ClaudeAccountID` 留 Phase 30
-- `.planning/phases/30-entry-api/30-CONTEXT.md` — D-01/D-02 单 volume 命名 + label `com.cloud-cli-proxy.account_id` 锁定 + D-09 `HostActionRequest.ClaudeAccountID` 字段 + D-04 不扩展 host-agent endpoint + D-10 migration 0014
+- `.planning/phases/30-entry-api/30-CONTEXT.md` — D-01/D-02 单 volume 命名 + label `com.claudedock.account_id` 锁定 + D-09 `HostActionRequest.ClaudeAccountID` 字段 + D-04 不扩展 host-agent endpoint + D-10 migration 0014
 - `.planning/phases/29.1-gethost-entry-password-workspace/29.1-CONTEXT.md` — runtime/worker fail-fast + audit event 模式（Plan 02），本阶段 admin handler 沿用
 - `.planning/phases/31-cli/31-CONTEXT.md` — REQ-F7-C 在 Phase 31 落地的具体 hook 点（与本阶段 REQ-F7-A/B/D 在客户端侧无交集）
 - `.planning/phases/32-ssh-tmux/32-CONTEXT.md` — 账号级 Mutagen 单例锁实现（与 Phase 33 volume 命名共享 `claude_account_id` 维度）

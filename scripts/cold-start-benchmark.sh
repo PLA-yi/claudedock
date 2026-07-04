@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/cold-start-benchmark.sh — Phase 35 BASE-02 首连 ≤ 8s + 三段式中文进度断言
 #
-# 默认 5 次 attempt，每次：起 managed-user 容器 → 跑 cloud-claude → 探测 prompt → 关容器。
+# 默认 5 次 attempt，每次：起 managed-user 容器 → 跑 claudedock → 探测 prompt → 关容器。
 # 同时断言 stderr 含三段式中文进度（REQ-F1-B 锁定字符串）。
 # threshold_seconds 默认 8 秒 (CONTEXT 锁定)；min-pass 默认 4 (5 次中 ≥ 4 次 ≤ 8s)。
 #
@@ -153,8 +153,8 @@ for idx in $(seq 1 "$ATTEMPTS"); do
   : > "$STDERR_FILE"
 
   T0=$(ms_now)
-  # 后台启动 cloud-claude，不阻塞探测循环
-  docker exec "$CTR" cloud-claude --mount-mode=auto --json 2> "$STDERR_FILE" >/dev/null &
+  # 后台启动 claudedock，不阻塞探测循环
+  docker exec "$CTR" claudedock --mount-mode=auto --json 2> "$STDERR_FILE" >/dev/null &
   CLI_PID=$!
 
   # Pitfall 3：tmux race，初次 capture-pane 前 sleep 2，最多 3 次重试

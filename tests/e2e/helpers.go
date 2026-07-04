@@ -235,11 +235,11 @@ type CLIErrorCase struct {
 // 中的 ExitCode 字段一致；helpers_test.go 中通过 import 该包做交叉断言，
 // 任一漂移立即编译期 / 测试期失败。
 //
-// 与 ROADMAP §Phase 46 §Details 5 描述的差异：ROADMAP 写「真实 cloud-claude
-// binary」，但 grep `cmd/cloud-claude/main.go` 实际定义的常量是
+// 与 ROADMAP §Phase 46 §Details 5 描述的差异：ROADMAP 写「真实 claudedock
+// binary」，但 grep `cmd/claudedock/main.go` 实际定义的常量是
 // exitAuthFailed=1 / exitNetworkError=2 等，不含 10-13；错误码 10-13 由
 // `deploy/bootstrap/cloud-bootstrap.sh` 在 `case "$error_code"` 分支映射，
-// 走的是 curl bootstrap 入口而非 cloud-claude binary。本表以源码为准。
+// 走的是 curl bootstrap 入口而非 claudedock binary。本表以源码为准。
 var BootstrapExitCodeContract = map[string]int{
 	"auth_invalid":     10,
 	"account_disabled": 11,
@@ -1288,14 +1288,14 @@ func ParsePumbaOutput(stdout, stderr string) PumbaOutcome {
 
 // PickGatewayBridgeNetwork 从 `docker inspect -f` 输出的
 // `<name>=<ip>;<name>=<ip>;` 字面量中挑出 KILL-04 应当 disconnect 的
-// 「cloudproxy 专属 bridge」。
+// 「claudedock 专属 bridge」。
 //
 // 选择策略（CONTEXT §Area 3）：
-//  1. 优先 `cloudproxy-net-` 前缀（v3.5 之后控制面真实接入的网络）；
+//  1. 优先 `claudedock-net-` 前缀（v3.5 之后控制面真实接入的网络）；
 //  2. 兜底取第一个名字 != "bridge" 且 != "" 的网络（避免摘默认 bridge）；
 //  3. 找不到 → 返回 ("","")。
 //
-// 与 PLAN 50-04 单测 4 case 锁死：only-cloudproxy / only-bridge / multi-custom /
+// 与 PLAN 50-04 单测 4 case 锁死：only-claudedock / only-bridge / multi-custom /
 // empty。
 func PickGatewayBridgeNetwork(raw string) (net, ip string) {
 	if strings.TrimSpace(raw) == "" {
@@ -1317,7 +1317,7 @@ func PickGatewayBridgeNetwork(raw string) (net, ip string) {
 		if name == "" {
 			continue
 		}
-		if strings.HasPrefix(name, "cloudproxy-net-") {
+		if strings.HasPrefix(name, "claudedock-net-") {
 			return name, addr
 		}
 		if name != "bridge" && fallbackNet == "" {

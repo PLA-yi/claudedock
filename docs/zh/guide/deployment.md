@@ -32,8 +32,8 @@ brew install --cask docker
 ## 2. 启动
 
 ```bash
-git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
-cd cloud-cli-proxy
+git clone https://github.com/claudedock/claudedock.git
+cd claudedock
 
 bash deploy/scripts/setup-env.sh
 docker compose pull
@@ -67,7 +67,7 @@ CONTAINER_REGISTRY=ghcr.1ms.run
 
 这个变量同时控制 compose 镜像拉取和运行时 `docker pull`（`managed-user` 更新、`sing-box` 探针），所有 `ghcr.io` 引用都会自动替换。
 
-systemd 裸机部署同理，在 `/etc/cloud-cli-proxy/env` 中加上这一行后重启控制面。
+systemd 裸机部署同理，在 `/etc/claudedock/env` 中加上这一行后重启控制面。
 
 ## 环境变量
 

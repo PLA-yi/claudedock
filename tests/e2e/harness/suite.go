@@ -1,6 +1,6 @@
 //go:build e2e
 
-// Package harness 提供 Cloud CLI Proxy e2e 套件的可复用基础设施。
+// Package harness 提供 ClaudeDock e2e 套件的可复用基础设施。
 //
 // 当前包含 BaseSuite（生命周期 hook + 上下文 + 日志器 + 项目根定位）。
 // 后续 plan 会陆续补充 Scenario builder（Plan 02）、waitFor helper（Plan 03）、

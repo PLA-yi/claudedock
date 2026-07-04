@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Cloud Claude CLI installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/ZaneL1u/cloud-cli-proxy/main/scripts/install.sh | bash
+# ClaudeDock CLI installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/claudedock/claudedock/main/scripts/install.sh | bash
 
-REPO="ZaneL1u/cloud-cli-proxy"
+REPO="claudedock/claudedock"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
-BINARY="cloud-claude"
+BINARY="claudedock"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33m警告:\033[0m %s\n' "$*"; }
@@ -79,8 +79,8 @@ main() {
 
   echo ""
   info "开始使用："
-  echo "  cloud-claude init    # 配置网关与凭证"
-  echo "  cloud-claude         # 启动 Claude Code 会话"
+  echo "  claudedock init    # 配置网关与凭证"
+  echo "  claudedock         # 启动 Claude Code 会话"
 }
 
 main "$@"

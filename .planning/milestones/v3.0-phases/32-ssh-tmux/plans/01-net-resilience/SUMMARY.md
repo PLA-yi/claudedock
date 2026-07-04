@@ -27,23 +27,23 @@ tech-stack:
     - 100ms ticker 行内覆盖渲染（\r\x1b[K + 上次内容比较，避免刷屏）
 key-files:
   created:
-    - internal/cloudclaude/keepalive.go
-    - internal/cloudclaude/keepalive_linux.go
-    - internal/cloudclaude/keepalive_darwin.go
-    - internal/cloudclaude/keepalive_other.go
-    - internal/cloudclaude/keepalive_test.go
-    - internal/cloudclaude/reconnect.go
-    - internal/cloudclaude/reconnect_test.go
-    - internal/cloudclaude/input_buffer.go
-    - internal/cloudclaude/input_buffer_test.go
-    - internal/cloudclaude/errcodes/session.go
+    - internal/claudedock/keepalive.go
+    - internal/claudedock/keepalive_linux.go
+    - internal/claudedock/keepalive_darwin.go
+    - internal/claudedock/keepalive_other.go
+    - internal/claudedock/keepalive_test.go
+    - internal/claudedock/reconnect.go
+    - internal/claudedock/reconnect_test.go
+    - internal/claudedock/input_buffer.go
+    - internal/claudedock/input_buffer_test.go
+    - internal/claudedock/errcodes/session.go
   modified:
-    - internal/cloudclaude/ssh.go (sshConnect 内插 4 行 TCP keepalive 配置)
-    - internal/cloudclaude/colors.go (追加 ansiGray)
-    - internal/cloudclaude/last_session.go (追加 3 omitempty 字段)
-    - internal/cloudclaude/last_session_test.go (追加 2 个 round-trip / omitempty 用例)
-    - internal/cloudclaude/errcodes/codes.go (追加 10 条 Code 常量)
-    - internal/cloudclaude/errcodes/net.go (追加第二个 init 注册 3 条 NET_*)
+    - internal/claudedock/ssh.go (sshConnect 内插 4 行 TCP keepalive 配置)
+    - internal/claudedock/colors.go (追加 ansiGray)
+    - internal/claudedock/last_session.go (追加 3 omitempty 字段)
+    - internal/claudedock/last_session_test.go (追加 2 个 round-trip / omitempty 用例)
+    - internal/claudedock/errcodes/codes.go (追加 10 条 Code 常量)
+    - internal/claudedock/errcodes/net.go (追加第二个 init 注册 3 条 NET_*)
 decisions:
   - "RunKeepAlive 单次 SendRequest 必须 goroutine + select 包 timeout — 否则 dead network 上 SendRequest 永久阻塞，失败计数永远不增长"
   - "ConfigureTCPKeepAlive 失败仅返回 error，调用方 stderr warning 不阻塞 SSH 握手（best-effort，CONTEXT D-04 第 4 条）"
@@ -218,14 +218,14 @@ if mountCfg.KeepAliveInterval < 15*time.Second {
 
 ```
 $ go build ./...                                                               PASS
-$ GOOS=linux  go vet ./internal/cloudclaude/...                                PASS
-$ GOOS=darwin go vet ./internal/cloudclaude/...                                PASS
-$ go test ./internal/cloudclaude/errcodes/... -count=1                         PASS
-$ go test ./internal/cloudclaude/ -run 'TestRunKeepAlive_Rejects|TestRunKeepAlive_SuccessResetsFails|
+$ GOOS=linux  go vet ./internal/claudedock/...                                PASS
+$ GOOS=darwin go vet ./internal/claudedock/...                                PASS
+$ go test ./internal/claudedock/errcodes/... -count=1                         PASS
+$ go test ./internal/claudedock/ -run 'TestRunKeepAlive_Rejects|TestRunKeepAlive_SuccessResetsFails|
     TestConfigureTCPKeepAlive|TestRenderDisconnectStatus|TestReconnector|TestBackoffSeq|
     TestBufferedStdin|TestLastSessionSnapshot_NewFields|TestLastSessionSnapshot_Omitempty|
     TestFormatGiveUpMessage' -count=1                                          PASS
-$ go test ./internal/cloudclaude/ -run TestRunKeepAlive_TimeoutCounts -timeout 90s   PASS（45s）
+$ go test ./internal/claudedock/ -run TestRunKeepAlive_TimeoutCounts -timeout 90s   PASS（45s）
 ```
 
 ## Deviations from Plan
@@ -236,28 +236,28 @@ $ go test ./internal/cloudclaude/ -run TestRunKeepAlive_TimeoutCounts -timeout 9
 - **Found during**: Task 1.3 实现时回看 PLAN 模板
 - **Issue**: PLAN `<action>` 1 的伪代码假设 `r.onReconnected` 非 nil；单测 `TestReconnector_TriggerDropsExtras` 用 nil 回调直接构造 Reconnector，主循环若不守卫会 nil panic。
 - **Fix**: `Run` 内 `if r.onReconnected != nil { ... }` 包裹；并在回调返回非 nil error 时 close newConn + 推进 backoffIdx 重试，避免坏回调死循环。
-- **Files modified**: `internal/cloudclaude/reconnect.go`
+- **Files modified**: `internal/claudedock/reconnect.go`
 - **Commit**: `105afc1`
 
 **2. [Rule 3 - 阻塞] renderStatus 增加 statusWriter nil 守卫**
 - **Found during**: Task 1.3 单测设计
 - **Issue**: 单测 `NewReconnector(..., nil, true)` 传 nil statusWriter 时，原模板 `fmt.Fprint(r.statusWriter, ...)` 会 panic。
 - **Fix**: 100ms ticker 中增加 `if r.statusWriter == nil { continue }`；ctx.Done 分支同样守卫。
-- **Files modified**: `internal/cloudclaude/reconnect.go`
+- **Files modified**: `internal/claudedock/reconnect.go`
 - **Commit**: `105afc1`
 
 **3. [Rule 3 - 阻塞] StateAddr 方法新增（暴露 *atomic.Int32）**
 - **Found during**: 写 input_buffer 单测时
 - **Issue**: PLAN `<interfaces>` 段写 `BufferedStdin.state` 字段是 `*atomic.Int32`，但 PLAN 没说 Reconnector 怎么暴露其内部 atomic.Int32 的指针给 BufferedStdin 共享。Plan 02 接入点伪代码用了不存在的 `&reconnector.state(待暴露)`。
 - **Fix**: `Reconnector` 新增 `StateAddr() *atomic.Int32` 方法返回 `&r.state`，Plan 02 接入点更新为 `NewBufferedStdin(os.Stdin, reconnector.StateAddr(), ...)`。
-- **Files modified**: `internal/cloudclaude/reconnect.go`
+- **Files modified**: `internal/claudedock/reconnect.go`
 - **Commit**: `105afc1`
 
 **4. [Rule 3 - 阻塞] keepalive_test.go 长用例增加 testing.Short() 跳过**
 - **Found during**: Task 1.2 测试运行
 - **Issue**: `TestRunKeepAlive_TimeoutCounts` 真实跑 ~30 秒；CI -short 场景下应跳过。
 - **Fix**: 函数顶部 `if testing.Short() { t.Skip(...) }`。
-- **Files modified**: `internal/cloudclaude/keepalive_test.go`
+- **Files modified**: `internal/claudedock/keepalive_test.go`
 - **Commit**: `bb1a997`
 
 ### 非 Auto-fix 偏差（仅文档）
@@ -266,12 +266,12 @@ $ go test ./internal/cloudclaude/ -run TestRunKeepAlive_TimeoutCounts -timeout 9
 
 ## Deferred Issues（out of scope，登记在此）
 
-**1. `GOOS=windows go build ./internal/cloudclaude/...` 失败**
-- 失败原因：`internal/cloudclaude/ssh.go` 既有的 `signal.Notify(sigCh, syscall.SIGWINCH)` 在 windows 下未定义。
+**1. `GOOS=windows go build ./internal/claudedock/...` 失败**
+- 失败原因：`internal/claudedock/ssh.go` 既有的 `signal.Notify(sigCh, syscall.SIGWINCH)` 在 windows 下未定义。
 - **不是本 plan 引入**：在本 plan 第一个 commit 之前 `git stash` 后跑同命令同样失败（已实测）。
-- **本 plan 范围内的 windows 兼容性**：`keepalive_other.go` 自身在 windows 编译通过（已通过 `errcodes` 子包验证 `GOOS=windows go vet ./internal/cloudclaude/errcodes/...` PASS）。
+- **本 plan 范围内的 windows 兼容性**：`keepalive_other.go` 自身在 windows 编译通过（已通过 `errcodes` 子包验证 `GOOS=windows go vet ./internal/claudedock/errcodes/...` PASS）。
 - **建议归属**：作为 Phase 32 / Phase 35 的 windows 移植任务单独处理，需要把 ssh.go 的 PTY/SIGWINCH 路径走 build tag 拆 `_unix.go` / `_windows.go`。
-- **不影响 Plan 02/03 推进**：v3.0 cloud-claude 仅承诺 Linux + macOS（PROJECT.md 约束）。
+- **不影响 Plan 02/03 推进**：v3.0 claudedock 仅承诺 Linux + macOS（PROJECT.md 约束）。
 
 ## Threat Flags
 
@@ -279,16 +279,16 @@ $ go test ./internal/cloudclaude/ -run TestRunKeepAlive_TimeoutCounts -timeout 9
 
 ## Self-Check: PASSED
 
-- [x] `internal/cloudclaude/keepalive.go` exists
-- [x] `internal/cloudclaude/keepalive_linux.go` exists
-- [x] `internal/cloudclaude/keepalive_darwin.go` exists
-- [x] `internal/cloudclaude/keepalive_other.go` exists
-- [x] `internal/cloudclaude/keepalive_test.go` exists
-- [x] `internal/cloudclaude/reconnect.go` exists
-- [x] `internal/cloudclaude/reconnect_test.go` exists
-- [x] `internal/cloudclaude/input_buffer.go` exists
-- [x] `internal/cloudclaude/input_buffer_test.go` exists
-- [x] `internal/cloudclaude/errcodes/session.go` exists
+- [x] `internal/claudedock/keepalive.go` exists
+- [x] `internal/claudedock/keepalive_linux.go` exists
+- [x] `internal/claudedock/keepalive_darwin.go` exists
+- [x] `internal/claudedock/keepalive_other.go` exists
+- [x] `internal/claudedock/keepalive_test.go` exists
+- [x] `internal/claudedock/reconnect.go` exists
+- [x] `internal/claudedock/reconnect_test.go` exists
+- [x] `internal/claudedock/input_buffer.go` exists
+- [x] `internal/claudedock/input_buffer_test.go` exists
+- [x] `internal/claudedock/errcodes/session.go` exists
 - [x] commit `5f3e271` (Task 1.1) exists
 - [x] commit `bb1a997` (Task 1.2) exists
 - [x] commit `105afc1` (Task 1.3) exists

@@ -4,7 +4,7 @@
 //
 //   - 入口：基线 worker `curl https://ifconfig.io` 必须 exit 0；
 //   - 后台启 host eth0 tcpdump（BPF：src worker and not dst gateway）；
-//   - DisconnectGatewayFromBridge 把 gateway 从专属 cloudproxy-net-<HostID>
+//   - DisconnectGatewayFromBridge 把 gateway 从专属 claudedock-net-<HostID>
 //     摘走（PickGatewayBridgeNetwork 自动挑出该网络）；
 //   - 容器内立即跑 `curl --max-time 3 <url>`，期望非 0 退出（worker 不允许
 //     fallback 到 docker 默认 bridge / host 默认路由直连）；
@@ -13,7 +13,7 @@
 //   - cleanup：t.Cleanup 内 best-effort ReconnectGatewayToBridge。
 //
 // CONTEXT §校准：grep 源码确认 gateway 接入的是自定义 bridge
-// `cloudproxy-net-<HostID>`（`internal/network/container_proxy_provider.go:323`）
+// `claudedock-net-<HostID>`（`internal/network/container_proxy_provider.go:323`）
 // 而非默认 `bridge`；KILL-04 disconnect 的就是这个网络。
 
 package killswitch_stress
@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	e2e "github.com/zanel1u/cloud-cli-proxy/tests/e2e"
+	e2e "github.com/claudedock/claudedock/tests/e2e"
 )
 
 func TestKillSwitch_04_NetworkDisconnect(t *testing.T) {
@@ -82,10 +82,10 @@ func TestKillSwitch_04_NetworkDisconnect(t *testing.T) {
 
 	savedNet, savedIP, err := g.DisconnectGatewayFromBridge(ctx)
 	if err != nil {
-		// backend GAP：gateway 当前未接 cloudproxy-net-* / 任何自定义 bridge
+		// backend GAP：gateway 当前未接 claudedock-net-* / 任何自定义 bridge
 		// （可能 backend 改用 macvlan / host network）。流转 Phase 51 同 Phase 49
 		// LEAK-06/07/08 模式。
-		if strings.Contains(err.Error(), "has no cloudproxy-net") ||
+		if strings.Contains(err.Error(), "has no claudedock-net") ||
 			strings.Contains(err.Error(), "custom bridge network") {
 			t.Skipf("backend GAP: gateway 未接自定义 bridge，KILL-04 流转 Phase 51 (源码侧未实现专属 bridge): %v", err)
 			return

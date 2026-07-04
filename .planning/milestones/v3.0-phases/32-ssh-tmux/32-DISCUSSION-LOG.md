@@ -69,7 +69,7 @@
 | 控制面新增 session 计数 endpoint | 违反 OOS-A20 | |
 
 **Auto 选择：** tmux list-clients
-**理由：** 数据源全部在容器内，cloud-claude 通过 SSH 远程 tmux 命令获取；client_name 通过 SSH `SSH_CLIENT` + 环境变量 `CLOUD_CLAUDE_CLIENT_NAME=<local_hostname>` 标识。
+**理由：** 数据源全部在容器内，claudedock 通过 SSH 远程 tmux 命令获取；client_name 通过 SSH `SSH_CLIENT` + 环境变量 `CLOUD_CLAUDE_CLIENT_NAME=<local_hostname>` 标识。
 
 ---
 
@@ -89,7 +89,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| 容器内 flock `/var/lock/cloud-claude/sync-<account_id>.lock` | per-host 真锁，跨 cloud-claude 实例（mac+linux 多端） | ✓ |
+| 容器内 flock `/var/lock/claudedock/sync-<account_id>.lock` | per-host 真锁，跨 claudedock 实例（mac+linux 多端） | ✓ |
 | 客户端本地 flock | 不能跨 mac+linux 跨端 | |
 | Mutagen daemon session-name 唯一性 + 探测 | 仅最低保护，无法阻止竞态 | |
 

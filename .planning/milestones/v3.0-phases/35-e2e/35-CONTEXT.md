@@ -36,9 +36,9 @@
 
 - **拔网手段**：脚本化 `tc qdisc add dev <iface> root netem loss 100%`（精确可控），恢复时 `tc qdisc del`。备选 `iptables -I OUTPUT -d <host_ip> -j DROP`。
 - **判定标准（量化）**：
-  - **10s 拔网**：cloud-claude 进程不退出；tmux 内 claude 进程 `ps` 仍在；本地 input_buffer 键入内容不丢
+  - **10s 拔网**：claudedock 进程不退出；tmux 内 claude 进程 `ps` 仍在；本地 input_buffer 键入内容不丢
   - **30s 拔网**：同上 + 恢复网络后 60s 内自动重连成功；`tmux capture-pane` 与拔网前 buffer 一致
-  - **2min 拔网**：cloud-claude 最终进入"重连失败提示"状态（REQ-F3-C）；tmux 内进程仍存活；恢复网络后手动按 Enter 可重新连接
+  - **2min 拔网**：claudedock 最终进入"重连失败提示"状态（REQ-F3-C）；tmux 内进程仍存活；恢复网络后手动按 Enter 可重新连接
 - **"无感知"量化指标**：
   - 进程存活：`docker exec <ctr> pgrep -f claude` 在拔网全程返回 0
   - Buffer 完整性：拔网前 `tmux capture-pane` 与恢复后对比，字符级一致
@@ -97,8 +97,8 @@
 - `scripts/ci-doctor-grep.sh`：Phase 34 的 doctor M14 验证脚本，可作为验收清单脚本的模板（JSON/文本双模式检查、错误码格式断言）
 - `scripts/verify-fuse-compat.sh`：FUSE 兼容性验证脚本，Phase 35 可复用阶段 1-4 的逻辑作为基准测试前置检查
 - `scripts/verify-managed-image.sh`：镜像验证脚本，BASE-04 CI gate 可直接复用
-- `internal/cloudclaude/errcodes/`：错误码注册表，验收清单可遍历断言所有错误码均有中文 message + next_action
-- `internal/cloudclaude/doctor/`：5 维度检查框架，运维手册 `v3-doctor-troubleshoot.md` 可直接引用其检查逻辑
+- `internal/claudedock/errcodes/`：错误码注册表，验收清单可遍历断言所有错误码均有中文 message + next_action
+- `internal/claudedock/doctor/`：5 维度检查框架，运维手册 `v3-doctor-troubleshoot.md` 可直接引用其检查逻辑
 - `test/bootstrap/e2e_bootstrap_ssh.sh`：e2e 测试脚本模板（PASS/FAIL 计数、断言模式）
 
 ### Established Patterns

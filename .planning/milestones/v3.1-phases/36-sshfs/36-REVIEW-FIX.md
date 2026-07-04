@@ -31,8 +31,8 @@ status: all_fixed
 
 **Commit：** `2128389`
 **修改文件：**
-- `internal/cloudclaude/hot_sync.go`（applyOversizedFilter / initialSync / syncOnce）
-- `internal/cloudclaude/hot_sync_oversized_test.go`（新增 1 条回归测试）
+- `internal/claudedock/hot_sync.go`（applyOversizedFilter / initialSync / syncOnce）
+- `internal/claudedock/hot_sync_oversized_test.go`（新增 1 条回归测试）
 
 **应用的修复（同时落地 REVIEW.md 的方案 1 + 方案 3）：**
 
@@ -49,14 +49,14 @@ status: all_fixed
 - 修复前模拟该 fixture 会让 `e.last` 仍含 `big.bin`，本测试会失败；修复后通过。
 - 测试不依赖 SSH/SFTP 实链路（直接构造 `*HotSyncEngine`），跑得快、依赖最少。
 
-**测试结果：** `TestHotSyncOversized_*` 全部 PASS（`go test ./internal/cloudclaude -run TestHotSyncOversized -v`）。
+**测试结果：** `TestHotSyncOversized_*` 全部 PASS（`go test ./internal/claudedock -run TestHotSyncOversized -v`）。
 
 ---
 
 ### WR-02：`Config.HotSyncMaxFileMB` 用户配置失效
 
 **Commit：** `b201390`
-**修改文件：** `cmd/cloud-claude/main.go:352-363`
+**修改文件：** `cmd/claudedock/main.go:352-363`
 
 **应用的修复：** 在 `runRoot` 构造 `mountCfg` 时追加一行（按 REVIEW.md 给出的最小修复字面量）：
 
@@ -65,7 +65,7 @@ HotSyncMaxFileMB: cfg.EffectiveHotSyncMaxFileMB(),
 ```
 
 确认了字段与方法均存在：
-- `cloudclaude.Config.HotSyncMaxFileMB` 在 `internal/cloudclaude/config.go:25` 已通过 yaml tag `hot_sync_max_file_mb,omitempty` 解析。
+- `claudedock.Config.HotSyncMaxFileMB` 在 `internal/claudedock/config.go:25` 已通过 yaml tag `hot_sync_max_file_mb,omitempty` 解析。
 - `Config.EffectiveHotSyncMaxFileMB()` 在 `config.go:40` 实现，零值/负值兜底为 50MB。
 - `MountConfig.HotSyncMaxFileMB` 在 `mount_strategy.go:102` 已存在；下游 `effectiveHotSyncMaxFileMB()` 与 `tryModeReal` 均已读取该字段。
 
@@ -77,11 +77,11 @@ HotSyncMaxFileMB: cfg.EffectiveHotSyncMaxFileMB(),
 
 **Commit：** `7a7b419`
 **修改文件：**
-- `internal/cloudclaude/errcodes/codes.go`（+2 Code 常量）
-- `internal/cloudclaude/errcodes/mount.go`（+2 MustRegister Entry）
-- `internal/cloudclaude/errcodes/explanations.go`（+2 ExtendedExplanations，均 ≥ 200 中文字符）
-- `internal/cloudclaude/doctor/mount.go`（两处 newWarn 改用新 Code）
-- `internal/cloudclaude/doctor/mount_test.go`（两处断言改为新 Code）
+- `internal/claudedock/errcodes/codes.go`（+2 Code 常量）
+- `internal/claudedock/errcodes/mount.go`（+2 MustRegister Entry）
+- `internal/claudedock/errcodes/explanations.go`（+2 ExtendedExplanations，均 ≥ 200 中文字符）
+- `internal/claudedock/doctor/mount.go`（两处 newWarn 改用新 Code）
+- `internal/claudedock/doctor/mount_test.go`（两处断言改为新 Code）
 
 **应用的修复：** 选择 REVIEW.md 给出的「注册新 Code」方案而非「绕开 newWarn 直接构造 Check」方案，原因：
 - 让 `errcodes` 注册表在错误码层面也表达正确语义（Severity=Warn，Message 不带占位符）。
@@ -91,21 +91,21 @@ HotSyncMaxFileMB: cfg.EffectiveHotSyncMaxFileMB(),
 **新增 Code：**
 | Code | Severity | Message | NextAction |
 |---|---|---|---|
-| `MOUNT_GIT_PROXY_DISABLED` | Warn | proxy_commands 未包含 git，git 子命令不会走本地代理转发 | 编辑 ~/.cloud-claude/config.yaml 的 proxy_commands 字段加入 git 后重启 cloud-claude |
-| `MOUNT_DEFAULT_IGNORE_DISABLED` | Warn | CLOUD_CLAUDE_NO_DEFAULT_IGNORE=1，默认二进制黑名单已禁用，大文件可能进入热同步 | 如非排查需要，请 unset CLOUD_CLAUDE_NO_DEFAULT_IGNORE 后重启 cloud-claude |
+| `MOUNT_GIT_PROXY_DISABLED` | Warn | proxy_commands 未包含 git，git 子命令不会走本地代理转发 | 编辑 ~/.claudedock/config.yaml 的 proxy_commands 字段加入 git 后重启 claudedock |
+| `MOUNT_DEFAULT_IGNORE_DISABLED` | Warn | CLOUD_CLAUDE_NO_DEFAULT_IGNORE=1，默认二进制黑名单已禁用，大文件可能进入热同步 | 如非排查需要，请 unset CLOUD_CLAUDE_NO_DEFAULT_IGNORE 后重启 claudedock |
 
 两条 ExtendedExplanations 各有「触发场景 / 根本原因 / 复现方式 / 修复路径 / 关联文档」五段且均 > 200 中文字符，符合 D-18 契约。
 
 **测试结果：**
-- `go test ./internal/cloudclaude/errcodes/` 全 PASS（含 TestAllCodesHaveExplanations、TestExplainExemptOnlyInformational、TestAllDomainsClosed、TestNoLegacyLowercaseCodes）。
-- `go test ./internal/cloudclaude/doctor/` 全 PASS（含本次更新的 TestCheckGitProxyEnabled_Warn_NoGit、TestCheckDefaultIgnoreLoaded_Warn_Set）。
+- `go test ./internal/claudedock/errcodes/` 全 PASS（含 TestAllCodesHaveExplanations、TestExplainExemptOnlyInformational、TestAllDomainsClosed、TestNoLegacyLowercaseCodes）。
+- `go test ./internal/claudedock/doctor/` 全 PASS（含本次更新的 TestCheckGitProxyEnabled_Warn_NoGit、TestCheckDefaultIgnoreLoaded_Warn_Set）。
 
 ---
 
 ### WR-03：HotOnly 模式下 D-08 stderr 文案「由 cold 兜底」与事实不符
 
 **Commit：** `db62289`
-**修改文件：** `internal/cloudclaude/mount_strategy.go:257-275`
+**修改文件：** `internal/claudedock/mount_strategy.go:257-275`
 
 **应用的修复：** 按 REVIEW.md 建议把 fallback 文本按 `mode` 分叉：
 
@@ -127,7 +127,7 @@ Full / Auto 路径输出保持原文案，HotOnly 用户拿到准确语义。
 ### WR-04：`mount_strategy.go:197` `cfg.IsSecondaryClient = true` 死赋值
 
 **Commit：** `a3d1bd1`
-**修改文件：** `internal/cloudclaude/mount_strategy.go:189-218`
+**修改文件：** `internal/claudedock/mount_strategy.go:189-218`
 
 **应用的修复：** 选择方案 1（最小改动，零回归）：删除 `cfg.IsSecondaryClient = true` 这一行；保留并改写注释，明确说明真实副作用由 `ssh.go::ConnectAndRunClaudeV3` 注入的闭包通过闭包捕获 `mountCfg` 完成（指针语义）。
 
@@ -145,7 +145,7 @@ Full / Auto 路径输出保持原文案，HotOnly 用户拿到准确语义。
 
 | 测试名 | 路径 | 目的 |
 |---|---|---|
-| `TestHotSyncOversized_HotOnly_DoesNotClobberLocalOrDeleteRemote` | `internal/cloudclaude/hot_sync_oversized_test.go` | CR-01 回归：HotOnly + resetRemote=false + 60MB 本地 / 30MB 远端旧版本 + e.last 含 base，断言 filter 同时清空 localFiles/e.last/oversizedSet 三个不变量。 |
+| `TestHotSyncOversized_HotOnly_DoesNotClobberLocalOrDeleteRemote` | `internal/claudedock/hot_sync_oversized_test.go` | CR-01 回归：HotOnly + resetRemote=false + 60MB 本地 / 30MB 远端旧版本 + e.last 含 base，断言 filter 同时清空 localFiles/e.last/oversizedSet 三个不变量。 |
 
 ## 测试失败与处理
 

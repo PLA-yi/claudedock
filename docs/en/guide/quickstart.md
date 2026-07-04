@@ -11,8 +11,8 @@
 ### 1. Clone
 
 ```bash
-git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
-cd cloud-cli-proxy
+git clone https://github.com/claudedock/claudedock.git
+cd claudedock
 ```
 
 ### 2. Generate Environment Config
@@ -181,7 +181,7 @@ Or use the bootstrap flow (user enters their username):
 curl -sSf http://YOUR_HOST:8080/v1/bootstrap/script | bash
 ```
 
-**Option B: cloud-claude CLI (recommended)**
+**Option B: claudedock CLI (recommended)**
 
 In addition to the `curl` command above, share these three values:
 
@@ -191,85 +191,85 @@ In addition to the `curl` command above, share these three values:
 | **Short ID** | Host short ID from the host detail page |
 | **Password** | The user's password set in the admin dashboard |
 
-After installing `cloud-claude` and running `init` with those values, the user runs `cloud-claude` from their project directory. The current directory is mounted at the same path inside the container via sshfs.
+After installing `claudedock` and running `init` with those values, the user runs `claudedock` from their project directory. The current directory is mounted at the same path inside the container via sshfs.
 
 ## User Access
 
-### cloud-claude CLI (recommended)
+### claudedock CLI (recommended)
 
 #### Install
 
 **Homebrew (macOS / Linux):**
 
 ```bash
-brew tap ZaneL1u/tap
-brew install cloud-claude
+brew tap claudedock/tap
+brew install claudedock
 ```
 
 **One-liner:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ZaneL1u/cloud-cli-proxy/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/claudedock/claudedock/main/scripts/install.sh | bash
 ```
 
-Also available from [Releases](https://github.com/ZaneL1u/cloud-cli-proxy/releases) or `go build ./cmd/cloud-claude`.
+Also available from [Releases](https://github.com/claudedock/claudedock/releases) or `go build ./cmd/claudedock`.
 
 #### First-time Setup
 
 ```bash
-cloud-claude init
+claudedock init
 ```
 
-Follow the prompts to enter gateway URL, Short ID, and password. Writes to `~/.cloud-claude/config.yaml`.
+Follow the prompts to enter gateway URL, Short ID, and password. Writes to `~/.claudedock/config.yaml`.
 
 Or use flags or environment variables:
 
 ```bash
-cloud-claude init --gateway https://gw.example.com --short-id abc123 --password your-password
+claudedock init --gateway https://gw.example.com --short-id abc123 --password your-password
 
 export CLOUD_CLAUDE_GATEWAY=https://gw.example.com
 export CLOUD_CLAUDE_SHORT_ID=abc123
 export CLOUD_CLAUDE_PASSWORD=your-password
-cloud-claude init
+claudedock init
 ```
 
 #### Daily Use
 
 ```bash
 cd ~/your-project
-alias claude=cloud-claude
+alias claude=claudedock
 
-cloud-claude
-cloud-claude -p "refactor this function"
+claudedock
+claudedock -p "refactor this function"
 ```
 
 **Session management:**
 
 ```bash
-cloud-claude                  # default: attach existing session
-cloud-claude --new-session    # create a new isolated session
-cloud-claude --take-over      # take over primary session, detach others
-cloud-claude sessions         # list current sessions
+claudedock                  # default: attach existing session
+claudedock --new-session    # create a new isolated session
+claudedock --take-over      # take over primary session, detach others
+claudedock sessions         # list current sessions
 ```
 
 **Mount modes:**
 
 ```bash
-cloud-claude --mount-mode=auto         # default: HotSync preferred, falls back to SSHFS
-cloud-claude --mount-mode=full         # HotSync + SSHFS dual-track
-cloud-claude --mount-mode=sshfs-only   # SSHFS only
+claudedock --mount-mode=auto         # default: HotSync preferred, falls back to SSHFS
+claudedock --mount-mode=full         # HotSync + SSHFS dual-track
+claudedock --mount-mode=sshfs-only   # SSHFS only
 ```
 
 **Self-checks and troubleshooting:**
 
 ```bash
-cloud-claude doctor                     # full five-domain check
-cloud-claude doctor mount --fix         # mount check with auto-repair
-cloud-claude explain MOUNT_SSHFS_DISCONNECTED  # error code lookup
-cloud-claude env check                  # verify remote timezone, egress IP, FUSE, etc.
+claudedock doctor                     # full five-domain check
+claudedock doctor mount --fix         # mount check with auto-repair
+claudedock explain MOUNT_SSHFS_DISCONNECTED  # error code lookup
+claudedock env check                  # verify remote timezone, egress IP, FUSE, etc.
 ```
 
-**Common config (`~/.cloud-claude/config.yaml`):**
+**Common config (`~/.claudedock/config.yaml`):**
 
 - `proxy_commands` — commands to run on the host (default `["git"]`); set to `[]` to disable
 - `hot_sync_max_file_mb` — per-file throttling threshold (default 50MB)
@@ -327,8 +327,8 @@ For contributing or customizing, set up a local dev environment as follows.
 ### 2. Set Up
 
 ```bash
-git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
-cd cloud-cli-proxy
+git clone https://github.com/claudedock/claudedock.git
+cd claudedock
 
 make setup    # install frontend deps, generate .env
 make dev      # backend + frontend hot reload

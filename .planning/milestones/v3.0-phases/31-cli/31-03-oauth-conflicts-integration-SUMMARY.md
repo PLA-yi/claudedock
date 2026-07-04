@@ -1,7 +1,7 @@
 ---
 phase: 31-cli
 plan: 03-oauth-conflicts-integration
-subsystem: internal/cloudclaude
+subsystem: internal/claudedock
 tags: [oauth, conflicts, integration, fixture, sync-cli, wave-3]
 requires:
   - "Plan 01 errcodes.NET_OAUTH_EXPIRED / NET_OAUTH_EXPIRING_SOON / NET_OAUTH_NOT_FOUND（mount.go 注册表中已就位）"
@@ -15,9 +15,9 @@ provides:
   - "OAuthState{Valid, ExpiringSoon, Expired, NotFound} + OAuthStatus{State, ExpiresAt, MinutesToExpire}"
   - "MutagenSyncStatus{SessionName, ConflictCount, LastError} — mountMutagen 第二返回值（替换 int）"
   - "mountMutagen 内 sync list --template 解析 conflict count（v0.18.1 兼容；不用 --json）"
-  - "newSyncCmd() / sync conflicts 子命令（cmd/cloud-claude/sync.go）"
+  - "newSyncCmd() / sync conflicts 子命令（cmd/claudedock/sync.go）"
   - "scripts/test-fixture-{up,down}.sh — docker compose Phase 29 镜像 fixture 起停"
-  - "internal/cloudclaude/integration_test.go — 6 个 //go:build integration 集成场景骨架"
+  - "internal/claudedock/integration_test.go — 6 个 //go:build integration 集成场景骨架"
 affects:
   - "ConnectAndRunClaudeV3 现已在 mount ready 后并发执行 OAuth 检查；Expired/NotFound 直接 return ExitOAuth*；ExpiringSoon 仅警告"
   - "mountMutagen 调用方（mount_strategy.tryMode/tryModeReal/tryModeWithHooks + 测试 hooks）签名同步升级 int → MutagenSyncStatus"
@@ -36,23 +36,23 @@ tech-stack:
     - "MutagenSyncStatus 引入：把第二返回值从 int 升级为 struct，让后续 LastError / 其他字段可扩展"
 key-files:
   created:
-    - "internal/cloudclaude/oauth_check.go"
-    - "internal/cloudclaude/oauth_check_test.go"
-    - "cmd/cloud-claude/sync.go"
-    - "internal/cloudclaude/integration_test.go"
+    - "internal/claudedock/oauth_check.go"
+    - "internal/claudedock/oauth_check_test.go"
+    - "cmd/claudedock/sync.go"
+    - "internal/claudedock/integration_test.go"
     - "scripts/test-fixture-up.sh"
     - "scripts/test-fixture-down.sh"
   modified:
-    - "internal/cloudclaude/ssh.go (TODO(plan-03) → CheckOAuthCredentials + ExitOAuth* 分支)"
-    - "internal/cloudclaude/mount_mutagen.go (引入 MutagenSyncStatus + sync list --template 解析)"
-    - "internal/cloudclaude/mount_strategy.go (tryMode 系列 int → MutagenSyncStatus，banner conflict 警告引用 status.ConflictCount)"
-    - "internal/cloudclaude/mount_mutagen_test.go (Test_MutagenHappyPath 计数 ≥3 → ≥4 + status 字段断言)"
-    - "internal/cloudclaude/mount_strategy_test.go (3 处 hooks 签名同步升级)"
-    - "cmd/cloud-claude/main.go (rootCmd.AddCommand 追加 newSyncCmd + DisableFlagParsing 路由 sync)"
+    - "internal/claudedock/ssh.go (TODO(plan-03) → CheckOAuthCredentials + ExitOAuth* 分支)"
+    - "internal/claudedock/mount_mutagen.go (引入 MutagenSyncStatus + sync list --template 解析)"
+    - "internal/claudedock/mount_strategy.go (tryMode 系列 int → MutagenSyncStatus，banner conflict 警告引用 status.ConflictCount)"
+    - "internal/claudedock/mount_mutagen_test.go (Test_MutagenHappyPath 计数 ≥3 → ≥4 + status 字段断言)"
+    - "internal/claudedock/mount_strategy_test.go (3 处 hooks 签名同步升级)"
+    - "cmd/claudedock/main.go (rootCmd.AddCommand 追加 newSyncCmd + DisableFlagParsing 路由 sync)"
 decisions:
   - "MutagenSyncStatus 引入而非保留 int：Plan 03 PLAN 明确要求；让 LastError + future 字段可扩展，让 mount_strategy 直接拿 status.LastError 排障"
   - "TestIntegration_F7C_OAuthExpired_ExitsBeforeClaude 接受 NET_OAUTH_EXPIRED 或 NET_OAUTH_NOT_FOUND（expiresAt:0 走 NotFound 分支：parseExpiresAt 把 0 当作字段缺失）"
-  - "凭证注入策略选择：保留 binary 调用版本（runCloudClaude exec /tmp/cloud-claude-int），CI 中 fixture 写临时 ~/.cloud-claude/config.yaml；推荐 (b) 直接 import internal/cloudclaude.ConnectAndRunClaudeV3 留作 future-proof 注释，避免本 plan 追加 mock gateway 分量"
+  - "凭证注入策略选择：保留 binary 调用版本（runCloudClaude exec /tmp/claudedock-int），CI 中 fixture 写临时 ~/.claudedock/config.yaml；推荐 (b) 直接 import internal/claudedock.ConnectAndRunClaudeV3 留作 future-proof 注释，避免本 plan 追加 mock gateway 分量"
   - "C3 netem 场景 t.Skip 占位：tc/netem 在 fixture 容器内不一定可用，且 ROADMAP 明确 Phase 35 真机验收完整覆盖 — 本 plan 占位以满足 RESEARCH §6.2 用例计数"
   - "sync conflicts 子命令仅 wrap mutagen sync list --long（不调 EntryClient / SSH 连接）：CONTEXT D-28 最小可行；sync resolve / resume 留 v3.1（OOS-A2）"
 metrics:
@@ -69,7 +69,7 @@ metrics:
 
 ## One-Liner
 
-把 Phase 31 剩余两个 user-facing 行为（OAuth 三态过期检查、Mutagen conflict 中文冒泡）织入 ConnectAndRunClaudeV3 主路径，配套交付 cloud-claude sync conflicts 子命令、6 个集成测试场景骨架与 docker compose fixture 脚本，兑现 ROADMAP §Phase 31 Success Criteria 第 4/6/8/9 条的 CI 验收基线。
+把 Phase 31 剩余两个 user-facing 行为（OAuth 三态过期检查、Mutagen conflict 中文冒泡）织入 ConnectAndRunClaudeV3 主路径，配套交付 claudedock sync conflicts 子命令、6 个集成测试场景骨架与 docker compose fixture 脚本，兑现 ROADMAP §Phase 31 Success Criteria 第 4/6/8/9 条的 CI 验收基线。
 
 ## Goal Achievement
 
@@ -79,7 +79,7 @@ metrics:
 | parseExpiresAt 9 子用例 | 表驱动覆盖三态 + JSON 容错 + 5min 边界 | 9 子用例 + 1 ExpiringSoonMinutes 全 PASS | ✅ |
 | Mutagen conflict 解析 | sync list --template（v0.18.1 不支持 --json） | mountMutagen Step 9 落地，list 失败仅记 LastError 不阻断 | ✅ |
 | banner 中文冲突警告 | ConflictCount > 0 触发 ⚠ 提示 | mount_strategy 已通畅（Plan 02 留好的 hook 现在被真实数据驱动） | ✅ |
-| sync conflicts 子命令 | mutagen sync list --long wrap + ExtractMutagenBinary 自动 | cmd/cloud-claude/sync.go 注册完毕，烟测通过 | ✅ |
+| sync conflicts 子命令 | mutagen sync list --long wrap + ExtractMutagenBinary 自动 | cmd/claudedock/sync.go 注册完毕，烟测通过 | ✅ |
 | 6 个集成测试场景 | C3/C4/C5/REQ-F1-D/REQ-F2-B/REQ-F7-C | 6 个 TestIntegration_* 函数齐备，C3 t.Skip 占位 | ✅ |
 | fixture 脚本 | docker compose 起停 + 30s sshd 等待 | 2 个脚本 chmod +x + bash -n 通过 | ✅ |
 | 未引入 testcontainers-go | go.mod 不含 testcontainers | grep go.mod OK | ✅ |
@@ -87,7 +87,7 @@ metrics:
 
 ## Public Interfaces 兑现清单
 
-### `internal/cloudclaude/oauth_check.go` 新增导出
+### `internal/claudedock/oauth_check.go` 新增导出
 
 ```go
 type OAuthState int
@@ -112,7 +112,7 @@ func parseExpiresAt(rawJSON string, now time.Time) *OAuthStatus
 // 纯函数（不依赖 ssh.Client）— 用于单测覆盖三态 + JSON 容错。
 ```
 
-### `internal/cloudclaude/mount_mutagen.go` 新增/扩展
+### `internal/claudedock/mount_mutagen.go` 新增/扩展
 
 ```go
 type MutagenSyncStatus struct {
@@ -125,7 +125,7 @@ type MutagenSyncStatus struct {
 func mountMutagen(connA *ssh.Client, cfg MutagenSyncConfig, deps mountMutagenDeps) (cleanup func(), status MutagenSyncStatus, err error)
 ```
 
-### `cmd/cloud-claude/sync.go` 新增导出
+### `cmd/claudedock/sync.go` 新增导出
 
 ```go
 func newSyncCmd() *cobra.Command          // 工厂；main.go 注册
@@ -134,7 +134,7 @@ func runSyncConflicts(...)                // RunE — 调本地 mutagen sync lis
 
 ## CheckOAuthCredentials 在 ConnectAndRunClaudeV3 的位置
 
-`internal/cloudclaude/ssh.go` ConnectAndRunClaudeV3 在 mount ready 与 runClaude 之间插入 OAuth 检查（替换 Plan 02 留下的 `TODO(plan-03)` 注释，原行号 ~109-111）：
+`internal/claudedock/ssh.go` ConnectAndRunClaudeV3 在 mount ready 与 runClaude 之间插入 OAuth 检查（替换 Plan 02 留下的 `TODO(plan-03)` 注释，原行号 ~109-111）：
 
 ```go
 // 替换前（Plan 02）：
@@ -162,7 +162,7 @@ return runClaude(connA, claudeArgs, cwd, len(proxyCommands) > 0)
 
 ```bash
 bash scripts/test-fixture-up.sh                      # 起 Phase 29 镜像
-go test -tags=integration -count=1 -v ./internal/cloudclaude/
+go test -tags=integration -count=1 -v ./internal/claudedock/
 bash scripts/test-fixture-down.sh
 ```
 
@@ -179,11 +179,11 @@ bash scripts/test-fixture-down.sh
 
 | Task | Name | Commit | Files |
 |------|------|--------|-------|
-| 3.1 RED | oauth_check 9 子用例失败测试 | fdaa7d8 | `internal/cloudclaude/oauth_check{,_test}.go` |
-| 3.1 GREEN | parseExpiresAt 三态解析实现 | 111c0b0 | `internal/cloudclaude/oauth_check.go` |
-| 3.2 | OAuth 接线 + Mutagen conflict 解析 + banner | 7e124b1 | `internal/cloudclaude/{ssh,mount_mutagen,mount_strategy}.go` + 2 test |
-| 3.3 | sync conflicts 子命令注册 | f2011c1 | `cmd/cloud-claude/{sync,main}.go` |
-| 3.4 | 集成测试套件骨架 + fixture 脚本 | a202563 | `internal/cloudclaude/integration_test.go` + `scripts/test-fixture-{up,down}.sh` |
+| 3.1 RED | oauth_check 9 子用例失败测试 | fdaa7d8 | `internal/claudedock/oauth_check{,_test}.go` |
+| 3.1 GREEN | parseExpiresAt 三态解析实现 | 111c0b0 | `internal/claudedock/oauth_check.go` |
+| 3.2 | OAuth 接线 + Mutagen conflict 解析 + banner | 7e124b1 | `internal/claudedock/{ssh,mount_mutagen,mount_strategy}.go` + 2 test |
+| 3.3 | sync conflicts 子命令注册 | f2011c1 | `cmd/claudedock/{sync,main}.go` |
+| 3.4 | 集成测试套件骨架 + fixture 脚本 | a202563 | `internal/claudedock/integration_test.go` + `scripts/test-fixture-{up,down}.sh` |
 
 ## Test Coverage
 
@@ -214,7 +214,7 @@ mount_strategy_test.go (12 + 7 = 19 用例，hooks 签名升级后全 PASS):
   Test_ExtractErrCode_FallbackForceFailed
 
 整仓回归：go test ./... -count=1 全 PASS（含 v2.0 mount_test / ssh_doctor_test / 控制面）。
-集成测试静态编译：go test -tags=integration -count=1 -run x_no_run_x ./internal/cloudclaude/ ok。
+集成测试静态编译：go test -tags=integration -count=1 -run x_no_run_x ./internal/claudedock/ ok。
 ```
 
 ## Deviations from Plan
@@ -225,8 +225,8 @@ mount_strategy_test.go (12 + 7 = 19 用例，hooks 签名升级后全 PASS):
 
 - **Found during:** Task 3.2 跑 mount_mutagen_test.go 时
 - **Issue:** Plan 02 写的断言是 `len(*calls) < 3`（daemon + sync create + terminate），但 Plan 03 在 sync create 后追加了 sync list --template 调用，让 happy path 的 runLocal 调用至少为 4 次。如果不更新断言，行为正确但测试假性失败。
-- **Fix:** 把 `< 3` 改为 `< 4`，同时补 `status.SessionName == "cloud-claude-acct-1-aabbccdd"` 与 `status.ConflictCount == 0` 字段断言（验证 Plan 03 引入的 MutagenSyncStatus 字段填充）。
-- **Files modified:** `internal/cloudclaude/mount_mutagen_test.go`
+- **Fix:** 把 `< 3` 改为 `< 4`，同时补 `status.SessionName == "claudedock-acct-1-aabbccdd"` 与 `status.ConflictCount == 0` 字段断言（验证 Plan 03 引入的 MutagenSyncStatus 字段填充）。
+- **Files modified:** `internal/claudedock/mount_mutagen_test.go`
 - **Commit:** 7e124b1
 
 ### No Other Deviations
@@ -242,9 +242,9 @@ mount_strategy_test.go (12 + 7 = 19 用例，hooks 签名升级后全 PASS):
 
 | 文件 | 行 | Stub 类型 | 由谁补齐 |
 |------|----|----|----|
-| `internal/cloudclaude/integration_test.go::TestIntegration_C3_NetemDrop_ColdBranchRemoved` | t.Skip | tc/netem 依赖占位 | Phase 35 真机验收 |
-| `internal/cloudclaude/integration_test.go::runCloudClaude` | runCloudClaude helper 中 cfg 注入路径 | 当前是 binary exec 路径，PLAN 推荐 (b) 直接 import 路径 | Phase 35 / CI 联调时按需切换 |
-| `internal/cloudclaude/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` | 整文件 | 占位 shell stub（Plan 01 遗留） | CI build-images workflow 拉真二进制（fetch-mutagen-bins.sh） |
+| `internal/claudedock/integration_test.go::TestIntegration_C3_NetemDrop_ColdBranchRemoved` | t.Skip | tc/netem 依赖占位 | Phase 35 真机验收 |
+| `internal/claudedock/integration_test.go::runCloudClaude` | runCloudClaude helper 中 cfg 注入路径 | 当前是 binary exec 路径，PLAN 推荐 (b) 直接 import 路径 | Phase 35 / CI 联调时按需切换 |
+| `internal/claudedock/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` | 整文件 | 占位 shell stub（Plan 01 遗留） | CI build-images workflow 拉真二进制（fetch-mutagen-bins.sh） |
 
 **Stub 是否阻塞 plan goal？** 不阻塞。本 plan goal 是「OAuth 检查接入主路径 + Mutagen conflict 冒泡 + sync 子命令 + 6 个集成测试骨架」全部就位，6 个集成场景中 5 个完整可跑（C3 因 netem 依赖明确转交 Phase 35）。本地 `go test ./...` 全 PASS；CI 在 docker 就绪时 `go test -tags=integration` 触发实跑。
 
@@ -254,14 +254,14 @@ mount_strategy_test.go (12 + 7 = 19 用例，hooks 签名升级后全 PASS):
 
 1. **errcodes 注册表稳定**：Plan 01 注册的 15 条 + Plan 02/03 全部按 NET_OAUTH_* / MOUNT_* 命名约定，Phase 34 doctor `--explain` 子命令直接读 `errcodes.Registry()` 即可，无需额外迁移。
 2. **last-session.json schema_version=1 已稳定**：`{schema_version, timestamp, intended_mode, actual_mode, downgrade_chain, conflict_count, claude_account_id, image_version, apfs_case_insensitive}`；Phase 34 doctor 第一屏直接读取展示降级历史 + conflict 计数。
-3. **退出码命名常量固定**：Phase 34 doctor `cloud-claude explain <code>` 子命令展示 ExitCode → Code 映射时引用 `cloudclaude.ExitOAuth* / ExitMountForceFailed` 命名常量（避免后续被 magic number 篡改）。
+3. **退出码命名常量固定**：Phase 34 doctor `claudedock explain <code>` 子命令展示 ExitCode → Code 映射时引用 `claudedock.ExitOAuth* / ExitMountForceFailed` 命名常量（避免后续被 magic number 篡改）。
 4. **OAuth 检查可独立 mock**：CheckOAuthCredentials / parseExpiresAt 已剥离纯函数，Phase 34 doctor `oauth` 维度可直接 import + 调用，无需起真实 SSH。
 5. **MutagenSyncStatus.LastError 字段**：Phase 34 doctor 在 mount 维度检查时可直接读 LastError（mutagen sync list 出现错误时的 last error 字符串）作为故障原因。
 6. **Phase 35 验收**：`go test -tags=integration` 是 ROADMAP §Phase 31 Success Criteria 第 4/6/8/9 条的 CI gate；C3 的 30s 抖动场景需要 tc/netem，在 GitHub Actions runner 中 cap_add SYS_ADMIN + apparmor=unconfined 之后通常可用，但 Phase 35 真机验收同时覆盖更全面。
 
 ## Limitations / Trade-offs
 
-1. **runCloudClaude 凭证注入未完成路径 (b)**：当前 helper 是 binary exec 版本（依赖 ~/.cloud-claude/config.yaml），PLAN 推荐路径 (b) 是直接 `import internal/cloudclaude` 调 ConnectAndRunClaudeV3 绕过 LoadConfig。本 plan 保留 (a) 路径以保持 main.go 命令行入口的端到端覆盖；CI 集成时如发现 config 注入太复杂，可顺手切换为 (b)。
+1. **runCloudClaude 凭证注入未完成路径 (b)**：当前 helper 是 binary exec 版本（依赖 ~/.claudedock/config.yaml），PLAN 推荐路径 (b) 是直接 `import internal/claudedock` 调 ConnectAndRunClaudeV3 绕过 LoadConfig。本 plan 保留 (a) 路径以保持 main.go 命令行入口的端到端覆盖；CI 集成时如发现 config 注入太复杂，可顺手切换为 (b)。
 2. **TestIntegration_F7C 接受两类 OAuth 错误码**：篡改 expiresAt:0 在 parseExpiresAt 中会被判为「字段缺失」（因为 `creds.Inner.ExpiresAt == 0` 视为 NotFound），断言 NET_OAUTH_EXPIRED OR NET_OAUTH_NOT_FOUND 任一即通过，避免跨 fixture 镜像版本的脆弱断言。
 3. **C3 集成场景占位**：netem / tc 依赖在 Phase 29 镜像未必预装，Phase 35 真机环境会保证可用 — 本 plan 用 t.Skip 占位以满足 RESEARCH §6.2 6 用例计数。
 4. **mutagen sync list 失败时 conflict count = 0**：list 失败（如 daemon 暂时卡住）只把 listErr 写到 status.LastError，不阻塞 mount，也不补打 ⚠ 警告。doctor 在 Phase 34 通过读 last-session.json + LastError 字段察觉。
@@ -276,27 +276,27 @@ mount_strategy_test.go (12 + 7 = 19 用例，hooks 签名升级后全 PASS):
 - T-31-03-03（timeout 2 防 SSH hang）：mitigate — 已落地 `timeout 2 cat ...`，CheckOAuthCredentials 内部 sess.Run 错误一律 → OAuthNotFound
 - T-31-03-04（sync conflicts 暴露文件路径）：accept — 用户层授权操作
 - T-31-03-05（fixture 容器 SYS_ADMIN）：accept — 仅本地测试 lifetime
-- T-31-03-06（OAuth 退出码模糊）：mitigate — stderr 输出 errcodes.Format 含中文 NextAction 指引 cloud-claude exec claude login
+- T-31-03-06（OAuth 退出码模糊）：mitigate — stderr 输出 errcodes.Format 含中文 NextAction 指引 claudedock exec claude login
 - T-31-03-07（hardcoded fixturePass）：accept — 仅 fixture 容器 lifetime；如未来需要真凭证可改为 fixture entrypoint 动态生成
 - T-31-03-08（last-session.json conflict_count）：accept — 仅运维数据
 
 ## Self-Check: PASSED
 
-- [x] `internal/cloudclaude/oauth_check.go` 存在，含 CheckOAuthCredentials / parseExpiresAt
-- [x] `internal/cloudclaude/oauth_check_test.go` 存在，10 子用例 PASS
-- [x] `cmd/cloud-claude/sync.go` 存在，含 newSyncCmd / runSyncConflicts
-- [x] `internal/cloudclaude/integration_test.go` 存在，6 个 TestIntegration_* + //go:build integration 头部
+- [x] `internal/claudedock/oauth_check.go` 存在，含 CheckOAuthCredentials / parseExpiresAt
+- [x] `internal/claudedock/oauth_check_test.go` 存在，10 子用例 PASS
+- [x] `cmd/claudedock/sync.go` 存在，含 newSyncCmd / runSyncConflicts
+- [x] `internal/claudedock/integration_test.go` 存在，6 个 TestIntegration_* + //go:build integration 头部
 - [x] `scripts/test-fixture-up.sh` 存在且可执行
 - [x] `scripts/test-fixture-down.sh` 存在且可执行
-- [x] `internal/cloudclaude/ssh.go` 含 CheckOAuthCredentials(connA + 4 个 OAuth 分支 + 跳过提示
-- [x] `internal/cloudclaude/mount_mutagen.go` 含 MutagenSyncStatus + sync list --template + 不含 sync list --json
-- [x] `internal/cloudclaude/mount_strategy.go` 含「同步冲突」+「cloud-claude sync conflicts」
-- [x] `internal/cloudclaude/exitcodes.go` 含 ExitOAuthNotFound=6 / ExitOAuthExpired=7
-- [x] `cmd/cloud-claude/main.go` 含 newSyncCmd 注册 + DisableFlagParsing 路由 sync
+- [x] `internal/claudedock/ssh.go` 含 CheckOAuthCredentials(connA + 4 个 OAuth 分支 + 跳过提示
+- [x] `internal/claudedock/mount_mutagen.go` 含 MutagenSyncStatus + sync list --template + 不含 sync list --json
+- [x] `internal/claudedock/mount_strategy.go` 含「同步冲突」+「claudedock sync conflicts」
+- [x] `internal/claudedock/exitcodes.go` 含 ExitOAuthNotFound=6 / ExitOAuthExpired=7
+- [x] `cmd/claudedock/main.go` 含 newSyncCmd 注册 + DisableFlagParsing 路由 sync
 - [x] commits fdaa7d8 / 111c0b0 / 7e124b1 / f2011c1 / a202563 全部存在于 git log --oneline
 - [x] `go test ./... -count=1` 全 PASS
 - [x] `go vet ./...` exit 0
 - [x] `gofmt -l` 本 plan 触碰的 7 个文件输出空
-- [x] `go test -tags=integration -count=1 -run x_no_run_x ./internal/cloudclaude/` 静态编译通过
-- [x] `cloud-claude sync --help` 含 conflicts；`cloud-claude sync conflicts --help` 含「冲突」
+- [x] `go test -tags=integration -count=1 -run x_no_run_x ./internal/claudedock/` 静态编译通过
+- [x] `claudedock sync --help` 含 conflicts；`claudedock sync conflicts --help` 含「冲突」
 - [x] go.mod 不含 testcontainers

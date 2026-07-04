@@ -140,7 +140,7 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build cloud-claude
+      - name: Build claudedock
         env:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
@@ -148,13 +148,13 @@ jobs:
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
           LDFLAGS="-s -w -X main.Version=${VERSION}"
-          BINARY="cloud-claude-${{ matrix.goos }}-${{ matrix.goarch }}"
-          go build -ldflags "${LDFLAGS}" -trimpath -o "${BINARY}" ./cmd/cloud-claude
+          BINARY="claudedock-${{ matrix.goos }}-${{ matrix.goarch }}"
+          go build -ldflags "${LDFLAGS}" -trimpath -o "${BINARY}" ./cmd/claudedock
 
       - name: Compress binary
         run: |
-          BINARY="cloud-claude-${{ matrix.goos }}-${{ matrix.goarch }}"
-          ARCHIVE="cloud-claude-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+          BINARY="claudedock-${{ matrix.goos }}-${{ matrix.goarch }}"
+          ARCHIVE="claudedock-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
           tar czf "${ARCHIVE}" "${BINARY}"
           sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
 
@@ -162,7 +162,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ARCHIVE="cloud-claude-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+          ARCHIVE="claudedock-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
           gh release upload "${{ github.ref_name }}" "${ARCHIVE}" "${ARCHIVE}.sha256" --clobber
 
   update-homebrew:
@@ -177,13 +177,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           for platform in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
-            gh release download "${TAG}" -p "cloud-claude-${platform}.tar.gz.sha256"
+            gh release download "${TAG}" -p "claudedock-${platform}.tar.gz.sha256"
           done
 
       - name: Extract checksums
         id: shas
         run: |
-          extract_sha() { awk '{print $1}' "cloud-claude-${1}.tar.gz.sha256"; }
+          extract_sha() { awk '{print $1}' "claudedock-${1}.tar.gz.sha256"; }
           echo "darwin_amd64=$(extract_sha darwin-amd64)" >> "$GITHUB_OUTPUT"
           echo "darwin_arm64=$(extract_sha darwin-arm64)" >> "$GITHUB_OUTPUT"
           echo "linux_amd64=$(extract_sha linux-amd64)"   >> "$GITHUB_OUTPUT"
@@ -197,23 +197,23 @@ jobs:
             "${{ steps.shas.outputs.darwin_arm64 }}" \
             "${{ steps.shas.outputs.linux_amd64 }}" \
             "${{ steps.shas.outputs.linux_arm64 }}" \
-            > cloud-claude.rb
+            > claudedock.rb
 
       - name: Push to Homebrew tap
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/ZaneL1u/homebrew-tap.git" tap-repo
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/claudedock/homebrew-tap.git" tap-repo
           mkdir -p tap-repo/Formula
-          cp cloud-claude.rb tap-repo/Formula/cloud-claude.rb
+          cp claudedock.rb tap-repo/Formula/claudedock.rb
           cd tap-repo
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/cloud-claude.rb
+          git add Formula/claudedock.rb
           if git diff --cached --quiet; then
             echo "Formula unchanged, skip."
           else
-            git commit -m "cloud-claude ${GITHUB_REF_NAME}"
+            git commit -m "claudedock ${GITHUB_REF_NAME}"
             git push
           fi
 

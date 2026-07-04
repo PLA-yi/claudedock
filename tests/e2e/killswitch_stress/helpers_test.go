@@ -14,8 +14,8 @@ import (
 	"os/exec"
 	"strings"
 
-	e2e "github.com/zanel1u/cloud-cli-proxy/tests/e2e"
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	e2e "github.com/claudedock/claudedock/tests/e2e"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 // workerInspectName 反推 worker/user 容器名。
@@ -29,7 +29,7 @@ func workerInspectName(_ context.Context, g *e2e.GoldenPath) (string, error) {
 		return name, nil
 	}
 	if g.Host.ID != "" {
-		return "cloudproxy-" + g.Host.ID, nil
+		return "claudedock-" + g.Host.ID, nil
 	}
 	return "", errors.New("container name: host.ID empty (scenario step 7 未实现)")
 }

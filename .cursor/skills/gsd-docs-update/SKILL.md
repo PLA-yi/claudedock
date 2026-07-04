@@ -40,7 +40,7 @@ Flag handling rule:
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/docs-update.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/docs-update.md
 </execution_context>
 
 <context>

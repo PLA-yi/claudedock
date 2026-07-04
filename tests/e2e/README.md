@@ -1,6 +1,6 @@
-# Cloud CLI Proxy — e2e 测试套件
+# ClaudeDock — e2e 测试套件
 
-本目录承载 Cloud CLI Proxy v3.6 的端到端测试体系（Phase 45-52）。
+本目录承载 ClaudeDock v3.6 的端到端测试体系（Phase 45-52）。
 
 ## 跑测试
 

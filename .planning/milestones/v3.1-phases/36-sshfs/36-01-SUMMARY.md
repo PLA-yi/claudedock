@@ -8,7 +8,7 @@ tags: [errcodes, explain, mount, testing]
 requires:
   - phase: 31-cli
     provides: "mount 错误码域与三层文件映射语义基线"
-  - phase: 34-cloud-claude-doctor-v3
+  - phase: 34-claudedock-doctor-v3
     provides: "统一 Registry、ExtendedExplanations 与 explain 子命令框架"
 provides:
   - "MOUNT_REQUIRE_GIT_REPO 与 MOUNT_OVERSIZED_FILE_SKIPPED 两条错误码注册"
@@ -25,10 +25,10 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/errcodes/codes.go
-    - internal/cloudclaude/errcodes/mount.go
-    - internal/cloudclaude/errcodes/explanations.go
-    - cmd/cloud-claude/explain_test.go
+    - internal/claudedock/errcodes/codes.go
+    - internal/claudedock/errcodes/mount.go
+    - internal/claudedock/errcodes/explanations.go
+    - cmd/claudedock/explain_test.go
 
 key-decisions:
   - "MOUNT_REQUIRE_GIT_REPO 与 MOUNT_OVERSIZED_FILE_SKIPPED 不加入 ExplainExempt，必须提供完整长说明"
@@ -59,7 +59,7 @@ completed: 2026-04-23
 
 ## Accomplishments
 - 注册 `MOUNT_REQUIRE_GIT_REPO` 与 `MOUNT_OVERSIZED_FILE_SKIPPED`，补齐 Phase 36 后续计划可直接复用的错误码基础设施。
-- 为两条新错误码写入中文长说明，并确认它们不属于 `ExplainExempt`，会被 `cloud-claude explain` 直接渲染。
+- 为两条新错误码写入中文长说明，并确认它们不属于 `ExplainExempt`，会被 `claudedock explain` 直接渲染。
 - 扩展 `explain` 子进程测试，锁定两条新错误码的 exit 0 与长说明长度要求。
 
 ## Task Commits
@@ -72,10 +72,10 @@ Each task was committed atomically:
 **Plan metadata:** 本文件将随当前 docs commit 一并提交。
 
 ## Files Created/Modified
-- `internal/cloudclaude/errcodes/codes.go` - 新增两条 mount 错误码常量。
-- `internal/cloudclaude/errcodes/mount.go` - 注册两条 mount 错误码的 severity、message 和 next_action。
-- `internal/cloudclaude/errcodes/explanations.go` - 写入两条长说明，实际 rune 计数分别为 `754` 和 `830`。
-- `cmd/cloud-claude/explain_test.go` - 增加两条 explain 子进程回归测试，并修正测试二进制缓存策略。
+- `internal/claudedock/errcodes/codes.go` - 新增两条 mount 错误码常量。
+- `internal/claudedock/errcodes/mount.go` - 注册两条 mount 错误码的 severity、message 和 next_action。
+- `internal/claudedock/errcodes/explanations.go` - 写入两条长说明，实际 rune 计数分别为 `754` 和 `830`。
+- `cmd/claudedock/explain_test.go` - 增加两条 explain 子进程回归测试，并修正测试二进制缓存策略。
 
 ## Decisions Made
 - 两条新错误码都面向用户可见的 mount 失败/告警语义，因此不进入 `ExplainExempt`，而是要求完整的长说明闭环。
@@ -87,10 +87,10 @@ Each task was committed atomically:
 
 **1. [Rule 1 - Bug] 修复 explain 子进程测试复用陈旧二进制**
 - **Found during:** Task 2（注册 2 条 ExtendedExplanations + 扩展 explain 子进程测试）
-- **Issue:** 首次运行新增 `TestExplain_Mount*` 时，测试命中了旧的 `/tmp/cloud-claude-explain-test` 二进制，导致新错误码被误判为 unknown code。
+- **Issue:** 首次运行新增 `TestExplain_Mount*` 时，测试命中了旧的 `/tmp/claudedock-explain-test` 二进制，导致新错误码被误判为 unknown code。
 - **Fix:** 把 `buildOnceExplainBin()` 改成每个 `go test` 进程只编译一次新的临时二进制，不再复用跨测试进程残留文件。
-- **Files modified:** `cmd/cloud-claude/explain_test.go`
-- **Verification:** `go test ./cmd/cloud-claude/... -run TestExplain -v`
+- **Files modified:** `cmd/claudedock/explain_test.go`
+- **Verification:** `go test ./cmd/claudedock/... -run TestExplain -v`
 - **Committed in:** `d22a42e` (part of task commit)
 
 ---

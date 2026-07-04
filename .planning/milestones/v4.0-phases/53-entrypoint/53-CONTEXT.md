@@ -63,7 +63,7 @@ func ApplyWorkerFirewallRules(containerNS netns.NsHandle, gwIP, bridgeGW, proxyI
 **v4.0 改造方向**（在 Phase 54 落地，Phase 53 暂只需镜像内置 `nft` binary）：
 
 - 拆出"规则集生成"纯函数（无 netns 依赖），导出为 entrypoint 可调用的形式
-- 选项 A：entrypoint 内调用 `nft -f /etc/cloud-claude/default-deny.nft` 应用规则
+- 选项 A：entrypoint 内调用 `nft -f /etc/claudedock/default-deny.nft` 应用规则
 - 选项 B：保留 host-agent 进入容器 netns 注入（架构更复杂但减少容器内 `nft` 依赖）
 - **推荐 A**：与"sing-box 同容器"语义一致，容器自带完整网络栈
 
@@ -126,7 +126,7 @@ done
 ip link show tun0 >/dev/null 2>&1 || { echo "[FATAL] sing-box tun0 未就绪" >&2; kill $SINGBOX_PID; exit 1; }
 
 # 应用 nft default-deny
-nft -f /etc/cloud-claude/default-deny.nft || { echo "[FATAL] nft 规则应用失败" >&2; kill $SINGBOX_PID; exit 1; }
+nft -f /etc/claudedock/default-deny.nft || { echo "[FATAL] nft 规则应用失败" >&2; kill $SINGBOX_PID; exit 1; }
 
 # 删除 config 文件（D-V4-2）
 shred -u /etc/sing-box/config.json 2>/dev/null || rm -f /etc/sing-box/config.json

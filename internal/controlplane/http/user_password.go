@@ -12,7 +12,7 @@ import (
 	"database/sql"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // UserPasswordStore 用户自助修改登录密码

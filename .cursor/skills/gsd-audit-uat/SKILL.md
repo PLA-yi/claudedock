@@ -32,7 +32,7 @@ Scan all phases for pending, skipped, blocked, and human_needed UAT items. Cross
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/audit-uat.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/audit-uat.md
 </execution_context>
 
 <context>

@@ -62,7 +62,7 @@ metrics:
 
 # Phase 46 Plan 01: Bypass API 后端落地 Summary
 
-实现 Cloud CLI Proxy v3.5 后台 Bypass 网络白名单的完整 HTTP 控制面：覆盖 Preset / Rule / Binding 三套 CRUD + Validate dry-run，落地 5 硬 1 软护栏 + 12 个统一错误码 + 双轨审计（host_bypass_audit_log 行级 diff + events.RecordEvent 异步事件流），并接通 Phase 45 Repository。
+实现 ClaudeDock v3.5 后台 Bypass 网络白名单的完整 HTTP 控制面：覆盖 Preset / Rule / Binding 三套 CRUD + Validate dry-run，落地 5 硬 1 软护栏 + 12 个统一错误码 + 双轨审计（host_bypass_audit_log 行级 diff + events.RecordEvent 异步事件流），并接通 Phase 45 Repository。
 
 ## 实现概览
 
@@ -196,8 +196,8 @@ events.RecordEvent(ctx, repository.RecordEventParams{
 
 ```
 go test ./internal/controlplane/http/ ./internal/store/repository/ -count=1
-ok  github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http  1.298s
-ok  github.com/zanel1u/cloud-cli-proxy/internal/store/repository    0.551s
+ok  github.com/claudedock/claudedock/internal/controlplane/http  1.298s
+ok  github.com/claudedock/claudedock/internal/store/repository    0.551s
 ```
 
 ## Deviations from Plan

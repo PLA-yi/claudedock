@@ -20,13 +20,13 @@
 | **embed 总计** | **~48.6 MB**（≈49MB） | — |
 
 > ⚠ **CONTEXT.md D-03 估算偏低**（写的 ~3MB / 共 12MB），实际单平台 ~12MB / 共 ~49MB。  
-> 影响：cloud-claude 二进制最终大小会从当前 ~30MB 涨到 ~80MB。在 macOS / Linux 上可接受（Mutagen 官方就是单二进制 ~12MB），但 v3.1 可考虑分平台 build（`-tags=darwin_amd64` 等）只 embed 当前平台。  
-> **本阶段决策**：维持 4 平台 embed（接受 ~80MB cloud-claude 二进制），构建脚本 `scripts/fetch-mutagen-bins.sh` 拉 + sha256 校验。
+> 影响：claudedock 二进制最终大小会从当前 ~30MB 涨到 ~80MB。在 macOS / Linux 上可接受（Mutagen 官方就是单二进制 ~12MB），但 v3.1 可考虑分平台 build（`-tags=darwin_amd64` 等）只 embed 当前平台。  
+> **本阶段决策**：维持 4 平台 embed（接受 ~80MB claudedock 二进制），构建脚本 `scripts/fetch-mutagen-bins.sh` 拉 + sha256 校验。
 
 **daemon 协议**：
 - 通信：gRPC over Unix socket
 - 默认 socket 路径：`$XDG_RUNTIME_DIR/mutagen/daemon.sock`（Linux）/ `/tmp/mutagen-{user}/daemon.sock`（macOS）
-- 隔离方法：设置 `MUTAGEN_DATA_DIRECTORY=~/.cloud-claude/mutagen/`，daemon 自身把 socket 放到 `<data>/daemon.sock`
+- 隔离方法：设置 `MUTAGEN_DATA_DIRECTORY=~/.claudedock/mutagen/`，daemon 自身把 socket 放到 `<data>/daemon.sock`
 - `mutagen daemon start` 幂等：daemon 已运行时退出码 0，stderr `daemon already started`（v0.18.1 实测）
 
 **核心命令清单（planner 参考）**：
@@ -49,7 +49,7 @@ mutagen version
 
 ### 1.2 Mutagen ↔ 容器传输路径（关键修订点）
 
-**问题**：CONTEXT.md D-25 说"Mutagen 在 conn-B 上跑，cloud-claude 复用 SSH session"，但 Mutagen 的实际工作模型是：
+**问题**：CONTEXT.md D-25 说"Mutagen 在 conn-B 上跑，claudedock 复用 SSH session"，但 Mutagen 的实际工作模型是：
 - `mutagen sync create <alpha> <beta>` 中 beta = `user@host:port:/path` → Mutagen **自己发起独立 SSH 连接**
 - Mutagen 通过 `ssh` 客户端二进制（系统 PATH 上的 `/usr/bin/ssh`）跑命令
 - mutagen-agent 由 Mutagen 自己 `scp` / `sftp` 上传到目标 `~/.mutagen/agents/`，然后远程 exec
@@ -60,22 +60,22 @@ mutagen version
 
 | 方案 | 工作模型 | 问题 |
 |---|---|---|
-| (a) 让 Mutagen 自管 SSH（独立 conn-C）| `mutagen sync create alpha=. beta=cc-user@host:2222:/workspace-hot` + Mutagen 自启 ssh | ① 需要把 Entry API 的 password 给 ssh — 但 ssh 不支持环境变量传密码 ② Mutagen 独立连接，cloud-claude 无法监控 ③ 容器内 sshd 必须支持 mutagen-agent 协议（已支持） |
+| (a) 让 Mutagen 自管 SSH（独立 conn-C）| `mutagen sync create alpha=. beta=cc-user@host:2222:/workspace-hot` + Mutagen 自启 ssh | ① 需要把 Entry API 的 password 给 ssh — 但 ssh 不支持环境变量传密码 ② Mutagen 独立连接，claudedock 无法监控 ③ 容器内 sshd 必须支持 mutagen-agent 协议（已支持） |
 | (b) 用 `sshpass` 或 `SSH_ASKPASS` | 让 Mutagen 跑的 ssh 通过 askpass helper 拿密码 | 多依赖一个二进制 / shell 脚本，跨 macOS+Linux 行为不一致 |
-| (c) **复用 cloud-claude 已有 conn-B**（"transport: stdio"）| Mutagen v0.18+ 支持 `mutagen sync create alpha=. beta=stdio://`?  | **❌ Mutagen v0.18.1 不支持 stdio transport** — 仅有 ssh / docker / local |
+| (c) **复用 claudedock 已有 conn-B**（"transport: stdio"）| Mutagen v0.18+ 支持 `mutagen sync create alpha=. beta=stdio://`?  | **❌ Mutagen v0.18.1 不支持 stdio transport** — 仅有 ssh / docker / local |
 
 **实证结论**：Mutagen 没有"复用宿主进程已有 SSH session"的能力。CONTEXT.md D-25 说"Mutagen sync 走 conn-B" 在技术上不准确。
 
 **🔧 修订 D-25（planner 必须按此实现）**：
-- cloud-claude 启动 **3 个 SSH 通道**：
+- claudedock 启动 **3 个 SSH 通道**：
   - **conn-A**（Go ssh.Client）：控制 — 握手、OAuth check、mergerfs mount、watcher 命令、claude 进程 attach
   - **conn-B**（Go ssh.Client）：sshfs sftp 数据通道（v2.0 `mountWorkspace` 既有逻辑）
   - **conn-C**（Mutagen 自管，外部 ssh 进程）：Mutagen 自己起 `ssh` 子进程到 host
-- conn-C 的密码传递：在 `~/.cloud-claude/run/ssh-askpass.sh` 临时写一个 helper（权限 0700），内容 `printf '%s' "$CLOUD_CLAUDE_SSH_PASS"`；cloud-claude fork mutagen 时设置 `SSH_ASKPASS=<helper>` + `SSH_ASKPASS_REQUIRE=force`（OpenSSH 8.4+）+ `DISPLAY=:0` + `SETSID=1`，并通过环境变量 `CLOUD_CLAUDE_SSH_PASS=<password>` 传密码
-- helper 文件 cloud-claude 退出时删除（defer）；askpass 走 fd 转发，密码不进 ps 输出
+- conn-C 的密码传递：在 `~/.claudedock/run/ssh-askpass.sh` 临时写一个 helper（权限 0700），内容 `printf '%s' "$CLOUD_CLAUDE_SSH_PASS"`；claudedock fork mutagen 时设置 `SSH_ASKPASS=<helper>` + `SSH_ASKPASS_REQUIRE=force`（OpenSSH 8.4+）+ `DISPLAY=:0` + `SETSID=1`，并通过环境变量 `CLOUD_CLAUDE_SSH_PASS=<password>` 传密码
+- helper 文件 claudedock 退出时删除（defer）；askpass 走 fd 转发，密码不进 ps 输出
 - 备选：若 `SSH_ASKPASS_REQUIRE` 在目标 OS 不可用，退回 `sshpass -p <pass>`，但仍需检测 sshpass 是否安装
 
-> 这个修订不影响 D-26（Mutagen ‖ sshfs 并发）— 三个 conn 在 cloud-claude 进程里都是独立 goroutine 拉起；mergerfs 在 conn-A 远程执行的时序不变。  
+> 这个修订不影响 D-26（Mutagen ‖ sshfs 并发）— 三个 conn 在 claudedock 进程里都是独立 goroutine 拉起；mergerfs 在 conn-A 远程执行的时序不变。  
 > **影响错误码**：新增 `MOUNT_MUTAGEN_TRANSPORT_FAILED`（ssh 子进程启动失败 / askpass 不可用），列入 D-19 第 12 条之前。
 
 ### 1.3 Sync mode 关键 flag（v0.18.1 实证）
@@ -89,7 +89,7 @@ mutagen version
 
 **关于 D-12 默认 ignore 列表**：
 - 用 `--ignore-vcs` 即覆盖 `.git/`，可省一条
-- 推荐用 cloud-claude 生成的项目级临时 `.mutagen.yml` 而非命令行 11 个 `--ignore`（命令行太长，调试困难）：
+- 推荐用 claudedock 生成的项目级临时 `.mutagen.yml` 而非命令行 11 个 `--ignore`（命令行太长，调试困难）：
   ```yaml
   sync:
     defaults:
@@ -107,7 +107,7 @@ mutagen version
           - ".cache/"
           - ".DS_Store"
   ```
-  写到 `~/.cloud-claude/mutagen-defaults.yml`，调用时 `--global-config=<file>`（v0.18.1 flag）
+  写到 `~/.claudedock/mutagen-defaults.yml`，调用时 `--global-config=<file>`（v0.18.1 flag）
 
 **Safety mode 实证**（v0.18.1）：
 - 默认开启："Mutagen 会在首次同步前比对 alpha/beta scan，如发现 alpha 完全清空且 beta 非空，会暂停 session 并要求 `mutagen sync resume <name>` 显式确认"
@@ -174,7 +174,7 @@ timeout 2 mountpoint -q /workspace-cold
 ```
 - watcher goroutine 每 5s 在 conn-A 上 `timeout 2 mountpoint -q /workspace-cold`，连续 3 次 (=15s) 退出码 ≠ 0 触发摘除
 - timeout 2s 给 stat 留充足时间（健康 sshfs <50ms 完成）
-- conn-A 自身 hang 怎么办？conn-A 由 cloud-claude 主流程 KeepAlive 监管（Phase 32 接管），本阶段假设 conn-A 健康
+- conn-A 自身 hang 怎么办？conn-A 由 claudedock 主流程 KeepAlive 监管（Phase 32 接管），本阶段假设 conn-A 健康
 
 **sshfs `reconnect` 选项行为**（实测）：
 - `reconnect` 在底层 SSH 断开时启动 retry 循环，间隔由 `reconnect_delay`（默认 1s 指数退避到 60s）
@@ -229,7 +229,7 @@ timeout 2 mountpoint -q /workspace-cold
 - `claudeAiOauth.expiresAt` 嵌套字段
 - 文件权限：`0600`，属主 `1000:1000`
 
-**远程读命令**（cloud-claude 跑在 conn-A 上）：
+**远程读命令**（claudedock 跑在 conn-A 上）：
 ```bash
 timeout 2 cat /home/claude/.claude/.credentials.json 2>/dev/null
 ```
@@ -253,8 +253,8 @@ CONTEXT.md D-22 已锁定（已过期 / <5min 即将过期 / 不存在）。
 
 ### 4.3 并发安全
 
-- claude code 写 credentials 是原子写（temp file + rename），cloud-claude 远程 cat 不会读到部分内容
-- 但 cloud-claude 检查到的 `expiresAt` 在毫秒到秒级会被 claude code refresh — 接受 stale read（最多多一次 refresh，无副作用）
+- claude code 写 credentials 是原子写（temp file + rename），claudedock 远程 cat 不会读到部分内容
+- 但 claudedock 检查到的 `expiresAt` 在毫秒到秒级会被 claude code refresh — 接受 stale read（最多多一次 refresh，无副作用）
 
 ---
 
@@ -263,7 +263,7 @@ CONTEXT.md D-22 已锁定（已过期 / <5min 即将过期 / 不存在）。
 ### 5.1 Go 包结构
 
 ```
-internal/cloudclaude/errcodes/
+internal/claudedock/errcodes/
 ├── codes.go      # Code typedef + Entry struct + Registry + Lookup + Format
 ├── mount.go      # MOUNT_* 11 条注册
 ├── net.go        # NET_* 3 条注册
@@ -307,21 +307,21 @@ func Format(c Code, args ...any) string
 
 | Code | Severity | Message | NextAction |
 |---|---|---|---|
-| `MOUNT_MUTAGEN_VERSION_SKEW` | Error | Mutagen 客户端版本 (%s) 与容器内 agent 版本 (%s) 不一致，已降级到 sshfs-only | 升级容器镜像到 v3.0.0+ 或重装 cloud-claude |
+| `MOUNT_MUTAGEN_VERSION_SKEW` | Error | Mutagen 客户端版本 (%s) 与容器内 agent 版本 (%s) 不一致，已降级到 sshfs-only | 升级容器镜像到 v3.0.0+ 或重装 claudedock |
 | `MOUNT_MUTAGEN_WHITELIST_REJECT` | Error | 同步候选目录 %s 体积 %dMB（>50MB），已自动降级 sshfs。当前最大子目录: %s | 在 .mutagen.yml 添加 ignore 规则，或运行 du -sh %s/* 查看大目录 |
-| `MOUNT_MUTAGEN_SAFETY_GUARD` | Fatal | 检测到本地目录 %s 为空但容器内 /workspace-hot 已有文件，拒绝同步以防反向清空 | 如确认从远端拉取，先 cloud-claude exec rsync /workspace-hot/ ./ |
-| `MOUNT_MUTAGEN_DAEMON_UNAVAILABLE` | Error | Mutagen daemon 启动失败: %s | 检查 ~/.cloud-claude/mutagen/ 目录权限，或重启 cloud-claude |
-| `MOUNT_MUTAGEN_SYNC_FAILED` | Error | Mutagen sync 创建失败: %s | 检查 SSH 连通性，或运行 cloud-claude doctor mount |
+| `MOUNT_MUTAGEN_SAFETY_GUARD` | Fatal | 检测到本地目录 %s 为空但容器内 /workspace-hot 已有文件，拒绝同步以防反向清空 | 如确认从远端拉取，先 claudedock exec rsync /workspace-hot/ ./ |
+| `MOUNT_MUTAGEN_DAEMON_UNAVAILABLE` | Error | Mutagen daemon 启动失败: %s | 检查 ~/.claudedock/mutagen/ 目录权限，或重启 claudedock |
+| `MOUNT_MUTAGEN_SYNC_FAILED` | Error | Mutagen sync 创建失败: %s | 检查 SSH 连通性，或运行 claudedock doctor mount |
 | `MOUNT_MUTAGEN_TRANSPORT_FAILED` | Error | Mutagen ssh 子进程启动失败: %s | 检查本机 ssh 客户端是否可用，或安装 sshpass 作为后备 |
-| `MOUNT_SSHFS_FAILED` | Error | sshfs 挂载失败: %s | 检查 /dev/fuse 是否可用，或运行 cloud-claude doctor ssh |
-| `MOUNT_SSHFS_DISCONNECTED` | Warn | sshfs 已断开 ≥15 秒，已从 mergerfs 摘除 /workspace-cold | 网络恢复后运行 cloud-claude doctor mount --fix 重新挂载 |
-| `MOUNT_MERGERFS_FAILED` | Error | mergerfs 挂载失败: %s | 检查容器是否启用 SYS_ADMIN + /dev/fuse，或运行 cloud-claude doctor mount |
-| `MOUNT_AUTO_DOWNGRADED` | Warn | 文件映射已从 %s 降级到 %s，原因: [%s] %s | 运行 cloud-claude doctor mount 查看详细修复建议 |
-| `MOUNT_FORCE_MODE_FAILED` | Fatal | --mount-mode=%s 模式下 %s 层失败: %s | 移除 --mount-mode flag 让自动降级生效，或运行 cloud-claude doctor mount |
+| `MOUNT_SSHFS_FAILED` | Error | sshfs 挂载失败: %s | 检查 /dev/fuse 是否可用，或运行 claudedock doctor ssh |
+| `MOUNT_SSHFS_DISCONNECTED` | Warn | sshfs 已断开 ≥15 秒，已从 mergerfs 摘除 /workspace-cold | 网络恢复后运行 claudedock doctor mount --fix 重新挂载 |
+| `MOUNT_MERGERFS_FAILED` | Error | mergerfs 挂载失败: %s | 检查容器是否启用 SYS_ADMIN + /dev/fuse，或运行 claudedock doctor mount |
+| `MOUNT_AUTO_DOWNGRADED` | Warn | 文件映射已从 %s 降级到 %s，原因: [%s] %s | 运行 claudedock doctor mount 查看详细修复建议 |
+| `MOUNT_FORCE_MODE_FAILED` | Fatal | --mount-mode=%s 模式下 %s 层失败: %s | 移除 --mount-mode flag 让自动降级生效，或运行 claudedock doctor mount |
 | `MOUNT_APFS_CASE_INSENSITIVE` | Info | 检测到 macOS APFS case-insensitive 文件系统，已强制启用 two-way-resolved 同步模式 | 无需操作；如需 case-sensitive 行为请创建 case-sensitive APFS 卷 |
-| `NET_OAUTH_EXPIRED` | Fatal | Claude OAuth 凭证已过期（账号: %s） | 在容器内运行 cloud-claude exec claude login 重新登录 |
-| `NET_OAUTH_EXPIRING_SOON` | Warn | Claude OAuth 凭证将在 %d 分钟后过期 | 建议尽快 cloud-claude exec claude login |
-| `NET_OAUTH_NOT_FOUND` | Fatal | 容器内未找到 Claude OAuth 凭证文件（账号: %s） | 在容器内运行 cloud-claude exec claude login 完成首次登录 |
+| `NET_OAUTH_EXPIRED` | Fatal | Claude OAuth 凭证已过期（账号: %s） | 在容器内运行 claudedock exec claude login 重新登录 |
+| `NET_OAUTH_EXPIRING_SOON` | Warn | Claude OAuth 凭证将在 %d 分钟后过期 | 建议尽快 claudedock exec claude login |
+| `NET_OAUTH_NOT_FOUND` | Fatal | 容器内未找到 Claude OAuth 凭证文件（账号: %s） | 在容器内运行 claudedock exec claude login 完成首次登录 |
 
 > 共 **15 条**（CONTEXT.md D-19 14 条 + §1.2 修订新增的 `MOUNT_MUTAGEN_TRANSPORT_FAILED`）。
 
@@ -362,16 +362,16 @@ func TestErrcodesRegistry(t *testing.T) {
 仓库**未引入 testcontainers-go**（go.mod 验证 - 无 testcontainers）。引入新依赖（>50 indirect deps）成本高。
 
 **推荐方案**：脚本化 fixture
-- `internal/cloudclaude/integration_test.go` 用 build tag `//go:build integration`
+- `internal/claudedock/integration_test.go` 用 build tag `//go:build integration`
 - 测试前置：`scripts/test-fixture-up.sh` 启 Phase 29 镜像（exec 形式，无新 dep）
 - 单测内 `exec.Command("docker", "exec", ...)` 跑命令
 - 测试后置：`scripts/test-fixture-down.sh` 销毁
 - CI workflow 加 step `go test -tags=integration ./...`
 
 **关键集成测试用例**（plan 必须覆盖）：
-1. C4 验证：`docker exec <ctr> sed -i 's/v0.18.1/v0.99.99/' /etc/cloud-claude/mutagen.version` 后 cloud-claude 必须降级 sshfs-only 输出 `MOUNT_MUTAGEN_VERSION_SKEW`
+1. C4 验证：`docker exec <ctr> sed -i 's/v0.18.1/v0.99.99/' /etc/claudedock/mutagen.version` 后 claudedock 必须降级 sshfs-only 输出 `MOUNT_MUTAGEN_VERSION_SKEW`
 2. C5 验证：alpha=`/tmp/empty-alpha-test`（空目录）+ beta 已有 file → 必须输出 `MOUNT_MUTAGEN_SAFETY_GUARD` + 退出非 0 + `mutagen sync list` 必须为空
-3. REQ-F2-B 验证：`docker exec <ctr> pkill -9 mutagen-agent` 后 ≤2s cloud-claude stderr 输出 `MOUNT_AUTO_DOWNGRADED` + banner `[sshfs-only]`
+3. REQ-F2-B 验证：`docker exec <ctr> pkill -9 mutagen-agent` 后 ≤2s claudedock stderr 输出 `MOUNT_AUTO_DOWNGRADED` + banner `[sshfs-only]`
 4. REQ-F1-D 验证：cwd 含 200MB 文件（`dd if=/dev/zero of=big bs=1M count=200`） → 必须输出 `MOUNT_MUTAGEN_WHITELIST_REJECT`
 5. REQ-F7-C 验证：`docker exec <ctr> bash -c 'jq ".claudeAiOauth.expiresAt = 0" /home/claude/.claude/.credentials.json > /tmp/c && mv /tmp/c /home/claude/.claude/.credentials.json'` → 必须输出 `NET_OAUTH_EXPIRED` + 退出非 0 + 不进入 claude
 6. C3 验证：`docker exec <ctr> tc qdisc add dev eth0 root netem loss 100%` 30s 后 `ls /workspace` 不 hang，watcher 主动摘除 cold branch + `MOUNT_SSHFS_DISCONNECTED`
@@ -389,7 +389,7 @@ done
 
 `rg .` / `ls -R` 计时：`time rg .` × 5 取 P50；本地 ext4 / APFS 等价基准对比。
 
-首连 ≤8s 拆分：在 cloud-claude 启动各阶段加 `time.Now().Sub()` log（`--mount-debug` flag 触发），输出阶段耗时表，便于 Phase 35 找瓶颈。
+首连 ≤8s 拆分：在 claudedock 启动各阶段加 `time.Now().Sub()` log（`--mount-debug` flag 触发），输出阶段耗时表，便于 Phase 35 找瓶颈。
 
 ---
 
@@ -441,7 +441,7 @@ type MountConfig struct {
     Cwd               string            // 本地 cwd
     NoColor           bool              // 来自 NO_COLOR env
     Logger            io.Writer         // stderr 写入器（默认 os.Stderr）
-    LastSessionPath   string            // ~/.cloud-claude/last-session.json
+    LastSessionPath   string            // ~/.claudedock/last-session.json
     SyncSessionLock   func(accountID string) (release func(), err error) // Phase 32 接管，本阶段返回 noop
 }
 ```
@@ -475,9 +475,9 @@ errcodes 包暴露（必须保持稳定）：
 
 ### Phase 32 账号级 Mutagen 单例锁
 
-CONTEXT.md D-06 已说明 session 命名 `cloud-claude-{claude_account_id}-{cwd_hash8}` 唯一化。Phase 32 接管 REQ-F5-D 时：
-- `SyncSessionLock(accountID)` 用 flock 锁 `~/.cloud-claude/locks/account-<id>.lock`
-- 已锁则返回 error，cloud-claude 跳过 Mutagen sync 创建（只 attach 已有 session 或降级到 sshfs-only）
+CONTEXT.md D-06 已说明 session 命名 `claudedock-{claude_account_id}-{cwd_hash8}` 唯一化。Phase 32 接管 REQ-F5-D 时：
+- `SyncSessionLock(accountID)` 用 flock 锁 `~/.claudedock/locks/account-<id>.lock`
+- 已锁则返回 error，claudedock 跳过 Mutagen sync 创建（只 attach 已有 session 或降级到 sshfs-only）
 - 本阶段 `SyncSessionLock = func(_ string) (func(), error) { return func(){}, nil }` noop
 - planner 必须在 `MountConfig` 字段 + 调用点都预留好接口，Phase 32 才能纯增量改
 
@@ -487,9 +487,9 @@ CONTEXT.md D-06 已说明 session 命名 `cloud-claude-{claude_account_id}-{cwd_
 
 | CONTEXT 决策 | 修订 | 来源 |
 |---|---|---|
-| D-03 单二进制 ~3MB / 共 12MB | 改为 ~12MB / 共 ~49MB；cloud-claude 终态 ~80MB | §1.1 |
+| D-03 单二进制 ~3MB / 共 12MB | 改为 ~12MB / 共 ~49MB；claudedock 终态 ~80MB | §1.1 |
 | D-09 用 `diskutil` 检测 APFS | 改为 Go probe (`os.CreateTemp + Stat lower`)，跨平台稳健 | §7 |
-| D-12 用命令行 11 个 `--ignore` flag | 改为生成 `~/.cloud-claude/mutagen-defaults.yml` 通过 `--global-config` 加载 + `--ignore-vcs` flag | §1.3 |
+| D-12 用命令行 11 个 `--ignore` flag | 改为生成 `~/.claudedock/mutagen-defaults.yml` 通过 `--global-config` 加载 + `--ignore-vcs` flag | §1.3 |
 | D-19 14 条错误码 | **补 1 条**：`MOUNT_MUTAGEN_TRANSPORT_FAILED`（共 15 条） | §1.2 + §5.2 |
 | D-25 "Mutagen 走 conn-B" | 改为 conn-C（Mutagen 自管 ssh 子进程 + askpass helper 传密码） | §1.2 |
 | D-27 `echo /workspace-cold > /workspace/.mergerfs/branches-` | 改为 `setfattr -n user.mergerfs.branches -v "-/workspace-cold" /workspace` | §2.2 |

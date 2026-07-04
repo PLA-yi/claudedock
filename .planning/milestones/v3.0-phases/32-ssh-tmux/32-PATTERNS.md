@@ -10,35 +10,35 @@
 
 | 新建 / 改造文件 | Role | Data Flow | Closest Analog | Match Quality |
 |--|--|--|--|--|
-| `internal/cloudclaude/session.go`（新建） | service | request-response | `internal/cloudclaude/mount_strategy.go` + `internal/cloudclaude/oauth_check.go` | role-match（state machine + remote probe 复用 oauth_check 模式） |
-| `internal/cloudclaude/reconnect.go`（新建） | service | event-driven | `internal/cloudclaude/sshfs_watcher.go` | exact（ctx + ticker + 失败计数 模式 1:1） |
-| `internal/cloudclaude/input_buffer.go`（新建） | utility | streaming | `internal/cloudclaude/mount_sshfs.go`（StdinPipe + channelRWC） + `internal/cloudclaude/colors.go`（ANSI 包装） | role-match（无完全相同的 byte-stream wrapper，但 io.Pipe 模式与 mount_sshfs 一致） |
-| `internal/cloudclaude/keepalive.go`（新建） | service | event-driven | `internal/cloudclaude/sshfs_watcher.go` | exact（同样 ctx + ticker + 失败计数 + return on threshold） |
-| `internal/cloudclaude/keepalive_linux.go`（新建） | utility | request-response | `internal/cloudclaude/mutagen_bin.go::extractMutagenFor`（runtime.GOOS 分发） | role-match（codebase 暂无 build-tag 文件分发先例，按 RESEARCH §2 创建） |
-| `internal/cloudclaude/keepalive_darwin.go`（新建） | utility | request-response | 同上 | role-match |
-| `internal/cloudclaude/keepalive_other.go`（新建） | utility | request-response | 同上 | role-match |
-| `internal/cloudclaude/sync_lock.go`（新建） | service | request-response | `internal/cloudclaude/oauth_check.go` + `internal/cloudclaude/mount_sshfs.go`（shellescape + 远程命令） | exact（exit-code 解析 → 状态枚举模式 1:1） |
-| `internal/cloudclaude/errcodes/session.go`（新建） | config | static | `internal/cloudclaude/errcodes/mount.go` | exact（init() + MustRegister 模板逐字符复刻） |
-| `cmd/cloud-claude/sessions.go`（新建） | cli | request-response | `cmd/cloud-claude/sync.go` | exact（cobra subcommand 树 + `LoadConfig + AuthenticateAndWait + sshConnect` 模板） |
-| `internal/cloudclaude/ssh.go`（改造） | controller | request-response | 自身（在 `sshConnect` 与 `ConnectAndRunClaudeV3` 内部局部插入） | exact |
-| `internal/cloudclaude/last_session.go`（改造） | model | static | 自身（追加 omitempty 字段） | exact |
-| `internal/cloudclaude/errcodes/codes.go`（改造） | config | static | 自身（追加 10 条 `Code` 常量） | exact |
-| `internal/cloudclaude/errcodes/net.go`（改造） | config | static | 自身 + `errcodes/mount.go` | exact |
-| `cmd/cloud-claude/main.go`（改造） | cli | request-response | 自身 `runRoot` 内 `--mount-mode` 剥离段 | exact |
-| `internal/cloudclaude/colors.go`（改造） | utility | static | 自身（追加 `ansiGray` 常量；`ansiRed` 已存在 line 12 无需新增） | exact |
+| `internal/claudedock/session.go`（新建） | service | request-response | `internal/claudedock/mount_strategy.go` + `internal/claudedock/oauth_check.go` | role-match（state machine + remote probe 复用 oauth_check 模式） |
+| `internal/claudedock/reconnect.go`（新建） | service | event-driven | `internal/claudedock/sshfs_watcher.go` | exact（ctx + ticker + 失败计数 模式 1:1） |
+| `internal/claudedock/input_buffer.go`（新建） | utility | streaming | `internal/claudedock/mount_sshfs.go`（StdinPipe + channelRWC） + `internal/claudedock/colors.go`（ANSI 包装） | role-match（无完全相同的 byte-stream wrapper，但 io.Pipe 模式与 mount_sshfs 一致） |
+| `internal/claudedock/keepalive.go`（新建） | service | event-driven | `internal/claudedock/sshfs_watcher.go` | exact（同样 ctx + ticker + 失败计数 + return on threshold） |
+| `internal/claudedock/keepalive_linux.go`（新建） | utility | request-response | `internal/claudedock/mutagen_bin.go::extractMutagenFor`（runtime.GOOS 分发） | role-match（codebase 暂无 build-tag 文件分发先例，按 RESEARCH §2 创建） |
+| `internal/claudedock/keepalive_darwin.go`（新建） | utility | request-response | 同上 | role-match |
+| `internal/claudedock/keepalive_other.go`（新建） | utility | request-response | 同上 | role-match |
+| `internal/claudedock/sync_lock.go`（新建） | service | request-response | `internal/claudedock/oauth_check.go` + `internal/claudedock/mount_sshfs.go`（shellescape + 远程命令） | exact（exit-code 解析 → 状态枚举模式 1:1） |
+| `internal/claudedock/errcodes/session.go`（新建） | config | static | `internal/claudedock/errcodes/mount.go` | exact（init() + MustRegister 模板逐字符复刻） |
+| `cmd/claudedock/sessions.go`（新建） | cli | request-response | `cmd/claudedock/sync.go` | exact（cobra subcommand 树 + `LoadConfig + AuthenticateAndWait + sshConnect` 模板） |
+| `internal/claudedock/ssh.go`（改造） | controller | request-response | 自身（在 `sshConnect` 与 `ConnectAndRunClaudeV3` 内部局部插入） | exact |
+| `internal/claudedock/last_session.go`（改造） | model | static | 自身（追加 omitempty 字段） | exact |
+| `internal/claudedock/errcodes/codes.go`（改造） | config | static | 自身（追加 10 条 `Code` 常量） | exact |
+| `internal/claudedock/errcodes/net.go`（改造） | config | static | 自身 + `errcodes/mount.go` | exact |
+| `cmd/claudedock/main.go`（改造） | cli | request-response | 自身 `runRoot` 内 `--mount-mode` 剥离段 | exact |
+| `internal/claudedock/colors.go`（改造） | utility | static | 自身（追加 `ansiGray` 常量；`ansiRed` 已存在 line 12 无需新增） | exact |
 
 ---
 
 ## Pattern Assignments
 
-### `internal/cloudclaude/reconnect.go` — service / event-driven
+### `internal/claudedock/reconnect.go` — service / event-driven
 
-**Analog:** `internal/cloudclaude/sshfs_watcher.go`（CONTEXT D-05 / RESEARCH §3.1 / RESEARCH §Patterns to Reuse P-06）
+**Analog:** `internal/claudedock/sshfs_watcher.go`（CONTEXT D-05 / RESEARCH §3.1 / RESEARCH §Patterns to Reuse P-06）
 
 **导入与 struct 模式**（lines 1-12 + 25-33）：
 
-```1:33:internal/cloudclaude/sshfs_watcher.go
-package cloudclaude
+```1:33:internal/claudedock/sshfs_watcher.go
+package claudedock
 
 import (
 	"context"
@@ -48,11 +48,11 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+	"github.com/claudedock/claudedock/internal/claudedock/errcodes"
 )
 ```
 
-```25:33:internal/cloudclaude/sshfs_watcher.go
+```25:33:internal/claudedock/sshfs_watcher.go
 type SSHFSWatcher struct {
 	conn         *ssh.Client
 	coldPath     string
@@ -66,7 +66,7 @@ type SSHFSWatcher struct {
 
 **Run 主循环**（lines 51-76）：
 
-```51:76:internal/cloudclaude/sshfs_watcher.go
+```51:76:internal/claudedock/sshfs_watcher.go
 func (w *SSHFSWatcher) Run(ctx context.Context) {
 	t := time.NewTicker(w.interval)
 	defer t.Stop()
@@ -105,7 +105,7 @@ func (w *SSHFSWatcher) Run(ctx context.Context) {
 
 **渲染必须复用 colors.go 的 colorize + colorEnabled**（与 mount_strategy.go printBanner 一致策略，详见下方 colors.go 改造段）：
 
-```382:393:internal/cloudclaude/mount_strategy.go
+```382:393:internal/claudedock/mount_strategy.go
 func printBanner(w io.Writer, mode Mode, noColor bool) {
 	enabled := false
 	if fh, ok := w.(fdHolder); ok {
@@ -124,9 +124,9 @@ func printBanner(w io.Writer, mode Mode, noColor bool) {
 
 ---
 
-### `internal/cloudclaude/keepalive.go` — service / event-driven
+### `internal/claudedock/keepalive.go` — service / event-driven
 
-**Analog:** `internal/cloudclaude/sshfs_watcher.go`（同 reconnect.go）+ `internal/cloudclaude/oauth_check.go::CheckOAuthCredentials`（用 `conn.NewSession()` + `CombinedOutput` 短命令的 boilerplate）
+**Analog:** `internal/claudedock/sshfs_watcher.go`（同 reconnect.go）+ `internal/claudedock/oauth_check.go::CheckOAuthCredentials`（用 `conn.NewSession()` + `CombinedOutput` 短命令的 boilerplate）
 
 **SSH SendRequest 在 stalled network 上无限阻塞**（RESEARCH §1.2 [ASSUMED]）— 因此**必须**走 `goroutine + select <-time.After` 包 timeout，不能直接调 `conn.SendRequest`：
 
@@ -151,7 +151,7 @@ func sendKeepaliveWithTimeout(conn ssh.Conn, timeout time.Duration) (bool, error
 
 **与 ssh.go 的接入点**：在 `sshConnect` 返回 `*ssh.Client` 后，由 `ConnectAndRunClaudeV3` 启动 `go RunKeepAlive(ctx, conn, mountCfg.KeepAliveInterval, mountCfg.KeepAliveCountMax)` — 与 `sshfs_watcher` 在 `mount_strategy.go::tryModeReal` 内 `go watcher.Run(ctx)` 同模式：
 
-```346:351:internal/cloudclaude/mount_strategy.go
+```346:351:internal/claudedock/mount_strategy.go
 	// 启动 sshfs_watcher：cold 抖动 → 摘除 cold branch
 	ctx, cancel := context.WithCancel(context.Background())
 	watcher := NewSSHFSWatcher(connA, "/workspace-cold", cfg.Logger, func() error {
@@ -164,11 +164,11 @@ func sendKeepaliveWithTimeout(conn ssh.Conn, timeout time.Duration) (bool, error
 
 ---
 
-### `internal/cloudclaude/keepalive_linux.go` / `keepalive_darwin.go` / `keepalive_other.go` — utility / 平台分发
+### `internal/claudedock/keepalive_linux.go` / `keepalive_darwin.go` / `keepalive_other.go` — utility / 平台分发
 
-**Analog:** 没有完全对应的 build-tag 文件分发先例（codebase 仅 `integration_test.go:1` 有 `//go:build integration` 标签）；最接近的语义模式是 `internal/cloudclaude/mutagen_bin.go::extractMutagenFor` 的 runtime switch + 平台 unsupported fallthrough：
+**Analog:** 没有完全对应的 build-tag 文件分发先例（codebase 仅 `integration_test.go:1` 有 `//go:build integration` 标签）；最接近的语义模式是 `internal/claudedock/mutagen_bin.go::extractMutagenFor` 的 runtime switch + 平台 unsupported fallthrough：
 
-```40:44:internal/cloudclaude/mutagen_bin.go
+```40:44:internal/claudedock/mutagen_bin.go
 	switch plat {
 	case "darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64":
 	default:
@@ -201,13 +201,13 @@ return sockErr
 
 ---
 
-### `internal/cloudclaude/input_buffer.go` — utility / streaming
+### `internal/claudedock/input_buffer.go` — utility / streaming
 
-**Analog:** `internal/cloudclaude/mount_sshfs.go::mountSSHFS`（StdinPipe + io 包装）+ `internal/cloudclaude/colors.go`（ANSI 灰色包装）+ `internal/cloudclaude/mount.go::channelRWC`（io.Reader + io.WriteCloser 适配器结构）
+**Analog:** `internal/claudedock/mount_sshfs.go::mountSSHFS`（StdinPipe + io 包装）+ `internal/claudedock/colors.go`（ANSI 灰色包装）+ `internal/claudedock/mount.go::channelRWC`（io.Reader + io.WriteCloser 适配器结构）
 
 **StdinPipe + 包装为中间 io 层**（mount_sshfs.go 借助 SSH session 的 StdinPipe 把外部 SFTP 协议包成可写 channel）：
 
-```30:46:internal/cloudclaude/mount_sshfs.go
+```30:46:internal/claudedock/mount_sshfs.go
 	sshfsSession, err := conn.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", errcodes.Format(errcodes.MOUNT_SSHFS_FAILED, "创建 sshfs session 失败"), err)
@@ -229,7 +229,7 @@ return sockErr
 
 **channelRWC 适配器**（与本阶段 `BufferedStdin` 同样是 io 适配器思路）：
 
-```39:46:internal/cloudclaude/mount.go
+```39:46:internal/claudedock/mount.go
 type channelRWC struct {
 	io.Reader
 	io.WriteCloser
@@ -242,7 +242,7 @@ func (c *channelRWC) Close() error {
 
 **ANSI 灰色包装**（input_buffer 在 Reconnecting 状态进入时打 `\x1b[90m`、退出时打 `\x1b[0m`，复用 colors.go enabled 判定）：
 
-```28:47:internal/cloudclaude/colors.go
+```28:47:internal/claudedock/colors.go
 func colorEnabled(noColor bool, w fdHolder) bool {
 	if noColor {
 		return false
@@ -281,13 +281,13 @@ func colorize(s, ansi string, enabled bool) string {
 
 ---
 
-### `internal/cloudclaude/sync_lock.go` — service / request-response
+### `internal/claudedock/sync_lock.go` — service / request-response
 
-**Analog:** `internal/cloudclaude/oauth_check.go::CheckOAuthCredentials`（exit-code → 状态枚举）+ `internal/cloudclaude/mount_sshfs.go`（shellescape + 远程命令拼接）+ `internal/cloudclaude/mount_mutagen.go::defaultMutagenDeps.remoteRun`（`sess.CombinedOutput` 读 stdout）
+**Analog:** `internal/claudedock/oauth_check.go::CheckOAuthCredentials`（exit-code → 状态枚举）+ `internal/claudedock/mount_sshfs.go`（shellescape + 远程命令拼接）+ `internal/claudedock/mount_mutagen.go::defaultMutagenDeps.remoteRun`（`sess.CombinedOutput` 读 stdout）
 
 **sess.CombinedOutput 模板**：
 
-```116:124:internal/cloudclaude/mount_mutagen.go
+```116:124:internal/claudedock/mount_mutagen.go
 		remoteRun: func(conn *ssh.Client, cmd string) (string, error) {
 			sess, err := conn.NewSession()
 			if err != nil {
@@ -301,7 +301,7 @@ func colorize(s, ansi string, enabled bool) string {
 
 **ExitError 解包模式**（与 ssh.go runClaude 末尾一致）：
 
-```230:238:internal/cloudclaude/ssh.go
+```230:238:internal/claudedock/ssh.go
 	if err := session.Wait(); err != nil {
 		if exitErr, ok := err.(*ssh.ExitError); ok {
 			return exitErr.ExitStatus(), nil
@@ -313,16 +313,16 @@ func colorize(s, ansi string, enabled bool) string {
 	}
 ```
 
-**应用到 sync_lock.go**（**重要：RESEARCH §6.2 修订 D-17 — lock 路径从 `/var/lock/cloud-claude/` 改到 `/tmp/cloud-claude/locks/`，原因是 ubuntu:24.04 容器内 UID 1000 对 `/var/lock` 无写权限**）：
+**应用到 sync_lock.go**（**重要：RESEARCH §6.2 修订 D-17 — lock 路径从 `/var/lock/claudedock/` 改到 `/tmp/claudedock/locks/`，原因是 ubuntu:24.04 容器内 UID 1000 对 `/var/lock` 无写权限**）：
 
 ```go
 func AcquireSyncLock(conn *ssh.Client, accountID string) (release func(), err error) {
     if accountID == "" { // CONTEXT D-19 — anon 路径跳过锁
         return func() {}, nil
     }
-    lockPath := fmt.Sprintf("/tmp/cloud-claude/locks/sync-%s.lock", accountID)
+    lockPath := fmt.Sprintf("/tmp/claudedock/locks/sync-%s.lock", accountID)
     cmd := fmt.Sprintf(
-        "mkdir -p /tmp/cloud-claude/locks 2>/dev/null && "+
+        "mkdir -p /tmp/claudedock/locks 2>/dev/null && "+
         "flock -n -E 99 -F %s -c 'echo $$; exec sleep infinity' &\necho $!",
         shellescape.Quote(lockPath),
     )
@@ -346,7 +346,7 @@ func AcquireSyncLock(conn *ssh.Client, accountID string) (release func(), err er
     return release, nil
 }
 
-var ErrSyncLocked = errors.New("sync session locked by another cloud-claude")
+var ErrSyncLocked = errors.New("sync session locked by another claudedock")
 ```
 
 **flock -F 必需**（RESEARCH §6.1）：`-F` = no fork，让 `sleep infinity` 直接持有 lock fd；缺 `-F` 则 SSH session 关闭时 sleep 死了但 flock 进程仍持有 fd，锁不释放。
@@ -363,13 +363,13 @@ mountCfg.SyncSessionLock = func(accountID string) (func(), error) {
 
 ---
 
-### `internal/cloudclaude/session.go` — service / request-response
+### `internal/claudedock/session.go` — service / request-response
 
-**Analog:** `internal/cloudclaude/mount_strategy.go::tryModeReal`（多步 fallback chain + cleanup LIFO）+ `internal/cloudclaude/oauth_check.go::CheckOAuthCredentials`（远端探测命令 + 解析 + 状态枚举返回）
+**Analog:** `internal/claudedock/mount_strategy.go::tryModeReal`（多步 fallback chain + cleanup LIFO）+ `internal/claudedock/oauth_check.go::CheckOAuthCredentials`（远端探测命令 + 解析 + 状态枚举返回）
 
 **远端探测模板（DetectTmux）**：直接复刻 `oauth_check.go` 的 `conn.NewSession() + sess.Run + 收敛错误到 NotFound` 思路：
 
-```44:63:internal/cloudclaude/oauth_check.go
+```44:63:internal/claudedock/oauth_check.go
 func CheckOAuthCredentials(connA *ssh.Client, claudeAccountID string) (*OAuthStatus, error) {
 	_ = claudeAccountID
 	if connA == nil {
@@ -424,11 +424,11 @@ type SessionConfig struct {
 
 **远程命令构造（D-10 tmux 包装模板）** — 复用 ssh.go runClaude 的 shellescape 模式：
 
-```216:224:internal/cloudclaude/ssh.go
+```216:224:internal/claudedock/ssh.go
 	claudeCmd := shellescape.QuoteCommand(append([]string{"claude"}, claudeArgs...))
 	var remoteCmd string
 	if hasProxy {
-		binDir := remoteCwd + "/.cloud-claude/bin"
+		binDir := remoteCwd + "/.claudedock/bin"
 		remoteCmd = fmt.Sprintf("export PATH=%s:$PATH && cd %s && %s",
 			shellescape.Quote(binDir), shellescape.Quote(remoteCwd), claudeCmd)
 	} else {
@@ -450,16 +450,16 @@ remoteCmd := fmt.Sprintf(
 )
 ```
 
-**Session 命名（D-07 / D-08 / D-09）** — 与 mount_strategy.go::buildSessionName 拓扑一致但前缀改 `claude-` 而非 `cloud-claude-`：
+**Session 命名（D-07 / D-08 / D-09）** — 与 mount_strategy.go::buildSessionName 拓扑一致但前缀改 `claude-` 而非 `claudedock-`：
 
-```435:459:internal/cloudclaude/mount_strategy.go
+```435:459:internal/claudedock/mount_strategy.go
 func buildSessionName(accountID, cwd string) string {
 	owner := accountID
 	if owner == "" {
 		owner = "anon"
 	}
 	h := simpleHash8(cwd)
-	return fmt.Sprintf("cloud-claude-%s-%s", owner, h)
+	return fmt.Sprintf("claudedock-%s-%s", owner, h)
 }
 
 // simpleHash8 返回 cwd 的 8 字节 fnv64a hex 摘要（不要求加密强度）。
@@ -484,20 +484,20 @@ func simpleHash8(s string) string {
 - `buildShortIDSessionName() string`（`--new-session` 用）→ `claude-<base64url(crypto/rand:6)>`（8 字符 base64url）
 - 命名长度 ≤ 32，非法字符 `[^a-zA-Z0-9_-]` 替换为 `_` + warning（D-09）
 
-**第二端 banner 数据源（RESEARCH §5.2 修订 D-12）** — tmux 没有 per-client 自定义名 API；改用文件注册表 `/workspace/.cloud-claude/clients/<tmux_client_pid>.json`：
+**第二端 banner 数据源（RESEARCH §5.2 修订 D-12）** — tmux 没有 per-client 自定义名 API；改用文件注册表 `/workspace/.claudedock/clients/<tmux_client_pid>.json`：
 
 ```bash
-# attach 时（cloud-claude → SSH conn-A 写入）
-mkdir -p /workspace/.cloud-claude/clients && \
+# attach 时（claudedock → SSH conn-A 写入）
+mkdir -p /workspace/.claudedock/clients && \
 echo '{"hostname":"<local>","attach_at":<unix>,"claude_account_id":"<id>","tmux_pid":<pid>}' \
-  > /workspace/.cloud-claude/clients/<tmux_client_pid>.json
+  > /workspace/.claudedock/clients/<tmux_client_pid>.json
 
 # banner 渲染时（attach 之前先做）
 tmux list-clients -t <session> -F '#{client_pid}|#{client_activity}|#{client_tty}'
-# 然后对每个 pid 读 /workspace/.cloud-claude/clients/<pid>.json，缺失时 hostname=<unknown>
+# 然后对每个 pid 读 /workspace/.claudedock/clients/<pid>.json，缺失时 hostname=<unknown>
 
-# detach / cloud-claude 退出时
-rm -f /workspace/.cloud-claude/clients/<tmux_client_pid>.json
+# detach / claudedock 退出时
+rm -f /workspace/.claudedock/clients/<tmux_client_pid>.json
 ```
 
 **注意**：`/workspace` 是 UID 1000 可写目录；不要用环境变量注入 client_name（CONTEXT D-12 设想方案不可行 — RESEARCH §5.2 [VERIFIED]）。
@@ -514,17 +514,17 @@ if !available {
 return runClaudeWithSession(ctx, connA, cfg, claudeArgs, cwd, hasProxy, sessionCfg)
 ```
 
-**`sessions ls / attach` 子命令**（CONTEXT D-13 / D-14） — session.go 提供 `RunSessionsLs(conn) error` / `RunSessionsAttach(conn, name) (int, error)` 两个纯 helper，由 `cmd/cloud-claude/sessions.go` 调用（cobra 路由层不直接做 SSH 业务）。
+**`sessions ls / attach` 子命令**（CONTEXT D-13 / D-14） — session.go 提供 `RunSessionsLs(conn) error` / `RunSessionsAttach(conn, name) (int, error)` 两个纯 helper，由 `cmd/claudedock/sessions.go` 调用（cobra 路由层不直接做 SSH 业务）。
 
 依赖决策：D-07 / D-08 / D-09 / D-10 / D-11 / D-12 / D-13 / D-14 / D-15 / D-16 / D-29 + RESEARCH §5.1-5.5（特别是 §5.2 文件注册表修订）。
 
 ---
 
-### `internal/cloudclaude/errcodes/session.go` — config / static
+### `internal/claudedock/errcodes/session.go` — config / static
 
-**Analog:** `internal/cloudclaude/errcodes/mount.go` — **完全 mirror，逐字符对齐**
+**Analog:** `internal/claudedock/errcodes/mount.go` — **完全 mirror，逐字符对齐**
 
-```1:13:internal/cloudclaude/errcodes/mount.go
+```1:13:internal/claudedock/errcodes/mount.go
 package errcodes
 
 // MOUNT_* 错误码注册。文案与 Phase 31 PLAN.md <errcode_registry> 表逐字符对齐。
@@ -536,7 +536,7 @@ func init() {
 		Code:       MOUNT_MUTAGEN_VERSION_SKEW,
 		Severity:   SeverityError,
 		Message:    "Mutagen 客户端版本 (%s) 与容器内 agent 版本 (%s) 不一致，已降级到 sshfs-only",
-		NextAction: "升级容器镜像到 v3.0.0+ 或重装 cloud-claude",
+		NextAction: "升级容器镜像到 v3.0.0+ 或重装 claudedock",
 	})
 ```
 
@@ -562,7 +562,7 @@ func init() {
 
 **严格约束**（来自 errcodes/codes.go 的 MustRegister panic + codes_test.go 的 NextAction ≤ 80 runes 检查）：
 
-```43:46:internal/cloudclaude/errcodes/codes_test.go
+```43:46:internal/claudedock/errcodes/codes_test.go
 		if n := utf8.RuneCountInString(e.NextAction); n > 80 {
 			t.Errorf("code %q NextAction 长度 %d > 80 runes: %q", code, n, e.NextAction)
 		}
@@ -572,19 +572,19 @@ func init() {
 
 ---
 
-### `internal/cloudclaude/errcodes/net.go` — config / static（**改造**：追加 3 条 NET_*）
+### `internal/claudedock/errcodes/net.go` — config / static（**改造**：追加 3 条 NET_*）
 
 **Analog:** 自身现有 3 条 NET_OAUTH_* — 直接在文件末尾追加 3 条新 init register 即可。
 
 现有内容：
 
-```5:27:internal/cloudclaude/errcodes/net.go
+```5:27:internal/claudedock/errcodes/net.go
 func init() {
 	MustRegister(Entry{
 		Code:       NET_OAUTH_EXPIRED,
 		Severity:   SeverityFatal,
 		Message:    "Claude OAuth 凭证已过期（账号: %s）",
-		NextAction: "在容器内运行 cloud-claude exec claude login 重新登录",
+		NextAction: "在容器内运行 claudedock exec claude login 重新登录",
 	})
     // ... NET_OAUTH_EXPIRING_SOON / NET_OAUTH_NOT_FOUND
 }
@@ -603,7 +603,7 @@ func init() {
     MustRegister(Entry{
         Code: NET_RECONNECT_GAVE_UP, Severity: SeverityFatal,
         Message:    "重连失败（已重试 %d 次，耗时 %s）",
-        NextAction: "请检查网络后重新运行 cloud-claude，或运行 cloud-claude doctor 诊断",
+        NextAction: "请检查网络后重新运行 claudedock，或运行 claudedock doctor 诊断",
     })
     MustRegister(Entry{
         Code: NET_TCP_KEEPALIVE_UNSUPPORTED, Severity: SeverityWarn,
@@ -617,11 +617,11 @@ func init() {
 
 ---
 
-### `internal/cloudclaude/errcodes/codes.go` — config / static（**改造**：追加 10 条常量）
+### `internal/claudedock/errcodes/codes.go` — config / static（**改造**：追加 10 条常量）
 
 **Analog:** 自身现有 const 块 line 119-136。
 
-```119:136:internal/cloudclaude/errcodes/codes.go
+```119:136:internal/claudedock/errcodes/codes.go
 const (
 	MOUNT_MUTAGEN_VERSION_SKEW       Code = "MOUNT_MUTAGEN_VERSION_SKEW"
 	MOUNT_MUTAGEN_WHITELIST_REJECT   Code = "MOUNT_MUTAGEN_WHITELIST_REJECT"
@@ -638,18 +638,18 @@ const (
 
 ---
 
-### `cmd/cloud-claude/sessions.go` — cli / request-response
+### `cmd/claudedock/sessions.go` — cli / request-response
 
-**Analog:** `cmd/cloud-claude/sync.go` — **整体结构 mirror（newSyncCmd → newSessionsCmd）**，但 sessions 子命令需要 SSH 连接（sync conflicts 是纯本地）
+**Analog:** `cmd/claudedock/sync.go` — **整体结构 mirror（newSyncCmd → newSessionsCmd）**，但 sessions 子命令需要 SSH 连接（sync conflicts 是纯本地）
 
 **newSyncCmd 模板**：
 
-```18:37:cmd/cloud-claude/sync.go
+```18:37:cmd/claudedock/sync.go
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "sync",
 		Short:         "Mutagen 同步管理（v3.0 三层文件映射）",
-		Long:          "查看本地 Mutagen 客户端管理的 cloud-claude 同步会话与冲突文件清单。\n注：当前仅实现 sync conflicts 子命令；sync resolve / sync resume 留 v3.1。",
+		Long:          "查看本地 Mutagen 客户端管理的 claudedock 同步会话与冲突文件清单。\n注：当前仅实现 sync conflicts 子命令；sync resolve / sync resume 留 v3.1。",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -657,7 +657,7 @@ func newSyncCmd() *cobra.Command {
 	conflictsCmd := &cobra.Command{
 		Use:           "conflicts",
 		Short:         "查看当前 Mutagen 同步会话的冲突文件清单",
-		Long:          "调用本地 Mutagen 客户端 sync list --long 渲染所有 cloud-claude 创建的 sync session 的冲突文件（path / alpha / beta / mtime）。",
+		Long:          "调用本地 Mutagen 客户端 sync list --long 渲染所有 claudedock 创建的 sync session 的冲突文件（path / alpha / beta / mtime）。",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          runSyncConflicts,
@@ -669,12 +669,12 @@ func newSyncCmd() *cobra.Command {
 
 **SSH 连接模板**（runEnvCheck / runSSHDoctor 在 main.go:163-242 已建立）：
 
-```163:201:cmd/cloud-claude/main.go
+```163:201:cmd/claudedock/main.go
 func runEnvCheck(cmd *cobra.Command, args []string) error {
-	cfg, err := cloudclaude.LoadConfig()
+	cfg, err := claudedock.LoadConfig()
 	if err != nil { return err }
 
-	client := cloudclaude.NewEntryClient(cfg.Gateway)
+	client := claudedock.NewEntryClient(cfg.Gateway)
 	fmt.Println("正在连接云主机...")
 	authResp, err := client.AuthenticateAndWait(
 		cmd.Context(), cfg.ShortID, cfg.Password,
@@ -683,11 +683,11 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 	if err != nil { return fmt.Errorf("认证失败: %w", err) }
 
 	fmt.Println("\r正在检测远端环境...")
-	sshCfg := cloudclaude.SSHConfig{
+	sshCfg := claudedock.SSHConfig{
 		Host: authResp.SSHHost, Port: authResp.SSHPort,
 		User: authResp.SSHUser, Password: authResp.SSHPass,
 	}
-	result, err := cloudclaude.RunEnvCheck(sshCfg)
+	result, err := claudedock.RunEnvCheck(sshCfg)
     // ...
 ```
 
@@ -697,7 +697,7 @@ func runEnvCheck(cmd *cobra.Command, args []string) error {
 func newSessionsCmd() *cobra.Command {
     cmd := &cobra.Command{
         Use: "sessions", Short: "tmux 会话管理（v3.0 SSH 会话可靠性）",
-        Long: "查看 / attach 容器内由 cloud-claude 创建的 tmux 会话。",
+        Long: "查看 / attach 容器内由 claudedock 创建的 tmux 会话。",
         SilenceUsage: true, SilenceErrors: true,
     }
     lsCmd := &cobra.Command{Use: "ls", Short: "列出当前 tmux 会话", RunE: runSessionsLs, SilenceUsage: true, SilenceErrors: true}
@@ -707,12 +707,12 @@ func newSessionsCmd() *cobra.Command {
 }
 
 func runSessionsLs(cmd *cobra.Command, args []string) error {
-    // 复用 runEnvCheck 模板：LoadConfig → AuthenticateAndWait → sshConnect → cloudclaude.RunSessionsLs(conn)
-    // 业务逻辑封装在 internal/cloudclaude/session.go::RunSessionsLs，cobra 层只做路由
+    // 复用 runEnvCheck 模板：LoadConfig → AuthenticateAndWait → sshConnect → claudedock.RunSessionsLs(conn)
+    // 业务逻辑封装在 internal/claudedock/session.go::RunSessionsLs，cobra 层只做路由
 }
 
 func runSessionsAttach(cmd *cobra.Command, args []string) error {
-    // 同样模板；调 cloudclaude.RunSessionsAttach(conn, args[0])
+    // 同样模板；调 claudedock.RunSessionsAttach(conn, args[0])
     // 内部远程：tmux has-session -t name → 失败返回 SESSION_NOT_FOUND
     //           tmux attach-session -t name → 复用 runClaude PTY 逻辑（D-14）
 }
@@ -724,7 +724,7 @@ func runSessionsAttach(cmd *cobra.Command, args []string) error {
 
 ---
 
-### `internal/cloudclaude/ssh.go` — 改造（在 sshConnect / ConnectAndRunClaudeV3 内插入）
+### `internal/claudedock/ssh.go` — 改造（在 sshConnect / ConnectAndRunClaudeV3 内插入）
 
 **Analog:** 自身
 
@@ -732,7 +732,7 @@ func runSessionsAttach(cmd *cobra.Command, args []string) error {
 
 现状 line 155-165：
 
-```155:165:internal/cloudclaude/ssh.go
+```155:165:internal/claudedock/ssh.go
 	tcpConn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("SSH 连接失败（无法连接 %s）: %w", addr, err)
@@ -769,7 +769,7 @@ sshConn, chans, reqs, err := ssh.NewClientConn(tcpConn, addr, clientCfg)
 
 现状 line 139-141：
 
-```139:141:internal/cloudclaude/ssh.go
+```139:141:internal/claudedock/ssh.go
 		}
 	}
 
@@ -814,11 +814,11 @@ mountCfg.SyncSessionLock = func(accountID string) (func(), error) {
 
 ---
 
-### `internal/cloudclaude/last_session.go` — 改造（追加 omitempty 字段）
+### `internal/claudedock/last_session.go` — 改造（追加 omitempty 字段）
 
 **Analog:** 自身（line 15-25 现有 struct）
 
-```15:25:internal/cloudclaude/last_session.go
+```15:25:internal/claudedock/last_session.go
 type LastSessionSnapshot struct {
 	SchemaVersion       int             `json:"schema_version"`
 	Timestamp           time.Time       `json:"timestamp"`
@@ -851,11 +851,11 @@ type LastSessionSnapshot struct {
 
 ---
 
-### `cmd/cloud-claude/main.go` — 改造（注册 flag + 子命令 + KeepAlive 字段）
+### `cmd/claudedock/main.go` — 改造（注册 flag + 子命令 + KeepAlive 字段）
 
 **Analog:** 自身（runRoot 内 `--mount-mode` 剥离段，line 244-269）
 
-```253:275:cmd/cloud-claude/main.go
+```253:275:cmd/claudedock/main.go
 	// 因 DisableFlagParsing=true，cobra 不会自动解析 PersistentFlags；
 	// 这里手工扫描 --mount-mode 并从 args 中剥离，剩余 args 透传给远端 claude。
 	mountMode := "auto"
@@ -874,7 +874,7 @@ type LastSessionSnapshot struct {
 	}
 	args = filtered
 
-	mode, err := cloudclaude.ParseMode(mountMode)
+	mode, err := claudedock.ParseMode(mountMode)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "错误: --mount-mode 必须是 auto / full / mutagen-only / sshfs-only 之一")
 		os.Exit(exitConfigError)
@@ -930,7 +930,7 @@ args = filtered
 在 `mountCfg` 构造（line 335-340）后立即校验：
 
 ```go
-mountCfg := cloudclaude.MountConfig{
+mountCfg := claudedock.MountConfig{
     Mode:              mode,
     KeepAliveInterval: 15 * time.Second,
     KeepAliveCountMax: 4,
@@ -950,11 +950,11 @@ if mountCfg.KeepAliveInterval < 15*time.Second {
 
 ---
 
-### `internal/cloudclaude/colors.go` — 改造（追加 ansiGray 常量）
+### `internal/claudedock/colors.go` — 改造（追加 ansiGray 常量）
 
 **Analog:** 自身（line 9-16 现有常量块）
 
-```9:16:internal/cloudclaude/colors.go
+```9:16:internal/claudedock/colors.go
 const (
 	ansiReset  = "\033[0m"
 	ansiRed    = "\033[31m"
@@ -985,9 +985,9 @@ const (
 
 ### SP-01 错误返回 — 统一 errcodes.Format
 
-**Source:** `internal/cloudclaude/errcodes/codes.go` Format helper（line 99-117）
+**Source:** `internal/claudedock/errcodes/codes.go` Format helper（line 99-117）
 
-```99:117:internal/cloudclaude/errcodes/codes.go
+```99:117:internal/claudedock/errcodes/codes.go
 // Format 渲染统一两段输出：
 //
 //	[<CODE>] <Message>
@@ -1013,7 +1013,7 @@ func Format(c Code, args ...any) string {
 
 错误包装走 `fmt.Errorf("...: %w", err)` + `errcodes.Format(code, args...)` 拼接（参考 mount_sshfs.go 的 27-28 行）：
 
-```26:28:internal/cloudclaude/mount_sshfs.go
+```26:28:internal/claudedock/mount_sshfs.go
 	if err := sshRun(conn, mkdirCmd); err != nil {
 		return nil, fmt.Errorf("%s: %w", errcodes.Format(errcodes.MOUNT_SSHFS_FAILED, "创建远端挂载目录失败"), err)
 	}
@@ -1023,7 +1023,7 @@ func Format(c Code, args ...any) string {
 
 ### SP-02 ctx 传递 — 全部用 context.Context 不裸 time.NewTimer
 
-**Source:** `internal/cloudclaude/sshfs_watcher.go::Run`（line 51-76）+ `internal/cloudclaude/mount.go::waitForMount`（line 49-78）
+**Source:** `internal/claudedock/sshfs_watcher.go::Run`（line 51-76）+ `internal/claudedock/mount.go::waitForMount`（line 49-78）
 
 **Apply to:** reconnect.Run / keepalive.RunKeepAlive / input_buffer.Run / Reconnector.renderStatus 全部 goroutine 必须接 ctx 第一参数；任何 timer / ticker 必须 select ctx.Done。
 
@@ -1033,13 +1033,13 @@ func Format(c Code, args ...any) string {
 
 ### SP-03 SSH 远程命令构造 — shellescape
 
-**Source:** `internal/cloudclaude/ssh.go::runClaude`（line 216-224）+ `internal/cloudclaude/mount_sshfs.go`
+**Source:** `internal/claudedock/ssh.go::runClaude`（line 216-224）+ `internal/claudedock/mount_sshfs.go`
 
-```216:224:internal/cloudclaude/ssh.go
+```216:224:internal/claudedock/ssh.go
 	claudeCmd := shellescape.QuoteCommand(append([]string{"claude"}, claudeArgs...))
 	var remoteCmd string
 	if hasProxy {
-		binDir := remoteCwd + "/.cloud-claude/bin"
+		binDir := remoteCwd + "/.claudedock/bin"
 		remoteCmd = fmt.Sprintf("export PATH=%s:$PATH && cd %s && %s",
 			shellescape.Quote(binDir), shellescape.Quote(remoteCwd), claudeCmd)
 	} else {
@@ -1055,9 +1055,9 @@ func Format(c Code, args ...any) string {
 
 ### SP-04 sshRun / sshRunWithOutput helpers
 
-**Source:** `internal/cloudclaude/mount.go::sshRun`（line 105-112）
+**Source:** `internal/claudedock/mount.go::sshRun`（line 105-112）
 
-```105:112:internal/cloudclaude/mount.go
+```105:112:internal/claudedock/mount.go
 func sshRun(conn *ssh.Client, cmd string) error {
 	sess, err := conn.NewSession()
 	if err != nil {
@@ -1074,9 +1074,9 @@ func sshRun(conn *ssh.Client, cmd string) error {
 
 ### SP-05 cobra 子命令注册 + DisableFlagParsing 路由
 
-**Source:** `cmd/cloud-claude/main.go`（line 92-101）+ `cmd/cloud-claude/sync.go`
+**Source:** `cmd/claudedock/main.go`（line 92-101）+ `cmd/claudedock/sync.go`
 
-```92:101:cmd/cloud-claude/main.go
+```92:101:cmd/claudedock/main.go
 	rootCmd.AddCommand(initCmd, envCmd, sshCmd, newSyncCmd())
 
 	// DisableFlagParsing 会阻止 cobra 识别子命令，
@@ -1089,13 +1089,13 @@ func sshRun(conn *ssh.Client, cmd string) error {
 	}
 ```
 
-**Apply to:** `cmd/cloud-claude/sessions.go::newSessionsCmd` 注册 + main.go switch 追加 `"sessions"` — 与 RESEARCH §Patterns to Reuse P-03 / P-04 一致。
+**Apply to:** `cmd/claudedock/sessions.go::newSessionsCmd` 注册 + main.go switch 追加 `"sessions"` — 与 RESEARCH §Patterns to Reuse P-03 / P-04 一致。
 
 ---
 
 ### SP-06 errcodes 注册（包级 init + MustRegister）
 
-**Source:** `internal/cloudclaude/errcodes/mount.go` + `internal/cloudclaude/errcodes/net.go` 的 init() pattern
+**Source:** `internal/claudedock/errcodes/mount.go` + `internal/claudedock/errcodes/net.go` 的 init() pattern
 
 **Apply to:** errcodes/session.go init() + errcodes/net.go 追加 init() — 严格 mirror 既有写法（`MustRegister(Entry{ Code, Severity, Message, NextAction })`）。
 
@@ -1110,7 +1110,7 @@ func sshRun(conn *ssh.Client, cmd string) error {
 
 ### SP-07 LastSessionSnapshot 追加 omitempty 字段
 
-**Source:** `internal/cloudclaude/last_session.go`（既有 9 字段全 `,omitempty` / 强制 schema_version=1）
+**Source:** `internal/claudedock/last_session.go`（既有 9 字段全 `,omitempty` / 强制 schema_version=1）
 
 **Apply to:** 本阶段 3 个新字段（`TmuxSession` / `ClientRole` / `ReconnectCount`）必须 `,omitempty`，**禁止**修改 `SchemaVersion` 常量（保持 1）— 保证向后兼容。
 
@@ -1122,14 +1122,14 @@ func sshRun(conn *ssh.Client, cmd string) error {
 
 | 文件 | 形态 | 理由 |
 |---|---|---|
-| `internal/cloudclaude/keepalive_{linux,darwin,other}.go` | build-tag 文件分发 | codebase 暂无 `//go:build linux/darwin` 三件套先例（仅 `integration_test.go:1` 有 `//go:build integration`）；本阶段按 RESEARCH §2 + Go 标准 build constraint 创建。**最近的语义 analog** 是 `mutagen_bin.go::extractMutagenFor` 的 runtime.GOOS switch（已在 `keepalive_*` 段引用）。 |
+| `internal/claudedock/keepalive_{linux,darwin,other}.go` | build-tag 文件分发 | codebase 暂无 `//go:build linux/darwin` 三件套先例（仅 `integration_test.go:1` 有 `//go:build integration`）；本阶段按 RESEARCH §2 + Go 标准 build constraint 创建。**最近的语义 analog** 是 `mutagen_bin.go::extractMutagenFor` 的 runtime.GOOS switch（已在 `keepalive_*` 段引用）。 |
 
 ---
 
 ## Metadata
 
-**Analog search scope:** `internal/cloudclaude/` + `internal/cloudclaude/errcodes/` + `cmd/cloud-claude/`
-**Files scanned:** 33（cloudclaude pkg）+ 4（errcodes pkg）+ 2（cmd pkg）= 39
+**Analog search scope:** `internal/claudedock/` + `internal/claudedock/errcodes/` + `cmd/claudedock/`
+**Files scanned:** 33（claudedock pkg）+ 4（errcodes pkg）+ 2（cmd pkg）= 39
 **Pattern extraction date:** 2026-04-20
 **Project conventions consulted:** `.cursor/skills/` GSD 命令系统 / `CLAUDE.md`（未直接影响 pattern 选择，沟通中文 / 错误码中文文案 / 零增量特权约束已在 RESEARCH 段反映）
 
@@ -1155,8 +1155,8 @@ func sshRun(conn *ssh.Client, cmd string) error {
 - **build-tag 平台分发** codebase 首次引入；公共 `keepalive.go` + 三个 `keepalive_{linux,darwin,other}.go` 提供 `configurePlatformSpecific(*net.TCPConn) error` 的不同实现（参考 RESEARCH §2 setsockopt 模板）
 
 ### CONTEXT 修订点（已反映在 pattern 段）
-- **D-12 修订**（RESEARCH §5.2）：tmux 没有 per-client 自定义名 API；session.go 的 banner 数据源改用 `/workspace/.cloud-claude/clients/<tmux_client_pid>.json` 文件注册表，**不再注入 `CLOUD_CLAUDE_CLIENT_NAME` 环境变量**
-- **D-17 修订**（RESEARCH §6.2）：lock 路径从 `/var/lock/cloud-claude/` 改到 `/tmp/cloud-claude/locks/`，原因 ubuntu:24.04 `/var/lock` 是 root-only，UID 1000 写不进
+- **D-12 修订**（RESEARCH §5.2）：tmux 没有 per-client 自定义名 API；session.go 的 banner 数据源改用 `/workspace/.claudedock/clients/<tmux_client_pid>.json` 文件注册表，**不再注入 `CLOUD_CLAUDE_CLIENT_NAME` 环境变量**
+- **D-17 修订**（RESEARCH §6.2）：lock 路径从 `/var/lock/claudedock/` 改到 `/tmp/claudedock/locks/`，原因 ubuntu:24.04 `/var/lock` 是 root-only，UID 1000 写不进
 - **D-18 澄清**（RESEARCH §6.4）：Phase 31 `MountConfig.SyncSessionLock` 接口签名缺 conn 参数；本阶段在 `ssh.go::ConnectAndRunClaudeV3` 内部 connA 建立后**覆盖**该字段（不改 Phase 31 接口）
 - **SendRequest 必须包 timeout**（RESEARCH §1.2 / §3 修订 D-03）：`keepalive.go::sendKeepaliveWithTimeout` 必须 `goroutine + select <-time.After`，否则 dead network 上 SendRequest 永久阻塞导致失败计数永远不会触发
 
@@ -1167,5 +1167,5 @@ func sshRun(conn *ssh.Client, cmd string) error {
 Pattern mapping complete. planner 可以基于本文件 + CONTEXT.md + RESEARCH.md 创建 PLAN.md。建议 plan 切分（与 RESEARCH §RESEARCH COMPLETE 一致）：
 
 - **Plan 01 — 网络层韧性**：keepalive.go + keepalive_{linux,darwin,other}.go + reconnect.go + input_buffer.go + errcodes/session.go(部分) + errcodes/net.go(追加) + colors.go(ansiGray) + last_session.go(omitempty 字段) + ssh.go::sshConnect 改造
-- **Plan 02 — 会话层 + 多端**：session.go（DetectTmux + tmux 包装 + take-over + sessions ls/attach helpers + 文件注册表） + cmd/cloud-claude/sessions.go + cmd/cloud-claude/main.go(注册 flag + sessions cmd) + ssh.go::ConnectAndRunClaudeV3 改造
-- **Plan 03 — Mutagen 单例锁 + 集成测试**：sync_lock.go + ssh.go::ConnectAndRunClaudeV3 注入 SyncSessionLock + integration_test.go 双 cloud-claude / docker network disconnect 30s / pkill -SIGHUP sshd / pgrep systemd-logind 全部用例
+- **Plan 02 — 会话层 + 多端**：session.go（DetectTmux + tmux 包装 + take-over + sessions ls/attach helpers + 文件注册表） + cmd/claudedock/sessions.go + cmd/claudedock/main.go(注册 flag + sessions cmd) + ssh.go::ConnectAndRunClaudeV3 改造
+- **Plan 03 — Mutagen 单例锁 + 集成测试**：sync_lock.go + ssh.go::ConnectAndRunClaudeV3 注入 SyncSessionLock + integration_test.go 双 claudedock / docker network disconnect 30s / pkill -SIGHUP sshd / pgrep systemd-logind 全部用例

@@ -34,7 +34,7 @@
 
 ### 镜像位置与项目结构
 - **D-12:** 镜像构建文件放在 `claude-shell/docker/` 子目录下，与 `deploy/docker/managed-user/` 完全独立
-- **D-13:** 与 BUILD-02 要求一致，claude-shell/ 子目录拥有独立 go.mod，镜像构建不依赖 cloud-cli-proxy 主项目的任何文件
+- **D-13:** 与 BUILD-02 要求一致，claude-shell/ 子目录拥有独立 go.mod，镜像构建不依赖 claudedock 主项目的任何文件
 - **D-14:** 复用 sing-box 配置与路由设计理念，但不直接引用 `internal/network/` 代码
 
 ### Claude's Discretion

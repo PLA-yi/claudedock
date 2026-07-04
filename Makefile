@@ -68,26 +68,26 @@ build: ## Build all artifacts for target platform
 	cd web/admin && pnpm build && cp -r dist ../../cmd/control-plane/dist
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o bin/control-plane-$(GOOS)-$(GOARCH) ./cmd/control-plane
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o bin/host-agent-$(GOOS)-$(GOARCH) ./cmd/host-agent
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "-s -w" -trimpath -o bin/cloud-claude-$(GOOS)-$(GOARCH) ./cmd/cloud-claude
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "-s -w" -trimpath -o bin/claudedock-$(GOOS)-$(GOARCH) ./cmd/claudedock
 
 build-local: ## Build for current platform
 	cd web/admin && pnpm build && cp -r dist ../../cmd/control-plane/dist
 	go build -o bin/control-plane ./cmd/control-plane
 	go build -o bin/host-agent ./cmd/host-agent
-	go build -ldflags "-s -w" -trimpath -o bin/cloud-claude ./cmd/cloud-claude
+	go build -ldflags "-s -w" -trimpath -o bin/claudedock ./cmd/claudedock
 
 build-api: ## Build Go backend only
 	@test -d cmd/control-plane/dist || (echo "dist not found, run 'cd web/admin && pnpm build && cp -r dist ../../cmd/control-plane/dist'" && exit 1)
 	go build -o bin/control-plane ./cmd/control-plane
 
-build-cli: ## Build cloud-claude CLI
-	go build -ldflags "-s -w" -trimpath -o bin/cloud-claude ./cmd/cloud-claude
+build-cli: ## Build claudedock CLI
+	go build -ldflags "-s -w" -trimpath -o bin/claudedock ./cmd/claudedock
 
 build-web: ## Build frontend only
 	cd web/admin && pnpm build
 
-install-cli: ## Install cloud-claude to /usr/local/bin
-	go build -ldflags "-s -w" -trimpath -o /usr/local/bin/cloud-claude ./cmd/cloud-claude
+install-cli: ## Install claudedock to /usr/local/bin
+	go build -ldflags "-s -w" -trimpath -o /usr/local/bin/claudedock ./cmd/claudedock
 
 # ── Production ───────────────────────────────────────────────
 
@@ -140,16 +140,16 @@ help: ## Show this help
 
 .DEFAULT_GOAL := help
 
-# ── Phase 34 Plan 03: cloud-claude doctor M14 终验闸门 ────────────────
+# ── Phase 34 Plan 03: claudedock doctor M14 终验闸门 ────────────────
 # (ROADMAP §Phase 34 SC#3 / Plan 03 Task 3.7)
 
-.PHONY: cloud-claude
-cloud-claude: ## Build cloud-claude binary at repo root (used by ci-doctor-grep)
-	go build -o ./cloud-claude ./cmd/cloud-claude
+.PHONY: claudedock
+claudedock: ## Build claudedock binary at repo root (used by ci-doctor-grep)
+	go build -o ./claudedock ./cmd/claudedock
 
 .PHONY: ci-doctor-grep
-ci-doctor-grep: cloud-claude ## Run scripts/ci-doctor-grep.sh against built cloud-claude
-	bash scripts/ci-doctor-grep.sh ./cloud-claude
+ci-doctor-grep: claudedock ## Run scripts/ci-doctor-grep.sh against built claudedock
+	bash scripts/ci-doctor-grep.sh ./claudedock
 
 .PHONY: ci-gate
 ci-gate: ## CI gate: short go test + ci-doctor-grep + uat dry-run (Phase 51 QUAL-07: -race -shuffle=on)

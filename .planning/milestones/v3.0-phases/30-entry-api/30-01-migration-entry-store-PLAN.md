@@ -97,7 +97,7 @@ Output: `0014` migration + repository 查询/测试，形成 Wave 2 的稳定依
   <name>Task 3: 数据层完整性回归（防止与 Wave 2 重叠）</name>
   <files>internal/store/repository/migration_0014_test.go</files>
   <read_first>.planning/ROADMAP.md (Phase 30 Scope/Success Criteria)</read_first>
-  <action>补充回归断言：本计划仅覆盖 migration/repository，不引入 `internal/controlplane/http` 与 `internal/cloudclaude` 变更，确保数据层与 API 层职责边界清晰。</action>
+  <action>补充回归断言：本计划仅覆盖 migration/repository，不引入 `internal/controlplane/http` 与 `internal/claudedock` 变更，确保数据层与 API 层职责边界清晰。</action>
   <verify>
     <automated>go test ./internal/store/repository/... -count=1</automated>
   </verify>

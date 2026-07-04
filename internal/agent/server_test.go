@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
-	runtimetasks "github.com/zanel1u/cloud-cli-proxy/internal/runtime/tasks"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
+	runtimetasks "github.com/claudedock/claudedock/internal/runtime/tasks"
 )
 
 // mockWorkerRepo 是 WorkerRepo 的最小 mock 实现，用于 agent 层测试。

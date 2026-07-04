@@ -27,9 +27,9 @@ All functional code should already be shipped in Phases 29-34. This phase's risk
 - **基准命令**：`rg .`（全量文本搜索）和 `ls -R /workspace`（元数据遍历），两者分别对应 CPU 密集和 metadata 密集场景。
 - **拔网手段**：脚本化 `tc qdisc add dev <iface> root netem loss 100%`（精确可控），恢复时 `tc qdisc del`。备选 `iptables -I OUTPUT -d <host_ip> -j DROP`。
 - **判定标准（量化）**：
-  - **10s 拔网**：cloud-claude 进程不退出；tmux 内 claude 进程 `ps` 仍在；本地 input_buffer 键入内容不丢
+  - **10s 拔网**：claudedock 进程不退出；tmux 内 claude 进程 `ps` 仍在；本地 input_buffer 键入内容不丢
   - **30s 拔网**：同上 + 恢复网络后 60s 内自动重连成功；`tmux capture-pane` 与拔网前 buffer 一致
-  - **2min 拔网**：cloud-claude 最终进入"重连失败提示"状态（REQ-F3-C）；tmux 内进程仍存活；恢复网络后手动按 Enter 可重新连接
+  - **2min 拔网**：claudedock 最终进入"重连失败提示"状态（REQ-F3-C）；tmux 内进程仍存活；恢复网络后手动按 Enter 可重新连接
 - **"无感知"量化指标**：
   - 进程存活：`docker exec <ctr> pgrep -f claude` 在拔网全程返回 0
   - Buffer 完整性：拔网前 `tmux capture-pane` 与恢复后对比，字符级一致
@@ -76,7 +76,7 @@ All functional code should already be shipped in Phases 29-34. This phase's risk
 | ID | Description | Research Support |
 |----|-------------|-----------------|
 | BASE-01 | 元数据响应：10k 文件 `rg .` / `ls -R` ≤ 本地 1.5× | Synthetic tree + `hyperfine` or shell `time` loop for P50/P99 |
-| BASE-02 | 首连 ≤ 8s：cloud-claude 冷启动到 prompt 可输入 | Shell `time` wrapper + tmux capture-pane 检测 prompt 就绪 |
+| BASE-02 | 首连 ≤ 8s：claudedock 冷启动到 prompt 可输入 | Shell `time` wrapper + tmux capture-pane 检测 prompt 就绪 |
 | BASE-03 | 弱网容忍：30s 抖动无感知，2min 后自动重连 | `tc qdisc` netem + `pgrep` / `tmux capture-pane` 量化判定 |
 | BASE-04 | 镜像体积 ≤ 700MB CI gate（二次回归） | Reuse `scripts/verify-managed-image.sh` from Phase 29 |
 | REQ-F1-B | 三段式中文进度端到端测量 | BASE-02 脚本同时断言 stderr 输出包含三段式关键字 |
@@ -292,7 +292,7 @@ check_item() {
 | Per-phase scattered docs | `docs/runbooks/v3-*.md` unified | Phase 35 | Consistent ops documentation |
 
 **Deprecated/outdated:**
-- `mutagen` daemon lifecycle management by cloud-claude: Removed in recent commits (Phase 34 refactor), replaced with in-process hot sync.
+- `mutagen` daemon lifecycle management by claudedock: Removed in recent commits (Phase 34 refactor), replaced with in-process hot sync.
 
 ## Open Questions (RESOLVED)
 
@@ -325,7 +325,7 @@ check_item() {
 |----------|-------|
 | Framework | Go test + bash integration scripts |
 | Config file | none — see Wave 0 |
-| Quick run command | `go test ./internal/cloudclaude/... -count=1` |
+| Quick run command | `go test ./internal/claudedock/... -count=1` |
 | Full suite command | `make ci-gate` (includes doctor grep + image size + unit tests) |
 
 ### Phase Requirements → Test Map
@@ -353,8 +353,8 @@ check_item() {
 - `hyperfine` official docs (sharkdp/hyperfine) — JSON export schema, warmup behavior, statistical methods
 - `iproute2` / `tc` man pages — `tc qdisc add/del` syntax, `netem` options
 - Project Phase 29-34 scripts — `scripts/ci-doctor-grep.sh`, `scripts/verify-fuse-compat.sh`, `scripts/verify-managed-image.sh` as established patterns
-- Project `internal/cloudclaude/errcodes/` — error code registry for M13 verification
-- Project `internal/cloudclaude/doctor/` — 5-dimension check framework for runbook reference
+- Project `internal/claudedock/errcodes/` — error code registry for M13 verification
+- Project `internal/claudedock/doctor/` — 5-dimension check framework for runbook reference
 
 ### Secondary (MEDIUM confidence)
 - GitHub Actions documentation — runner capabilities, `sudo` availability, Docker privilege model

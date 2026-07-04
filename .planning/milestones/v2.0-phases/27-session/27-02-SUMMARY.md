@@ -22,8 +22,8 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/ssh.go
-    - cmd/cloud-claude/main.go
+    - internal/claudedock/ssh.go
+    - cmd/claudedock/main.go
 
 key-decisions:
   - "远程命令使用 cd /workspace && claude 前缀，硬编码路径不含用户输入"
@@ -64,8 +64,8 @@ Each task was committed atomically:
 2. **Task 2: 更新 main.go 传递当前工作目录** - `6614104` (feat)
 
 ## Files Created/Modified
-- `internal/cloudclaude/ssh.go` - 拆分为 sshConnect + runClaude 两个内部函数，ConnectAndRunClaude 编排三阶段
-- `cmd/cloud-claude/main.go` - 新增 os.Getwd() 获取 CWD 并传入 ConnectAndRunClaude
+- `internal/claudedock/ssh.go` - 拆分为 sshConnect + runClaude 两个内部函数，ConnectAndRunClaude 编排三阶段
+- `cmd/claudedock/main.go` - 新增 os.Getwd() 获取 CWD 并传入 ConnectAndRunClaude
 
 ## Decisions Made
 - 远程命令使用 `cd /workspace && claude` 前缀，`/workspace` 为硬编码常量路径（无用户可控输入注入风险）

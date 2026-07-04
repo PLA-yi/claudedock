@@ -43,7 +43,7 @@ metrics:
 **`internal/controlplane/http/admin_hosts.go`**
 - 新增 `ExportConfig() nethttp.Handler`：
   - 验证主机存在且 `status == "running"`，否则返回 409
-  - 容器名：`cloudproxy-{hostID}`
+  - 容器名：`claudedock-{hostID}`
   - 执行 `docker exec -i containerName tar czf - -C /workspace .claude .claude.json .chrome-data -C /var/lib/claude-persist . .cache`
   - 通过 `cmd.StdoutPipe()` + `io.Copy(w, stdout)` 流式输出，避免内存缓冲
   - 响应头：`Content-Type: application/gzip`，`Content-Disposition: attachment; filename="host-{hostID}-config.tar.gz"`

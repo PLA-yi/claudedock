@@ -105,7 +105,7 @@ P50/P99 由 jq 从 `.results[].times[]` 排序后按索引抽取（见 PATTERNS.
 
 image.lock 字段（awk `-F': '` 解析）：
 ```
-local_dev_image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:v3.0.0-dev
+local_dev_image_name: ghcr.io/claudedock/claudedock/managed-user:v3.0.0-dev
 ```
 
 项目脚本 4 函数约定（PATTERNS.md Skeleton 2，**纯文本版本**，禁止 ANSI 色码）：
@@ -196,7 +196,7 @@ info() { echo "[INFO]  $1"; }
 3. **三档基准命令**（REQ-F1-C + CONTEXT 锁定）：
    - **本地档**：`hyperfine -n "local-rg" 'rg . /tmp/bench-tree' -n "local-ls" 'ls -R /tmp/bench-tree >/dev/null'`
    - **mergerfs 档（非 CI）**：docker run managed-user image（`--cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor=unconfined`，Pattern C），把 `/tmp/bench-tree` 绑定到容器内 `/mnt/cold`，让容器内 sshfs+mergerfs 合成 `/workspace`，再 `hyperfine -n "mergerfs-rg" 'docker exec $CTR rg . /workspace' -n "mergerfs-ls" 'docker exec $CTR ls -R /workspace >/dev/null'`
-   - **sshfs-only 档**：同上但强制 `--mount-mode=sshfs-only`（通过 `docker exec cloud-claude --mount-mode=sshfs-only` 或容器内直接 `mount -t fuse.sshfs`；Claude's Discretion — 如容器不具备直接测，走 `/mnt/cold` 代替并在 README 注明）
+   - **sshfs-only 档**：同上但强制 `--mount-mode=sshfs-only`（通过 `docker exec claudedock --mount-mode=sshfs-only` 或容器内直接 `mount -t fuse.sshfs`；Claude's Discretion — 如容器不具备直接测，走 `/mnt/cold` 代替并在 README 注明）
 4. **统计**（Pattern A 末段公式）：每档 `--warmup 1 --runs 10`；用 jq 从 `.results[].times[]` 排序后抽取：
    ```
    p50 = times_sorted[(length*0.5) | floor]
@@ -240,7 +240,7 @@ info() { echo "[INFO]  $1"; }
     - scripts/verify-fuse-compat.sh（74-85 行 Docker helper 模式）
     - .planning/phases/35-e2e/35-RESEARCH.md §"Open Questions #3"（prompt 可输入的 grep pattern）
     - .planning/REQUIREMENTS.md L18 (REQ-F1-B 原文 — "初始化文件映射 (1/3) 热同步源码中…" 三段式模板) + L78 (BASE-02)
-    - internal/cloudclaude/mount_strategy.go（**可选，grep 三段式文案** — 验证 CLI 实际输出字符串；如找不到直接在脚本中列出期望 regex 由 verifier 二次校准）
+    - internal/claudedock/mount_strategy.go（**可选，grep 三段式文案** — 验证 CLI 实际输出字符串；如找不到直接在脚本中列出期望 regex 由 verifier 二次校准）
   </read_first>
   <action>
 创建 `scripts/cold-start-benchmark.sh`（≥ 110 行），BASE-02 专用：
@@ -249,7 +249,7 @@ info() { echo "[INFO]  $1"; }
 2. **流程**（每次 attempt 独立）：
    1. `docker run -d managed-user ... sleep 600` 起容器（Pattern C 容器 helper，`trap docker rm -f` 保证 EXIT 清理）
    2. 记录 `t0=$(date +%s%3N)`（毫秒精度）
-   3. `docker exec $CTR cloud-claude --mount-mode=auto --json 2> "$WORK/attempt-N.stderr" & CLI_PID=$!`
+   3. `docker exec $CTR claudedock --mount-mode=auto --json 2> "$WORK/attempt-N.stderr" & CLI_PID=$!`
    4. **就绪探测循环**（RESEARCH §Open Question #3）：
       - 每 200ms 一次 `docker exec $CTR tmux capture-pane -p 2>/dev/null | grep -qE '(^>|claude> |➜ )'`
       - 命中后记录 `t1=$(date +%s%3N)`，`duration_ms=$((t1 - t0))`

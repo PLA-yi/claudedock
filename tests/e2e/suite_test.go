@@ -11,7 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 // SmokeSuite 是 Phase 45 Plan 01 的最小烟雾套件。

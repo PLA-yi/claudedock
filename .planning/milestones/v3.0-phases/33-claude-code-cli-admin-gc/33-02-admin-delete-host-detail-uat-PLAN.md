@@ -21,7 +21,7 @@ must_haves:
     - "admin DELETE claude_account 默认强一致：volume 仍被容器持有时 HTTP 409 + 中文提示 + DB 行仍在（SC4 / REQ-F7-D / D-18）"
     - "admin DELETE ?force=true 时 DB 先删；rm 失败仅写 audit + HTTP 200 with volume_rm:failed（D-19 最终一致）"
     - "GET /v1/admin/hosts/{id} 响应顶层追加 persistent_volume_name 字段（OOS-A19 边界 \"最多加一行\"，list endpoint 不动）"
-    - "admin DELETE 成功后 docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id> 返回空（SC2 / REQ-F7-A 闭环）"
+    - "admin DELETE 成功后 docker volume ls --filter label=com.claudedock.account_id=<id> 返回空（SC2 / REQ-F7-A 闭环）"
     - "运维手册新增 v3-claude-state-volumes 章节，含 volume 命名规范 + GC 路径 + 孤儿 volume 审计脚本（M16 兜底）"
   artifacts:
     - path: internal/controlplane/http/admin_claude_accounts.go
@@ -445,8 +445,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // AdminClaudeAccountStore 暴露 Plan 02 仅需的最小集（与 AdminHostStore 风格一致）。
@@ -659,8 +659,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // stubTx 实现 pgx.Tx 最小接口（仅 handler 实际使用的 4 方法）；其余 panic 以提示设计偏差。
@@ -1307,10 +1307,10 @@ echo "OK"'
 
 1. 创建测试 account：通过既有 SQL 直插或现有 admin 接口创建一个 `claude_account`，关联 user 但不关联 host
 2. 触发 worker createHost（通过 control-plane 发起 host 创建任务，传 `ClaudeAccountID`）→ 等待 host 状态 = `running` → 此时 volume `claude-state-{id}` 存在
-3. 停止 host：`docker rm -f cloudproxy-<host_id>`
+3. 停止 host：`docker rm -f claudedock-<host_id>`
 4. 调 `DELETE /v1/admin/claude-accounts/{accountID}`（强一致路径，无 force）
 5. **断言：** HTTP 200 + body `{"deleted":true,"volume_rm":"succeeded"}`
-6. **断言：** `docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id>` 输出为空（除头行外无数据行）
+6. **断言：** `docker volume ls --filter label=com.claudedock.account_id=<id>` 输出为空（除头行外无数据行）
 
 **Step 2 (D-26.2): 删除一个有运行 host 的 account（默认 force=false）→ HTTP 409 + DB 行仍在**
 
@@ -1326,12 +1326,12 @@ echo "OK"'
 2. 调 `DELETE /v1/admin/claude-accounts/{accountID}?force=true`
 3. **断言：** HTTP 200 + body `{"deleted":true,"volume_rm":"succeeded"}` 或（若 docker rm -f 也失败）`volume_rm:"failed"` + `next_action` 含 `docker volume rm -f`
 4. **断言：** DB 行已删
-5. **断言：** `docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id>` 为空（除非 host 仍持有，需手工清理）
+5. **断言：** `docker volume ls --filter label=com.claudedock.account_id=<id>` 为空（除非 host 仍持有，需手工清理）
 
 **Step 4 (D-26.4): 同一 account 容器 stop → start 后 ~/.claude/.credentials.json 内容不变**
 
-1. 创建 account → host → 进容器 `docker exec -u 1000 cloudproxy-<host_id> bash` → `echo '{"test":"oauth-token-123"}' > ~/.claude/.credentials.json`
-2. `docker stop cloudproxy-<host_id>` → `docker start cloudproxy-<host_id>` → 等待 SSH 起来
+1. 创建 account → host → 进容器 `docker exec -u 1000 claudedock-<host_id> bash` → `echo '{"test":"oauth-token-123"}' > ~/.claude/.credentials.json`
+2. `docker stop claudedock-<host_id>` → `docker start claudedock-<host_id>` → 等待 SSH 起来
 3. 进容器 → `cat ~/.claude/.credentials.json`
 4. **断言：** 内容仍为 `{"test":"oauth-token-123"}`（symlink → volume 持久化生效）
 
@@ -1349,7 +1349,7 @@ echo "OK"'
 
 **Step 7 (额外 SC3 验证): 容器内权限**
 
-1. `docker exec -u root cloudproxy-<host_id> stat -c "%U:%G %n" /home/claude/.claude /home/claude/.cache/claude`
+1. `docker exec -u root claudedock-<host_id> stat -c "%U:%G %n" /home/claude/.claude /home/claude/.cache/claude`
 2. **断言：** 输出含两行，owner 都是 `claude:claude`（即 1000:1000）；`-h` 模式下 symlink 本身也是 claude:claude
   </how-to-verify>
 
@@ -1381,8 +1381,8 @@ echo "OK"'
 3. **命名规范（REQ-F7-A / D-01 / D-02）：**
    - Volume 名格式：`claude-state-{claude_account_id}`（UUID 原格式含连字符）
    - 必带 label：
-     - `com.cloud-cli-proxy.account_id=<uuid>` — 唯一性键
-     - `com.cloud-cli-proxy.managed=true` — 二级保险
+     - `com.claudedock.account_id=<uuid>` — 唯一性键
+     - `com.claudedock.managed=true` — 二级保险
 
 4. **生命周期：**
    - **创建**：worker `createHost` 自动调 `docker volume create`（幂等）
@@ -1395,11 +1395,11 @@ echo "OK"'
 ```bash
 #!/usr/bin/env bash
 # 列出所有受管 claude-state-* volume
-docker volume ls --filter label=com.cloud-cli-proxy.managed=true --format '{{.Name}}'
+docker volume ls --filter label=com.claudedock.managed=true --format '{{.Name}}'
 
 # 与 DB 对比找出孤儿（DB 中无对应 account 但 docker 仍存在的 volume）
 psql "$DATABASE_URL" -tAc "SELECT 'claude-state-' || id FROM claude_accounts" > /tmp/db-volumes.txt
-docker volume ls --filter label=com.cloud-cli-proxy.managed=true --format '{{.Name}}' | grep '^claude-state-' > /tmp/docker-volumes.txt
+docker volume ls --filter label=com.claudedock.managed=true --format '{{.Name}}' | grep '^claude-state-' > /tmp/docker-volumes.txt
 echo "=== Orphan volumes (in docker, not in DB) ==="
 comm -23 <(sort /tmp/docker-volumes.txt) <(sort /tmp/db-volumes.txt)
 ```
@@ -1422,7 +1422,7 @@ comm -23 <(sort /tmp/docker-volumes.txt) <(sort /tmp/db-volumes.txt)
 
 **verbatim 字段（必须出现在文档内，便于后续运维 grep）：**
 - 字符串 `claude-state-`（命名前缀）
-- label key `com.cloud-cli-proxy.account_id` / `com.cloud-cli-proxy.managed`
+- label key `com.claudedock.account_id` / `com.claudedock.managed`
 - mount target `/var/lib/claude-persist`
 - 事件类型 `claude_account.deleted` / `claude_account.delete_volume_rm_failed` / `claude_account.force_volume_rm_failed` / `claude_account.volume_create_failed` / `claude_account.volume_name_persist_failed` / `claude_account.volume_rm_failed`
 - 错误码 `STATE_VOLUME_IN_USE_001`
@@ -1438,8 +1438,8 @@ comm -23 <(sort /tmp/docker-volumes.txt) <(sort /tmp/db-volumes.txt)
 bash -c 'set -e
 test -f docs/runbooks/v3-claude-state-volumes.md
 grep -q "claude-state-" docs/runbooks/v3-claude-state-volumes.md
-grep -q "com.cloud-cli-proxy.account_id" docs/runbooks/v3-claude-state-volumes.md
-grep -q "com.cloud-cli-proxy.managed" docs/runbooks/v3-claude-state-volumes.md
+grep -q "com.claudedock.account_id" docs/runbooks/v3-claude-state-volumes.md
+grep -q "com.claudedock.managed" docs/runbooks/v3-claude-state-volumes.md
 grep -q "/var/lib/claude-persist" docs/runbooks/v3-claude-state-volumes.md
 grep -q "STATE_VOLUME_IN_USE_001" docs/runbooks/v3-claude-state-volumes.md
 grep -q "DELETE /v1/admin/claude-accounts" docs/runbooks/v3-claude-state-volumes.md

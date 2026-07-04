@@ -17,10 +17,10 @@
 
 | 组件 | 代码位置 | v2.0 现状 |
 |------|---------|----------|
-| cloud-claude 入口 | `cmd/cloud-claude/main.go` | cobra 根命令 + `init` / `env check` / `ssh doctor` 子命令 |
-| CLI 核心流程 | `internal/cloudclaude/ssh.go:ConnectAndRunClaude` | 三阶段：`sshConnect` → `mountWorkspace` → `runClaude` |
-| 本地映射 | `internal/cloudclaude/mount.go` | sshfs passive + 嵌入式 SFTP server（pkg/sftp） |
-| 命令代理 | `internal/cloudclaude/execproxy.go` | 本地 Unix socket + 容器内 wrapper 脚本 |
+| claudedock 入口 | `cmd/claudedock/main.go` | cobra 根命令 + `init` / `env check` / `ssh doctor` 子命令 |
+| CLI 核心流程 | `internal/claudedock/ssh.go:ConnectAndRunClaude` | 三阶段：`sshConnect` → `mountWorkspace` → `runClaude` |
+| 本地映射 | `internal/claudedock/mount.go` | sshfs passive + 嵌入式 SFTP server（pkg/sftp） |
+| 命令代理 | `internal/claudedock/execproxy.go` | 本地 Unix socket + 容器内 wrapper 脚本 |
 | Entry API | `internal/controlplane/http/entry.go:Auth` | `POST /v1/entry/{shortId}/auth` → `{ssh_user, ssh_pass, ssh_host, ssh_port, status}` |
 | Worker | `internal/runtime/tasks/worker.go:createHost` | `docker create --network bridge --cap-add NET_ADMIN,SYS_ADMIN --device /dev/fuse --security-opt apparmor=unconfined -v <home_dir>:/workspace` |
 | 受管镜像 | `deploy/docker/managed-user/Dockerfile` | Ubuntu 24.04 + sshd + sshfs/fuse3 + **tmux 已预装** + claude-code npm + KasmVNC + Chromium |
@@ -61,7 +61,7 @@ main.runRoot
 ### v3.0 目标序列（有明确并发点 + 会话包装）
 
 ```
-main.runRoot (cloud-claude v3.0)
+main.runRoot (claudedock v3.0)
   ├── LoadConfig + mount-mode 参数解析          ← F2: --mount-mode flag
   ├── EntryClient.AuthenticateAndWait            ← F6: 增加 "正在检测网络…" 进度回调
   │
@@ -89,7 +89,7 @@ main.runRoot (cloud-claude v3.0)
   ├── (可选) ExecProxy.Start                       ← v2.0 已有
   │
   ├── attachOrStartSession                         ← F4+F5: tmux 默认壳 + 多端 attach
-  │     ├── 探测容器内是否存在 "cloud-claude-<uid>" tmux session
+  │     ├── 探测容器内是否存在 "claudedock-<uid>" tmux session
   │     │     - 存在 + 非 --new-session → attach（F5 多端）
   │     │     - 存在 + --new-session → 新建带后缀 session
   │     │     - 不存在 → tmux new-session -s ... (F4)
@@ -110,17 +110,17 @@ main.runRoot (cloud-claude v3.0)
 
 **建议：** 保留"SSH 握手 → (Mutagen ‖ sshfs) → mergerfs → tmux → claude"五阶段管线，把并发点局限在第二阶段（Mutagen 启动 ‖ sshfs 挂载）。首次连接到能交互 ≤8s 的验收基线意味着必须把这两个分支做成并发。
 
-### cloud-claude 包结构改造
+### claudedock 包结构改造
 
 | 新增文件 | 职责 | 备注 |
 |---------|------|------|
-| `internal/cloudclaude/mount_mutagen.go` | Mutagen 会话生命周期（create/monitor/terminate）+ 白名单过滤配置 | 调用 `mutagen` CLI 或嵌入式 Go client |
-| `internal/cloudclaude/mount_merge.go` | mergerfs union 编排（触发容器内 mount） | 通过 ssh exec 执行，或依赖 agent 注入 |
-| `internal/cloudclaude/mount_strategy.go` | `--mount-mode` 解析 + 降级状态机 | F2 核心 |
-| `internal/cloudclaude/session.go` | tmux attach / new / conflict 决策 | F4+F5 |
-| `internal/cloudclaude/session_health.go` | SSH KeepAlive + 断线重连探测 | F3 |
-| `internal/cloudclaude/doctor.go` | 5 维度自检 + 一键修复 | F6（新增 `cloud-claude doctor` 子命令） |
-| `internal/cloudclaude/errcodes.go` | 错误码常量 + 中文消息模板 | F8 |
+| `internal/claudedock/mount_mutagen.go` | Mutagen 会话生命周期（create/monitor/terminate）+ 白名单过滤配置 | 调用 `mutagen` CLI 或嵌入式 Go client |
+| `internal/claudedock/mount_merge.go` | mergerfs union 编排（触发容器内 mount） | 通过 ssh exec 执行，或依赖 agent 注入 |
+| `internal/claudedock/mount_strategy.go` | `--mount-mode` 解析 + 降级状态机 | F2 核心 |
+| `internal/claudedock/session.go` | tmux attach / new / conflict 决策 | F4+F5 |
+| `internal/claudedock/session_health.go` | SSH KeepAlive + 断线重连探测 | F3 |
+| `internal/claudedock/doctor.go` | 5 维度自检 + 一键修复 | F6（新增 `claudedock doctor` 子命令） |
+| `internal/claudedock/errcodes.go` | 错误码常量 + 中文消息模板 | F8 |
 
 **复用的 v2.0 代码：**
 - `sshConnect`（保持）
@@ -161,7 +161,7 @@ main.runRoot (cloud-claude v3.0)
 ### 镜像不改动
 
 - OpenSSH / KasmVNC / Chromium / Xvnc 全部保留
-- `/usr/local/bin/claude` wrapper 保留（因为 F4 需要 `tmux` 包装，**wrapper 里不用加 tmux**，tmux 由 cloud-claude CLI 在 SSH 层发起）
+- `/usr/local/bin/claude` wrapper 保留（因为 F4 需要 `tmux` 包装，**wrapper 里不用加 tmux**，tmux 由 claudedock CLI 在 SSH 层发起）
 
 ### 镜像版本凸变
 
@@ -179,7 +179,7 @@ main.runRoot (cloud-claude v3.0)
 --cap-add NET_ADMIN --cap-add SYS_ADMIN
 --device /dev/fuse
 --security-opt apparmor=unconfined
---label cloud-cli-proxy.managed=true + host_id=...
+--label claudedock.managed=true + host_id=...
 --hostname <hostname>
 --shm-size 1g
 --sysctl net.ipv6.conf.all.disable_ipv6=1
@@ -192,8 +192,8 @@ main.runRoot (cloud-claude v3.0)
 | 参数 | 为什么 | 新增位置 |
 |------|-------|---------|
 | `-v <claudeAccountVolumeName>:/var/lib/claude-persist` | F7 Claude Code 状态持久化 | `worker.go:createHost` args 拼接处；volume 名由 claude_account.id 推导 |
-| `--label cloud-cli-proxy.claude_account_id=<uuid>` | 关联 volume ↔ account ↔ host | 便于 GC 和审计 |
-| `--label cloud-cli-proxy.mount_modes=mutagen+sshfs+mergerfs` | doctor/admin 可观测 | 标记容器能力集（v3 vs v2 镜像） |
+| `--label claudedock.claude_account_id=<uuid>` | 关联 volume ↔ account ↔ host | 便于 GC 和审计 |
+| `--label claudedock.mount_modes=mutagen+sshfs+mergerfs` | doctor/admin 可观测 | 标记容器能力集（v3 vs v2 镜像） |
 
 ### v3.0 保持不变
 
@@ -206,7 +206,7 @@ main.runRoot (cloud-claude v3.0)
 | 决策点 | 推荐方案 | 原因 |
 |-------|---------|------|
 | Volume 命名 | `claude-persist-<claude_account_id>` | 与 `claude_accounts.id` 一一对应，便于运维查找 |
-| 创建时机 | 容器首次 create 时 `docker volume create --label cloud-cli-proxy.claude_account_id=... --label managed=true` | 幂等，不依赖外部脚本 |
+| 创建时机 | 容器首次 create 时 `docker volume create --label claudedock.claude_account_id=... --label managed=true` | 幂等，不依赖外部脚本 |
 | 删除时机 | **只在 claude_account 硬删除时触发**，host rebuild 不删 | F7 核心承诺：容器重建不丢登录 |
 | `rebuild --wipe-/workspace` | **保留 claude-persist，只清空 /workspace** | v2.0 逻辑已经只删 `homeDir`，volume 天然不受影响 |
 
@@ -233,14 +233,14 @@ main.runRoot (cloud-claude v3.0)
 
 | 诱惑 | 为什么不做 |
 |-----|-----------|
-| `claude_accounts.preferred_mount_mode` 字段 | 用户偏好在 CLI 本地 config (`~/.cloud-claude/config.yaml`) 持久化足够，v3.0 admin 不做相关管理界面 |
+| `claude_accounts.preferred_mount_mode` 字段 | 用户偏好在 CLI 本地 config (`~/.claudedock/config.yaml`) 持久化足够，v3.0 admin 不做相关管理界面 |
 | 多端 session 状态实时同步到控制面 | tmux session 完全由容器内管理，控制面不需知晓；如要可观测，走 host-agent 的 `ContainerStatusResponse` 扩展 |
 | 新增 admin 管理页面展示 mount 模式 / session 数 | v3.0 out of scope 明确包含这个；只在 host 详情页可以加一行 `image_version` / `mount_modes` label 展示，**不做新页面** |
 | 新增 "session 管理" REST endpoint | v3.0 CLI 完全在 SSH 层解决多端协作，不需要服务端介入 |
 
 ### Entry API 兼容性策略（关键）
 
-**向后兼容约束：** v2.0 已发布的 cloud-claude 客户端依赖 `{ssh_user, ssh_pass, ssh_host, ssh_port, status}` 结构，**不能破坏**。
+**向后兼容约束：** v2.0 已发布的 claudedock 客户端依赖 `{ssh_user, ssh_pass, ssh_host, ssh_port, status}` 结构，**不能破坏**。
 
 **建议：扩展字段、不破坏旧字段**
 
@@ -258,7 +258,7 @@ main.runRoot (cloud-claude v3.0)
 }
 ```
 
-**客户端协议：** cloud-claude v3.0 读取 `supports_mutagen` 和 `supports_mergerfs`；两者都 false → 自动走 v2 sshfs 模式（等价于 `--mount-mode=sshfs-only`）。这样**同一二进制可以兼容新老容器**，避免用户被迫重建所有 host。
+**客户端协议：** claudedock v3.0 读取 `supports_mutagen` 和 `supports_mergerfs`；两者都 false → 自动走 v2 sshfs 模式（等价于 `--mount-mode=sshfs-only`）。这样**同一二进制可以兼容新老容器**，避免用户被迫重建所有 host。
 
 ### 控制面改造工作量
 
@@ -280,7 +280,7 @@ main.runRoot (cloud-claude v3.0)
 - 多端冲突决策是 CLI 逻辑（询问用户 or 按 `--new-session` 行为）
 - host-agent 的 Unix socket 契约（创建/启停/重建 host）与运行时 session 管理正交
 
-**F3（SSH 长心跳）** 完全在 cloud-claude 的 `ssh.ClientConfig` 配置和客户端应用层实现，host-agent 和容器内 sshd 配置（`deploy/docker/managed-user/sshd_config`）最多需要确认 `ClientAliveInterval` / `ClientAliveCountMax` 合理，**但这是 sshd_config 改动，不是 agent 接口改动**。
+**F3（SSH 长心跳）** 完全在 claudedock 的 `ssh.ClientConfig` 配置和客户端应用层实现，host-agent 和容器内 sshd 配置（`deploy/docker/managed-user/sshd_config`）最多需要确认 `ClientAliveInterval` / `ClientAliveCountMax` 合理，**但这是 sshd_config 改动，不是 agent 接口改动**。
 
 ### 需要扩展的部分
 
@@ -288,11 +288,11 @@ main.runRoot (cloud-claude v3.0)
 |-----|---|------|
 | `Volumes` 字段解析和 docker create 参数拼接 | F7 | `internal/runtime/tasks/worker.go` |
 | Docker volume 预创建（幂等 `docker volume create`） | F7 | Worker 新增辅助 |
-| 扩展 `ContainerStatusResponse` 返回 image_version/labels（可选，供 doctor 用） | F6 | 有利于本地 `cloud-claude doctor` 走 Entry API 后经 SSH 查容器 label 做自检 |
+| 扩展 `ContainerStatusResponse` 返回 image_version/labels（可选，供 doctor 用） | F6 | 有利于本地 `claudedock doctor` 走 Entry API 后经 SSH 查容器 label 做自检 |
 
 ### doctor 与 agent 的边界
 
-`cloud-claude doctor` 5 维度自检中：
+`claudedock doctor` 5 维度自检中：
 
 | 维度 | 探测路径 | 是否经 agent |
 |-----|---------|------------|
@@ -319,7 +319,7 @@ main.runRoot (cloud-claude v3.0)
 │     │      alpha=~/project                                         │                   │
 │     │      ignore: .git/, node_modules/, ≤50MB, ext:{.go,.ts,...}  │                   │
 │     │                                                              │                   │
-│     ├─── cloud-claude CLI ──────────────────────── SSH master ─────┼─►                 │
+│     ├─── claudedock CLI ──────────────────────── SSH master ─────┼─►                 │
 │     │    （cobra 入口）                                              │                  │
 │     │                                                              │                   │
 │     └─── 嵌入式 SFTP server (pkg/sftp) ─── SSH channel ─────────────┤                   │
@@ -333,7 +333,7 @@ main.runRoot (cloud-claude v3.0)
 ┌────────────────────────────────────────────────────────────────────▼───────────────────┐
 │                        容器（--network=none + tun 注入）                                 │
 │                                                                                        │
-│   sshd (OpenSSH 10.2p1) ──┬── session 1: cloud-claude command channel                  │
+│   sshd (OpenSSH 10.2p1) ──┬── session 1: claudedock command channel                  │
 │                           ├── session 2: sshfs (passive mode) reads stdin              │
 │                           │   → mount /mnt/cold（FUSE）                                 │
 │                           ├── session 3: mutagen-agent                                 │
@@ -361,27 +361,27 @@ main.runRoot (cloud-claude v3.0)
 ### 7.2 多端 SSH attach 数据流（F4+F5）
 
 ```
-  Mac cloud-claude ──┐
+  Mac claudedock ──┐
                      │
-  Linux cloud-claude ┼───► 同一 container 的 sshd 
+  Linux claudedock ┼───► 同一 container 的 sshd 
                      │        │
   （更多端…） ──────┘        │
-                              ├──► tmux session "cloud-claude-<uid>"（由第一个 attach 创建）
+                              ├──► tmux session "claudedock-<uid>"（由第一个 attach 创建）
                               │     │
                               │     └── Claude Code 进程（运行中）
                               │
-                              └──► 每个新 SSH session 跑 `tmux attach -t cloud-claude-<uid>`
+                              └──► 每个新 SSH session 跑 `tmux attach -t claudedock-<uid>`
                                    → 共享输入/输出，PTY 尺寸跟最新接入端
                                    
   (断网恢复)
-  cloud-claude 检测 KeepAlive 失败 → 提示"网络抖动，正在重连..."
+  claudedock 检测 KeepAlive 失败 → 提示"网络抖动，正在重连..."
     → 建立新 SSH 连接 → tmux attach 回到原 session → Claude Code 进程和历史无损
 ```
 
 ### 7.3 CLI 启动时序
 
 ```
-T=0    cloud-claude
+T=0    claudedock
 T+50ms LoadConfig
 T+100ms AuthenticateAndWait（网关 HTTP）
 T+500ms status=ready 返回（含 image_version/supports_mutagen）
@@ -395,7 +395,7 @@ T+2.5s  mountpoint-q OK    daemon Watching
 T+2.6s  mergerfs 确认（SSH exec mount -l | grep /workspace）
 T+2.7s  ExecProxy + wrapper 安装（如配置）
 T+2.8s  tmux has-session？
-          → 不存在：tmux new-session -s cloud-claude-<uid> -- claude ...
+          → 不存在：tmux new-session -s claudedock-<uid> -- claude ...
           → 存在（单端）：tmux attach-session
 T+3s    PTY raw + 进入 claude 交互
         （剩余 Mutagen 首轮同步继续后台跑，1-5s 内稳定）
@@ -434,10 +434,10 @@ Phase A (镜像+Worker 基建)
 |---|-----------|------|----------|-------|-----------|-------|
 | **1** | **受管镜像 v3 + Worker 容器参数扩展** | Dockerfile 加 mergerfs/mutagen-agent；entrypoint 启动 mergerfs；Worker 支持 `Volumes` 字段；image.lock 凸到 v3.0.0 | F1 基建，F7 基建 | **M** | - | 独立 |
 | **2** | **控制面数据模型 + Entry API 扩展** | claude_accounts 新增 `persistent_volume_name`；HostActionRequest 新增 volume/account_id 字段；Entry API 新增 `image_version/supports_*` 返回；start_host 构建 volume | F7 控制面侧，F1/F2 握手字段 | **S-M** | - | 与 Phase 1 并行 |
-| **3** | **CLI 三层文件映射重构** | cloud-claude 拆分 `mount_strategy` + `mount_mutagen` + `mount_sshfs` + `mount_merge`；实现 `--mount-mode` 降级；Mutagen 白名单配置 | F1, F2 | **L** | 1, 2 | - |
+| **3** | **CLI 三层文件映射重构** | claudedock 拆分 `mount_strategy` + `mount_mutagen` + `mount_sshfs` + `mount_merge`；实现 `--mount-mode` 降级；Mutagen 白名单配置 | F1, F2 | **L** | 1, 2 | - |
 | **4** | **SSH 会话可靠性与 tmux 包装** | `session.go` tmux attach/new；SSH `KeepAlive` + 断线重连；`--new-session` flag；多端冲突中文提示 | F3, F4, F5 | **M** | 3（复用 CLI 架构） | 可与 Phase 5 并行 |
 | **5** | **Claude Code 状态持久化（F7 CLI 端 + 镜像端 symlink）** | entrypoint symlink `/var/lib/claude-persist` ↔ `~/.claude`、`~/.cache/claude`；docker volume create / GC；admin host 详情页可选展示 volume 名 | F7 完整闭环 | **S-M** | 1, 2 | 可与 Phase 4 并行 |
-| **6** | **cloud-claude doctor v3 + 错误码统一** | `doctor` 5 维度子命令；错误码常量 + 中文"下一步"文案；新架构所有错误路径纳入 v2.0 错误码体系 | F6, F8 | **M** | 3, 4, 5 | 最后做 |
+| **6** | **claudedock doctor v3 + 错误码统一** | `doctor` 5 维度子命令；错误码常量 + 中文"下一步"文案；新架构所有错误路径纳入 v2.0 错误码体系 | F6, F8 | **M** | 3, 4, 5 | 最后做 |
 | **7** | **E2E 稳定化 + 性能验收** | `rg`/`ls -R` 基准测试；弱网抖动 30s 验证；10k 文件源码树验证；部署文档/运维手册更新 | 验收 | **S-M** | 1-6 | 最后做 |
 
 **合并选项（如果要压到 4 个 phase）：**
@@ -453,16 +453,16 @@ Phase A (镜像+Worker 基建)
 
 | 文件 | 状态 | 说明 |
 |------|-----|------|
-| `cmd/cloud-claude/main.go` | **扩展** | 加 `--mount-mode` flag + `doctor` 子命令；runRoot 调用 MountStrategy 而非直接 ConnectAndRunClaude |
-| `internal/cloudclaude/mount.go` | **重命名为 mount_sshfs.go** | 逻辑本体保留，作为降级分支 |
-| `internal/cloudclaude/ssh.go:ConnectAndRunClaude` | **重构** | 拆为 `sshConnect` + 暴露的 Claude 会话启动器（接收 tmux session name） |
-| `internal/cloudclaude/ssh.go:runClaude` | **扩展** | 远程命令从 `cd ... && claude` 改为 `tmux new/attach ... -- claude`（由 session.go 构造） |
-| `internal/cloudclaude/execproxy.go` | **保持** | 不动 |
-| `internal/cloudclaude/execproxy_scripts.go` | **保持** | 不动 |
-| `internal/cloudclaude/config.go` | **扩展** | 新增 mount-mode 持久化字段；保持现有字段 |
-| `internal/cloudclaude/entry.go` | **扩展** | `AuthResponse` 新增 `ImageVersion` / `SupportsMutagen` / `SupportsMergerfs` / `ClaudeAccountID` 字段（JSON 兼容） |
-| `internal/cloudclaude/envcheck.go` | **保持** | doctor 可以复用部分逻辑，但独立文件 |
-| `internal/cloudclaude/ssh_doctor.go` | **保持** | 现有 ssh-key doctor 继续独立，新 `doctor` 是更宏观的 5 维度自检 |
+| `cmd/claudedock/main.go` | **扩展** | 加 `--mount-mode` flag + `doctor` 子命令；runRoot 调用 MountStrategy 而非直接 ConnectAndRunClaude |
+| `internal/claudedock/mount.go` | **重命名为 mount_sshfs.go** | 逻辑本体保留，作为降级分支 |
+| `internal/claudedock/ssh.go:ConnectAndRunClaude` | **重构** | 拆为 `sshConnect` + 暴露的 Claude 会话启动器（接收 tmux session name） |
+| `internal/claudedock/ssh.go:runClaude` | **扩展** | 远程命令从 `cd ... && claude` 改为 `tmux new/attach ... -- claude`（由 session.go 构造） |
+| `internal/claudedock/execproxy.go` | **保持** | 不动 |
+| `internal/claudedock/execproxy_scripts.go` | **保持** | 不动 |
+| `internal/claudedock/config.go` | **扩展** | 新增 mount-mode 持久化字段；保持现有字段 |
+| `internal/claudedock/entry.go` | **扩展** | `AuthResponse` 新增 `ImageVersion` / `SupportsMutagen` / `SupportsMergerfs` / `ClaudeAccountID` 字段（JSON 兼容） |
+| `internal/claudedock/envcheck.go` | **保持** | doctor 可以复用部分逻辑，但独立文件 |
+| `internal/claudedock/ssh_doctor.go` | **保持** | 现有 ssh-key doctor 继续独立，新 `doctor` 是更宏观的 5 维度自检 |
 | `internal/controlplane/http/entry.go:Auth` | **扩展** | 返回增加字段；查找 claude_account 和 image version |
 | `internal/controlplane/http/...` 新增 endpoint | **不需要** | v3.0 只扩展 entry.go 返回 |
 | `internal/runtime/tasks/worker.go:createHost` | **扩展** | args 拼接新增 volume/label；其他保持 |
@@ -472,7 +472,7 @@ Phase A (镜像+Worker 基建)
 | `deploy/docker/managed-user/entrypoint.sh` | **扩展** | 启动 mergerfs；volume symlink；清理逻辑 |
 | `deploy/docker/managed-user/image.lock` | **凸版本** | v3.0.0 |
 | `deploy/docker/managed-user/sshd_config` | **扩展** | 确认 `ClientAliveInterval 30` + `ClientAliveCountMax 10`（容忍 5 分钟静默） |
-| `deploy/docker/managed-user/claude-wrapper.sh` | **保持** | tmux 由 cloud-claude CLI 层控制，wrapper 不动 |
+| `deploy/docker/managed-user/claude-wrapper.sh` | **保持** | tmux 由 claudedock CLI 层控制，wrapper 不动 |
 | `internal/network/*`（sing-box tun / nftables） | **保持** | v3.0 不动网络模型 |
 | `internal/sshproxy/*` | **保持** | v2.0 已确认零改造支持 multi-session |
 | `control-plane/` + `host-agent/` 服务二进制 | **保持** | 只是结构体字段扩展，主流程不变 |
@@ -486,7 +486,7 @@ Phase A (镜像+Worker 基建)
 
 1. **Mutagen daemon 与 sing-box tun 的 SSH 连接冲突**
    - 现象：Mutagen daemon 管理 SSH session，但容器网络走 sing-box tun，从客户端视角一切正常，但如果 tun 路由表变化（出口 IP 重新绑定）会中断长连接
-   - 缓解：Mutagen 内置 session 重连；cloud-claude 在 `PrepareHost` 期间不要切换 egress；文档明确说明"切换出口 IP 会中断同步 session"
+   - 缓解：Mutagen 内置 session 重连；claudedock 在 `PrepareHost` 期间不要切换 egress；文档明确说明"切换出口 IP 会中断同步 session"
 
 2. **mergerfs + FUSE + AppArmor 嵌套 FUSE 兼容性**
    - 现象：mergerfs 是 FUSE，sshfs/mergerfs 都走 `/dev/fuse`，内核有并发限制
@@ -500,7 +500,7 @@ Phase A (镜像+Worker 基建)
 
 4. **tmux session 跨端 PTY 尺寸冲突**
    - 现象：Mac (80x24) + Linux (120x40) 同时 attach，tmux 按最小尺寸渲染
-   - 缓解：文档明确；或 `cloud-claude` 连接时提示"当前 session 已被 N 端 attach，尺寸 XxY"
+   - 缓解：文档明确；或 `claudedock` 连接时提示"当前 session 已被 N 端 attach，尺寸 XxY"
 
 5. **持久卷 orphan**
    - 现象：claude_account 删除但 volume 没删
@@ -520,8 +520,8 @@ Phase A (镜像+Worker 基建)
 - mergerfs 官方文档（remote filesystems + SSHFS 兼容性）— https://trapexit.github.io/mergerfs/latest/remote_filesystems/（HIGH）
 - mergerfs-docker 参考（cap_add/device 配置范式）— https://github.com/hvalev/mergerfs-docker（HIGH）
 - v2.0 真实代码审读：
-  - `cmd/cloud-claude/main.go`
-  - `internal/cloudclaude/{ssh,mount,entry,config}.go`
+  - `cmd/claudedock/main.go`
+  - `internal/claudedock/{ssh,mount,entry,config}.go`
   - `internal/runtime/tasks/worker.go`
   - `internal/controlplane/http/entry.go`
   - `internal/agentapi/contracts.go`
@@ -531,6 +531,6 @@ Phase A (镜像+Worker 基建)
 
 ---
 
-*Architecture integration research for: cloud-cli-proxy v3.0 远端开发体验升级*
+*Architecture integration research for: claudedock v3.0 远端开发体验升级*
 *Researched: 2026-04-18*
 *Confidence: HIGH — 所有 v2.0 组件已源码级验证；Mutagen/mergerfs 行为基于官方文档*

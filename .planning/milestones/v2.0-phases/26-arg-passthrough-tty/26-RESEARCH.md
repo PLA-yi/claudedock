@@ -15,7 +15,7 @@
 | Capability | Primary Tier | Secondary Tier | Rationale |
 |------------|----------------|----------------|-----------|
 | 收集并保留用户 claude 参数 | 本地 CLI（cobra 根命令） | — | 必须在客户端完成解析策略，远端只执行拼接后的命令行 |
-| 构造安全远程 shell 命令行 | 本地 CLI（`internal/cloudclaude`） | — | 防注入属于客户端责任；SSH 仅传输字符串 |
+| 构造安全远程 shell 命令行 | 本地 CLI（`internal/claudedock`） | — | 防注入属于客户端责任；SSH 仅传输字符串 |
 | PTY 申请、stdin/stdout 桥接 | 本地 CLI（SSH session） | — | `x/crypto/ssh` 在客户端驱动 |
 | 窗口尺寸同步（SIGWINCH → `WindowChange`） | 本地 CLI（SSH session + `x/term`） | — | 宿主机捕获信号并通知 sshd |
 | 远程进程退出码 | 本地 CLI（解析 `ssh.ExitError`） | — | 与 Entry/网关无关 |
@@ -59,9 +59,9 @@ go mod tidy
 
 #### 参数解析与透传
 
-- **D-01:** 根命令使用 cobra 的 `Args: cobra.ArbitraryArgs` 和 `DisableFlagParsing: true`（或 `TraverseChildren: false`），确保 `cloud-claude -p "prompt" --model opus` 的 `-p`、`--model` 等 flag 不被 cobra 拦截，而是完整传入 `args []string`。`init` 子命令仍正常解析自身 flag。
+- **D-01:** 根命令使用 cobra 的 `Args: cobra.ArbitraryArgs` 和 `DisableFlagParsing: true`（或 `TraverseChildren: false`），确保 `claudedock -p "prompt" --model opus` 的 `-p`、`--model` 等 flag 不被 cobra 拦截，而是完整传入 `args []string`。`init` 子命令仍正常解析自身 flag。
 - **D-02:** 远程命令构建方式：将 `args` 拼接为 `claude <arg1> <arg2> ...`，每个 arg 使用 `shellescape` 或手写引号转义以防注入。通过 `session.Start(cmdLine)` 发送到远程 shell。
-- **D-03:** 若用户 `cloud-claude -- -p "prompt"` 使用双横线分隔，cobra 在 `DisableFlagParsing` 模式下会保留 `--`，需在构建远程命令时剥离前导 `--`。
+- **D-03:** 若用户 `claudedock -- -p "prompt"` 使用双横线分隔，cobra 在 `DisableFlagParsing` 模式下会保留 `--`，需在构建远程命令时剥离前导 `--`。
 
 #### 信号转发
 
@@ -71,11 +71,11 @@ go mod tidy
 #### 退出码与 TTY 恢复
 
 - **D-06:** 修复 Phase 25 代码审查 HI-01：`ssh.ExitError` 时 `os.Exit()` 会跳过 `defer term.Restore`，导致本地终端停留在 raw mode。方案：将退出码通过返回值传递到 `main`，由 `main` 在 `defer Restore` 完成后再 `os.Exit`。
-- **D-07:** 退出码映射：远程 `claude` 的退出码直接作为 `cloud-claude` 的退出码；SSH 连接断开等异常使用 Phase 25 已有的 `exitInternalError (5)` 退出码。
+- **D-07:** 退出码映射：远程 `claude` 的退出码直接作为 `claudedock` 的退出码；SSH 连接断开等异常使用 Phase 25 已有的 `exitInternalError (5)` 退出码。
 
 #### 非 TTY 模式
 
-- **D-08:** 当 stdin 不是终端时（如管道 `echo "query" | cloud-claude -p -`），跳过 raw mode、PTY 申请和 SIGWINCH 监听，直接以非交互方式运行远程命令。这使 `cloud-claude` 可被脚本调用。
+- **D-08:** 当 stdin 不是终端时（如管道 `echo "query" | claudedock -p -`），跳过 raw mode、PTY 申请和 SIGWINCH 监听，直接以非交互方式运行远程命令。这使 `claudedock` 可被脚本调用。
 
 ### Claude's Discretion
 
@@ -112,7 +112,7 @@ go mod tidy
 
 ```mermaid
 flowchart LR
-  subgraph local["本地 cloud-claude"]
+  subgraph local["本地 claudedock"]
     A[用户 argv] --> B[cobra 根: DisableFlagParsing]
     B --> C[claudeArgs 切片]
     C --> D[shellescape 拼接命令行]
@@ -133,9 +133,9 @@ flowchart LR
 ### Recommended Project Structure
 
 ```
-cmd/cloud-claude/
+cmd/claudedock/
 └── main.go              # 根命令 cobra 配置；收集 args；统一 os.Exit(远程码)
-internal/cloudclaude/
+internal/claudedock/
 ├── ssh.go               # ConnectAndRunClaude(cfg, args)；PTY/raw/SIGWINCH/非TTY 分支；返回 exit code
 └── ...                  # 其余不变
 ```
@@ -151,7 +151,7 @@ internal/cloudclaude/
 // DisableFlagParsing disables the flag parsing.
 // If this is true all flags will be passed to the command as arguments.
 rootCmd := &cobra.Command{
-    Use: "cloud-claude",
+    Use: "claudedock",
     DisableFlagParsing: true,
     Args: cobra.ArbitraryArgs,
     RunE: runRoot,
@@ -215,7 +215,7 @@ if ee, ok := err.(*ssh.ExitError); ok {
 **What goes wrong：** 远端收到多余 `--`，与本地 `claude` 行为不一致。  
 **Why it happens：** D-03 所述 cobra 可能保留 `--`。  
 **How to avoid：** 构建 `claudeArgs` 时剥离仅用于分隔的 `--`（需写单测覆盖）。  
-**Warning signs：** `cloud-claude -- --help` 与预期不符。
+**Warning signs：** `claudedock -- --help` 与预期不符。
 
 ## Code Examples
 
@@ -257,8 +257,8 @@ _ = session.WindowChange(h, w) // h rows, w columns per doc
 
 ## Open Questions (RESOLVED)
 
-1. **`DisableFlagParsing` 时 `cloud-claude -- -p` 的 `args` 精确形态？**
-   - **RESOLVED：** 在根命令启用 `DisableFlagParsing: true` 且 `Args: cobra.ArbitraryArgs` 时，cobra 不向 pflag 解析「看起来像 flag 的 token」，剩余 token 作为 `RunE(cmd, args []string)` 的 `args` 传入。用户输入形如 `cloud-claude -- -p foo` 时，`"--"` 通常作为 **`args` 的第一个元素** 出现；与 D-03 一致，在 `runRoot` 开头若 `len(args)>0 && args[0]=="--"` 则执行 `args = args[1:]`，仅剥离**前导**分隔用 `--`。最终行为以 `rootCmd.SetArgs` + 执行的单元/集成测试锁定（见 26-01-PLAN Task 2），避免依赖口述猜测。
+1. **`DisableFlagParsing` 时 `claudedock -- -p` 的 `args` 精确形态？**
+   - **RESOLVED：** 在根命令启用 `DisableFlagParsing: true` 且 `Args: cobra.ArbitraryArgs` 时，cobra 不向 pflag 解析「看起来像 flag 的 token」，剩余 token 作为 `RunE(cmd, args []string)` 的 `args` 传入。用户输入形如 `claudedock -- -p foo` 时，`"--"` 通常作为 **`args` 的第一个元素** 出现；与 D-03 一致，在 `runRoot` 开头若 `len(args)>0 && args[0]=="--"` 则执行 `args = args[1:]`，仅剥离**前导**分隔用 `--`。最终行为以 `rootCmd.SetArgs` + 执行的单元/集成测试锁定（见 26-01-PLAN Task 2），避免依赖口述猜测。
 
 2. **远端 `exec` 是否经 login shell 解释命令串？**
    - **RESOLVED：** `golang.org/x/crypto/ssh` 的 `Session.Start(cmd string)` 将 `cmd` 交给远端 sshd/用户默认 shell 解释（与 OpenSSH 客户端「远程命令」语义一致）；本仓库 Phase 25 起已用单条命令字符串启动远端进程，Phase 26 改为 `shellescape.QuoteCommand` 后的整段 POSIX shell 安全字符串，仍落在同一路径。镜像侧若配置 `ForceCommand`、非 POSIX shell 等会改变语义——与 Phase 24/25 已选镜像/网关约定一致时，以**现有联调/集成验证**为准；本阶段不新增 sshd 侧改动。若未来发现与 `QuoteCommand` 不兼容的 shell，再评估显式 `exec` 或固定解释器（超出本 Phase 交付物时记入后续阶段）。
@@ -307,7 +307,7 @@ _ = session.WindowChange(h, w) // h rows, w columns per doc
 ### Secondary（MEDIUM confidence）
 
 - [CITED: https://pkg.go.dev/al.essio.dev/pkg/shellescape] — `Quote` / `QuoteCommand` 语义与推荐用法  
-- [CITED: `.planning/phases/25-cloud-claude-cli/25-REVIEW.md`] — HI-01 与修复方向  
+- [CITED: `.planning/phases/25-claudedock-cli/25-REVIEW.md`] — HI-01 与修复方向  
 
 ### Tertiary（LOW confidence）
 

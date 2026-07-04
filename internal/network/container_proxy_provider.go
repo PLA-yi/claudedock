@@ -36,7 +36,7 @@ func NewContainerProxyProvider(logger *slog.Logger, verifier NetworkVerifier) *C
 // 后从 fs 删除（D-V4-2）。
 //
 // v4.0 (Phase 54) 改造（54-01）：
-//   - 不再创建 cloudproxy-net-* 自定义 bridge（删除 dockerNetworkCreate 调用）
+//   - 不再创建 claudedock-net-* 自定义 bridge（删除 dockerNetworkCreate 调用）
 //   - 不再启动 sidecar gateway 容器（删除 dockerRunGateway / waitGatewayHealthy）
 //   - 不再写容器 DNS 入口锁占位（resolv.conf / nsswitch.conf 由容器内 sing-box
 //     接管，删除 WriteContainerDNSConfig 调用）
@@ -244,7 +244,7 @@ func (p *ContainerProxyProvider) CleanupHost(ctx context.Context, spec HostNetwo
 func SingBoxConfigDir(hostID string) string {
 	base := os.Getenv("DATA_DIR")
 	if base == "" {
-		base = "/var/lib/cloud-cli-proxy"
+		base = "/var/lib/claudedock"
 	}
 	return filepath.Join(base, "gateway", hostID)
 }
@@ -259,5 +259,5 @@ func GatewayConfigDir(hostID string) string {
 
 // workerContainerName 是 worker 容器的统一命名规则单点。
 func workerContainerName(hostID string) string {
-	return "cloudproxy-" + hostID
+	return "claudedock-" + hostID
 }

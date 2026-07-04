@@ -403,7 +403,7 @@ func (h *adminAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         Subject:   "admin",
         IssuedAt:  jwt.NewNumericDate(time.Now()),
         ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-        Issuer:    "cloud-cli-proxy",
+        Issuer:    "claudedock",
     }
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     tokenStr, err := token.SignedString(h.jwtSecret)

@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-`cloud-claude doctor` 新增 remote-ssh 诊断维度，覆盖 VS Code Remote-SSH 场景的三项检查；同时补齐 v3.4 所有需求对应的错误码注册和 explain 长说明。不涉及新功能，只扩展诊断覆盖范围。
+`claudedock doctor` 新增 remote-ssh 诊断维度，覆盖 VS Code Remote-SSH 场景的三项检查；同时补齐 v3.4 所有需求对应的错误码注册和 explain 长说明。不涉及新功能，只扩展诊断覆盖范围。
 
 </domain>
 
@@ -16,7 +16,7 @@
 ### 新增维度：remote-ssh（独立于现有 ssh 维度）
 - 新建 `remote-ssh` 维度，不复用现有 `ssh` 维度
 - 现有 ssh 维度聚焦连接健康（keepalive、known_hosts、workspace keys）；remote-ssh 聚焦 VS Code Remote-SSH 特有问题
-- 维度名称：`remote-ssh`，cobra 子命令可输入 `cloud-claude doctor remote-ssh` 或 `cloud-claude doctor all`
+- 维度名称：`remote-ssh`，cobra 子命令可输入 `claudedock doctor remote-ssh` 或 `claudedock doctor all`
 - 远端检查走现有 RemoteRunner 接口，保持 lazy connect 模式不变
 
 ### VS Code Server 进程检测
@@ -69,7 +69,7 @@
 - 复用 `disk.go` 中已有的 `parseDuHumanToMB()` 函数解析 du 输出，不重复造轮
 - 远端脚本执行模式与现有 `ssh.go`、`disk.go` 一致：`runner.RunScript("check_name", "shell commands")`
 - 新错误码注册文件：`errcodes/remote_ssh.go`（SSH_* 前缀码）+ 更新 `errcodes/disk.go`（DISK_* 前缀码）
-- doctor 维度文件：新建 `internal/cloudclaude/doctor/remote_ssh.go`
+- doctor 维度文件：新建 `internal/claudedock/doctor/remote_ssh.go`
 
 </specifics>
 
@@ -92,7 +92,7 @@
 
 ### Integration Points
 - `RunDoctor()`（doctor.go:85）：在 disk 维度之后、Summary 聚合之前插入 remote-ssh 维度块
-- `cmd/cloud-claude/doctor.go`：cobra 命令的 Domain 枚举需要加入 "remote-ssh"
+- `cmd/claudedock/doctor.go`：cobra 命令的 Domain 枚举需要加入 "remote-ssh"
 - `errcodes/codes.go`：新增 Code 常量声明
 - `errcodes/explanations.go`：新增 registerExplanation() 调用 + ExplainExempt 更新
 

@@ -1,6 +1,6 @@
 # v3.5 网络白名单与 DNS 拆分解析 · 研究综述（SUMMARY）
 
-**Project:** Cloud CLI Proxy
+**Project:** ClaudeDock
 **Milestone:** v3.5
 **研究方式:** 4 个并行专题 agent（sing-box 技术 / 项目代码现状 / DNS 泄漏防护 / UX 数据模型）输出，已在前置对话完成；本文档为浓缩版供 roadmapper 直接消费。
 
@@ -94,7 +94,7 @@
 | 维度 | 现状 | 扩展点 |
 |------|------|--------|
 | sing-box 配置生成 | `internal/network/gateway_singbox_config.go:10` Go map 拼装；当前 route.rules 仅 2 条（proxy IP/32 + port 53 hijack-dns） | 加 rule_set 数组 + `ip_is_private` 规则 + 白名单 rule_set 引用 |
-| 容器架构 | sidecar gateway 模式：`cloudproxy-net-<hostID>` bridge + gateway 容器（sing-box）+ worker 容器（用户 shell） | sing-box 跑在 gateway 容器，白名单 rule-set 文件挂入 gateway |
+| 容器架构 | sidecar gateway 模式：`claudedock-net-<hostID>` bridge + gateway 容器（sing-box）+ worker 容器（用户 shell） | sing-box 跑在 gateway 容器，白名单 rule-set 文件挂入 gateway |
 | 防火墙 | `internal/network/worker_firewall_linux.go:25` 已 `output policy drop` + allowlist（lo / gateway / 22 / 53） | 加 `@whitelist_v4` set + nftables 与 rule-set 文件 hash 一致校验 |
 | 热更新 | **无** —— 改 `proxy_config` 必须 stop/start/rebuild 容器（teardownGateway） | 新增 `ActionReloadHostBypass`，agent 端写文件 + 更新 nft set + 健康检查 |
 | 数据模型 | pgx + UUID 主键（`gen_random_uuid()`）+ `TIMESTAMPTZ DEFAULT NOW()` + migration 顺序号 0001–0018 | 新增 0019_host_bypass_rules.sql |

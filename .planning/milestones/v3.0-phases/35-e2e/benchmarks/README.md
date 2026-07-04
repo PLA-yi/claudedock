@@ -103,7 +103,7 @@ done
 
 ```markdown
 > 执行机器: M3 MacBook Pro / macOS 15.4 / 8C8G / @zaneliu / 2026-04-22 14:00 CST
-> 验收 PR: https://github.com/zanel1u/cloud-cli-proxy/pull/XXX
+> 验收 PR: https://github.com/claudedock/claudedock/pull/XXX
 ```
 
 CI 跑出来的报告则以 GitHub Actions 的 `${{ github.run_id }}` 与 SHA 替代。

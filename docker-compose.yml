@@ -1,10 +1,13 @@
 services:
   control-plane:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/zanel1u/cloud-cli-proxy/control-plane:latest
+    # 可通过 CONTROL_PLANE_IMAGE 覆盖为你自己的镜像。
+    image: ${CONTROL_PLANE_IMAGE:-ghcr.io/claudedock/claudedock/control-plane:latest}
+    # 预构建镜像为 amd64；在 Apple Silicon 上显式声明平台，消除 platform 警告（走模拟运行）。
+    platform: linux/amd64
     pull_policy: always
     restart: unless-stopped
     environment:
-      DATABASE_URL: file:/data/cloud-cli-proxy.db?_texttotime=true
+      DATABASE_URL: file:/data/claudedock.db?_texttotime=true
       CONTROL_PLANE_ADDR: ":8080"
       HOST_AGENT_MODE: embedded
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
@@ -15,16 +18,17 @@ services:
       SKIP_EGRESS_VERIFY: ${SKIP_EGRESS_VERIFY:-}
       CONTAINER_REGISTRY: ${CONTAINER_REGISTRY:-}
     ports:
+      # 宿主机侧端口可被环境变量覆盖，启动器会自动挑选未被占用的端口注入。
       - "${SSH_PROXY_PORT:-2222}:2222"
-      - "8080:8080"
+      - "${ADMIN_HOST_PORT:-8080}:8080"
     pid: host
     cap_add:
       - NET_ADMIN
       - SYS_ADMIN
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /var/lib/cloud-cli-proxy:/var/lib/cloud-cli-proxy
-      - cloud-cli-proxy-data:/data
+      - /var/lib/claudedock:/var/lib/claudedock
+      - claudedock-data:/data
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/healthz"]
       interval: 10s
@@ -33,4 +37,4 @@ services:
       start_period: 30s
 
 volumes:
-  cloud-cli-proxy-data:
+  claudedock-data:

@@ -13,8 +13,8 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type stubHostStore struct {
@@ -412,8 +412,8 @@ func TestPatchResources_RunningHostAppliesDockerUpdateAndPersistsPidsLimit(t *te
 		_ = json.NewDecoder(resp.Body).Decode(&body)
 		t.Fatalf("status=%d, body=%v", resp.StatusCode, body)
 	}
-	if dockerContainer != "cloudproxy-h-1" {
-		t.Fatalf("docker container=%q, want cloudproxy-h-1", dockerContainer)
+	if dockerContainer != "claudedock-h-1" {
+		t.Fatalf("docker container=%q, want claudedock-h-1", dockerContainer)
 	}
 	if dockerMemory != nil || dockerCPU != nil {
 		t.Fatalf("docker update should only receive pids limit, memory=%v cpu=%v", dockerMemory, dockerCPU)

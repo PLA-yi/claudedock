@@ -232,8 +232,8 @@ func (w *Worker) recordNetworkError(ctx context.Context, hostID string, err erro
 |------|------|
 | `claudeStateVolumePrefix = "claude-state-"` | **verbatim**（D-01） |
 | `claudeStateMountTarget = "/var/lib/claude-persist"` | **verbatim**（D-08，与 entrypoint.sh / Dockerfile 三处一致） |
-| `claudeAccountLabelKey = "com.cloud-cli-proxy.account_id"` | **verbatim**（D-02 / Phase 30 D-01 锁定字符串） |
-| `claudeManagedLabelKey = "com.cloud-cli-proxy.managed"` / `claudeManagedLabelVal = "true"` | **verbatim**（D-02） |
+| `claudeAccountLabelKey = "com.claudedock.account_id"` | **verbatim**（D-02 / Phase 30 D-01 锁定字符串） |
+| `claudeManagedLabelKey = "com.claudedock.managed"` / `claudeManagedLabelVal = "true"` | **verbatim**（D-02） |
 | `BuildClaudeStateVolumeName(id)` 函数名/签名 | **verbatim**（D-25.1 测试断言此名） |
 | `var ensureDockerVolume = realEnsureDockerVolume` 模式 | **verbatim**（与 `var execInContainer = ...` 风格强一致；测试依赖此包级 var 注入） |
 | `var removeDockerVolume = realRemoveDockerVolume` | 同上 |
@@ -590,7 +590,7 @@ func validAdminToken(t *testing.T) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, AuthClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "admin",
-			Issuer:    "cloud-cli-proxy",
+			Issuer:    "claudedock",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
 		UserID: "admin",

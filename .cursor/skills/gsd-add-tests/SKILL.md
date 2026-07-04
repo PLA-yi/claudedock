@@ -36,7 +36,7 @@ Output: Test files committed with message `test(phase-{N}): add unit and E2E tes
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/add-tests.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/add-tests.md
 </execution_context>
 
 <context>

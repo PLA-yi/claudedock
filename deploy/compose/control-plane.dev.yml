@@ -4,7 +4,7 @@ services:
       context: ../..
       dockerfile: deploy/docker/control-plane/Dockerfile
     environment:
-      - DATABASE_URL=file:/data/cloud-cli-proxy.db
+      - DATABASE_URL=file:/data/claudedock.db
       - CONTROL_PLANE_ADDR=:8080
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://127.0.0.1:8080/healthz"]
@@ -14,7 +14,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - cloud-cli-proxy-data:/data
+      - claudedock-data:/data
 
   managed-user:
     build:
@@ -22,8 +22,8 @@ services:
       dockerfile: deploy/docker/managed-user/Dockerfile
     privileged: true
     volumes:
-      - cloud-cli-proxy-data:/data
+      - claudedock-data:/data
     restart: unless-stopped
 
 volumes:
-  cloud-cli-proxy-data:
+  claudedock-data:

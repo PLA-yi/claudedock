@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-用户通过 `cloud-claude local` 在本地机器上一键启动独立 managed-user 容器，支持 VS Code Dev Containers 工作流，无需连接 control-plane 或 Entry API。本地容器可选启用 sing-box 全隧道出网。`local down` 和 `local status` 提供生命周期管理。
+用户通过 `claudedock local` 在本地机器上一键启动独立 managed-user 容器，支持 VS Code Dev Containers 工作流，无需连接 control-plane 或 Entry API。本地容器可选启用 sing-box 全隧道出网。`local down` 和 `local status` 提供生命周期管理。
 
 </domain>
 
@@ -14,11 +14,11 @@
 ## Implementation Decisions
 
 ### CLI 子命令结构
-- `cloud-claude local` 作为子命令组，采用 cobra 模式（与现有 init/env/ssh 一致）
+- `claudedock local` 作为子命令组，采用 cobra 模式（与现有 init/env/ssh 一致）
 - `local` 本身默认行为 = `local up`（启动容器）
 - `local down` 停止并移除容器
 - `local status` 显示容器运行状态、端口映射
-- 容器使用固定标签 `cloud-claude-local` 便于 `down`/`status` 识别
+- 容器使用固定标签 `claudedock-local` 便于 `down`/`status` 识别
 
 ### Entrypoint MODE 分支
 - 入口 `MODE` 环境变量控制行为：`MODE=remote`（默认，现有行为）vs `MODE=local`
@@ -33,8 +33,8 @@
 - 启动完成后输出连接信息：host, port, user, password
 
 ### Egress 配置注入
-- `cloud-claude local --egress-config <file>` 接受 sing-box outbound JSON 文件路径
-- 文件通过 docker cp 或 bind mount 注入到容器内固定路径 `/etc/cloud-claude/sing-box-outbound.json`
+- `claudedock local --egress-config <file>` 接受 sing-box outbound JSON 文件路径
+- 文件通过 docker cp 或 bind mount 注入到容器内固定路径 `/etc/claudedock/sing-box-outbound.json`
 - 容器 entrypoint 检测到该文件时自动启动 sing-box tun 模式
 - 未提供 `--egress-config` 时容器不启动 sing-box（纯本地开发场景，无隧道开销）
 
@@ -49,7 +49,7 @@
 - SSH 端口通过 `forwardPorts` 暴露给 VS Code Remote-SSH
 
 ### Claude's Discretion
-- 容器命名和标签策略（`cloud-claude-local` + 项目路径哈希区分多项目）
+- 容器命名和标签策略（`claudedock-local` + 项目路径哈希区分多项目）
 - `local status` 输出格式（table 或 key-value）
 - SSH 密码自动生成方式（随机密码 vs 固定默认密码）
 - 容器资源限制（CPU/memory 默认值）
@@ -60,7 +60,7 @@
 <specifics>
 ## Specific Ideas
 
-- 入口体验应尽量接近 `cloud-claude` 主命令的顺滑感：一条命令启动，输出连接信息即可使用
+- 入口体验应尽量接近 `claudedock` 主命令的顺滑感：一条命令启动，输出连接信息即可使用
 - VS Code Dev Containers 打开项目时应自动识别 `.devcontainer/devcontainer.json`，无需额外配置
 - 本地容器不需要 KasmVNC 桌面环境，节省资源
 
@@ -70,8 +70,8 @@
 ## Existing Code Insights
 
 ### Reusable Assets
-- `cmd/cloud-claude/main.go`: cobra CLI 骨架，已有 root/init/env/ssh/sync/sessions 子命令，新增 `local` 子命令组直接复用
-- `internal/cloudclaude/`: SSH 连接、session 管理、mount 等逻辑，local 模式可复用部分 session 和 mount 策略
+- `cmd/claudedock/main.go`: cobra CLI 骨架，已有 root/init/env/ssh/sync/sessions 子命令，新增 `local` 子命令组直接复用
+- `internal/claudedock/`: SSH 连接、session 管理、mount 等逻辑，local 模式可复用部分 session 和 mount 策略
 - `deploy/docker/managed-user/entrypoint.sh`: 容器入口脚本，在此基础上加 MODE 分支
 - `.devcontainer/devcontainer.json`: 已有模板，需微调支持 MODE=local
 - `internal/network/`: sing-box 配置和 outbound 解析逻辑可复用
@@ -82,7 +82,7 @@
 - sing-box outbound JSON 格式（gateway_singbox_config.go）
 
 ### Integration Points
-- `cmd/cloud-claude/main.go`: 注册 `local` 子命令组
+- `cmd/claudedock/main.go`: 注册 `local` 子命令组
 - `deploy/docker/managed-user/entrypoint.sh`: MODE 分支改造
 - Docker API: 本地容器创建/启动/停止/状态查询
 - `.devcontainer/devcontainer.json`: 配置更新

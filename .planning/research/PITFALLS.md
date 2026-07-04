@@ -1,6 +1,6 @@
 # Pitfalls Research: Adding Remote SSH Forwarding + Dev Containers Support
 
-**Domain:** Containerized SSH cloud host platform (Cloud CLI Proxy)
+**Domain:** Containerized SSH cloud host platform (ClaudeDock)
 **Researched:** 2026-05-08
 **Confidence:** HIGH (based on official VS Code docs, gliderlabs/ssh source code, sing-box issue tracker, and real-world community issues)
 
@@ -176,7 +176,7 @@ Choose ONE mechanism per port:
 | GitHub Codespaces / cloud | `forwardPorts` — required for cloud environments |
 | Mixed local/cloud | Use `forwardPorts` consistently, remove `ports` from compose |
 
-For Cloud CLI Proxy's local mode:
+For ClaudeDock's local mode:
 - Since containers already have `--network=none`, Docker port mapping won't work anyway
 - Use `forwardPorts` exclusively, relying on the SSH proxy's `direct-tcpip` capability
 - Document that local mode requires SSH-based forwarding, not Docker port publishing
@@ -248,7 +248,7 @@ Multiple mechanisms compete:
 They can override each other. Cursor IDE was specifically reported to create its own relay socket that bypasses user configuration.
 
 **How to avoid:**
-For Cloud CLI Proxy's use case (managed containers accessed via SSH proxy):
+For ClaudeDock's use case (managed containers accessed via SSH proxy):
 - The SSH proxy handles authentication — agent forwarding may not be needed for the primary use case
 - If agent forwarding IS needed (e.g., for git operations inside the container), explicitly configure:
 ```json
@@ -307,7 +307,7 @@ Define clear shared boundaries:
 - Container lifecycle scheduler
 
 **Local-only components:**
-- Standalone CLI entrypoint (`cloud-claude local` or new binary)
+- Standalone CLI entrypoint (`claudedock local` or new binary)
 - Local config file management
 - Docker Compose orchestration (if needed)
 - `.devcontainer.json` template generation
@@ -438,5 +438,5 @@ Phase 0 (架构边界分析) — BEFORE any implementation. This is an architect
 - [DevPod SSH-Based Dev Containers](https://fabiorehm.com/blog/2025/11/11/devpod-ssh-devcontainers/) — Alternative architecture for SSH-based containers
 
 ---
-*Pitfalls research for: Cloud CLI Proxy v3.4 — Remote SSH + Dev Containers milestone*
+*Pitfalls research for: ClaudeDock v3.4 — Remote SSH + Dev Containers milestone*
 *Researched: 2026-05-08*

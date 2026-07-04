@@ -13,7 +13,7 @@ requires:
     provides: SESSION_* / NET_RECONNECT_* 错误码 + Reconnector + tmux 多端
   - phase: 33-claude-code-cli-admin-gc
     provides: claude-state-<id> volume 生命周期 + STATE_VOLUME_IN_USE_001
-  - phase: 34-cloud-claude-doctor-v3
+  - phase: 34-claudedock-doctor-v3
     provides: doctor 5 维度 18 项 + ExtendedExplanations 38 + ci-doctor-grep.sh
 provides:
   - docs/runbooks/v3-upgrade-guide.md（控制面/镜像/CLI 三件套升级 + 7 项回滚触发）
@@ -44,7 +44,7 @@ key-decisions:
   - "错误码索引采用 5 列表格，Extended 列用 ✅ / — 区分长说明与豁免"
   - "持久卷手册自我设限：仅做导航 + 新内容（Mutagen / mergerfs hot-cold），claude-state OAuth 部分一律跳转"
   - "AppArmor override 文件改用 sudo install -d + sudo tee heredoc 写入（比裸 echo 更安全；与 host-preflight.sh fix 提示语义等价但操作更稳）"
-  - "v3-error-code-index.md 表格使用 message/next_action 摘要而非全文，全文保留在代码注册表与 cloud-claude explain"
+  - "v3-error-code-index.md 表格使用 message/next_action 摘要而非全文，全文保留在代码注册表与 claudedock explain"
 
 patterns-established:
   - "Pattern G 头部 5 章应用：5 份新手册全部 ≥ 5 个 ## 章节、含 适用版本：v3.0 起 头部、含 ### 快速诊断命令 小节"
@@ -113,7 +113,7 @@ done
 
 ```bash
 comm -23 \
-  <(grep -hE 'Code\s*=\s*"[A-Z]+_[A-Z]+' internal/cloudclaude/errcodes/*.go \
+  <(grep -hE 'Code\s*=\s*"[A-Z]+_[A-Z]+' internal/claudedock/errcodes/*.go \
     | awk -F'"' '{print $2}' | sort -u) \
   <(grep -oE '[A-Z]+_[A-Z]+_[A-Z0-9_]+' docs/runbooks/v3-error-code-index.md \
     | grep -E '^(AUTH|DISK|MOUNT|NET|SESSION|SSH|STATE|SYSTEM)_' | sort -u)
@@ -126,16 +126,16 @@ comm -23 \
 
 | 运维手册 | 代码引用（函数级） |
 |----------|-------------------|
-| `v3-upgrade-guide.md` | `internal/runtime/tasks/worker.go::createHost` / `internal/cloudclaude/doctor/doctor.go::RunDoctor` / `deploy/docker/managed-user/entrypoint.sh::prepare_persistent_state` / `deploy/docker/managed-user/image.lock` / `scripts/install.sh` |
-| `v3-apparmor-deployment.md` | `deploy/scripts/host-preflight.sh::check_apparmor_fusermount3` (L11-73, L51-68 字面量) / `scripts/verify-fuse-compat.sh` (L42-58 + 阶段 2-4) / `internal/cloudclaude/errcodes/system.go::SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` |
-| `v3-doctor-troubleshoot.md` | `internal/cloudclaude/doctor/doctor.go::RunDoctor` (L83-84 5 维度顺序) + `network.go/auth.go/ssh.go/mount.go/disk.go` + `fix.go::FixerRegistry/ApplyFixes` + `render.go` + `internal/cloudclaude/errcodes/codes.go::Format` + `scripts/ci-doctor-grep.sh` |
-| `v3-persistent-volume-lifecycle.md` | `internal/runtime/tasks/worker.go::createHost/ensureDockerVolume` + `deploy/docker/managed-user/entrypoint.sh::prepare_persistent_state` + `internal/cloudclaude/errcodes/{mount,disk}.go` + 跳转 `docs/runbooks/v3-claude-state-volumes.md` |
-| `v3-error-code-index.md` | `internal/cloudclaude/errcodes/codes.go::Registry/Format/MustRegister` + `explanations.go::ExtendedExplanations/ExplainExempt` + `{auth,disk,mount,net,session,ssh,state,system}.go` + `cmd/cloud-claude/explain.go` + `scripts/ci-doctor-grep.sh` |
+| `v3-upgrade-guide.md` | `internal/runtime/tasks/worker.go::createHost` / `internal/claudedock/doctor/doctor.go::RunDoctor` / `deploy/docker/managed-user/entrypoint.sh::prepare_persistent_state` / `deploy/docker/managed-user/image.lock` / `scripts/install.sh` |
+| `v3-apparmor-deployment.md` | `deploy/scripts/host-preflight.sh::check_apparmor_fusermount3` (L11-73, L51-68 字面量) / `scripts/verify-fuse-compat.sh` (L42-58 + 阶段 2-4) / `internal/claudedock/errcodes/system.go::SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` |
+| `v3-doctor-troubleshoot.md` | `internal/claudedock/doctor/doctor.go::RunDoctor` (L83-84 5 维度顺序) + `network.go/auth.go/ssh.go/mount.go/disk.go` + `fix.go::FixerRegistry/ApplyFixes` + `render.go` + `internal/claudedock/errcodes/codes.go::Format` + `scripts/ci-doctor-grep.sh` |
+| `v3-persistent-volume-lifecycle.md` | `internal/runtime/tasks/worker.go::createHost/ensureDockerVolume` + `deploy/docker/managed-user/entrypoint.sh::prepare_persistent_state` + `internal/claudedock/errcodes/{mount,disk}.go` + 跳转 `docs/runbooks/v3-claude-state-volumes.md` |
+| `v3-error-code-index.md` | `internal/claudedock/errcodes/codes.go::Registry/Format/MustRegister` + `explanations.go::ExtendedExplanations/ExplainExempt` + `{auth,disk,mount,net,session,ssh,state,system}.go` + `cmd/claudedock/explain.go` + `scripts/ci-doctor-grep.sh` |
 
 ## Decisions Made
 
 - doctor 5 维度子节命名 `### 3.1-3.5` 严格匹配 PLAN acceptance 的 `grep -c '^### 3\.' = 5`
-- 错误码索引采用 5 列表格 + 摘要文案；全文长说明保留在 `cloud-claude explain` 与 `explanations.go`，避免手册与代码漂移成本
+- 错误码索引采用 5 列表格 + 摘要文案；全文长说明保留在 `claudedock explain` 与 `explanations.go`，避免手册与代码漂移成本
 - 持久卷手册严守 PATTERNS Pattern J，禁止复制 `v3-claude-state-volumes.md` 任何章节；自我定位为顶层 + 增量
 - AppArmor 部署步骤改用 `sudo install -d + sudo tee <<'EOF'` 写入 override 文件（比裸 echo 更安全、防止 BOM/CRLF 污染），与 host-preflight.sh fix 提示语义等价
 - 升级指南 ## 章节增到 9 个（PLAN 要求 ≥ 7），覆盖背景 / 前置 / 控制面 / 镜像 / CLI / 自检 / 回归与回滚 / 快速诊断 / 参考

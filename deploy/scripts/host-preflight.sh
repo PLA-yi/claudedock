@@ -108,5 +108,5 @@ require_cmd curl
 # Phase 29: Ubuntu 25.04+ AppArmor advisory check (D-23 / D-24; advisory — non-blocking).
 check_apparmor_fusermount3 || true
 
-mkdir -p /var/lib/cloud-cli-proxy
-mkdir -p /run/cloud-cli-proxy
+mkdir -p /var/lib/claudedock
+mkdir -p /run/claudedock

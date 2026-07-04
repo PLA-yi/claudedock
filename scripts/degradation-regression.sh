@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/degradation-regression.sh — Phase 35 M13 三层静默降级终验
 #
-# 把 M13（禁止静默降级）从「文档约定」升级为「三层人工破坏 → cloud-claude
+# 把 M13（禁止静默降级）从「文档约定」升级为「三层人工破坏 → claudedock
 # 必须吐 MOUNT_* 错误码 + 中文 next_action」的自动化回归。
 #
 # 三层破坏方法（容器内执行）：
@@ -58,7 +58,7 @@ degradation-regression.sh — Phase 35 M13 三层静默降级终验
 可选:
   --layer=mergerfs|sshfs|mutagen|all  破坏目标层（默认 all 三层依次）
   --target-container=NAME             目标容器（默认从 docker ps --filter
-                                      label=com.cloud-cli-proxy.managed=true
+                                      label=com.claudedock.managed=true
                                       自动探测；必须匹配 ^[a-z0-9][a-z0-9_.-]*$）
   --dry-run                           只打印破坏命令，不真实 pkill / umount
   --confirm-destructive               显式 opt-in 才会真实破坏（T-35-02-04 闸门）
@@ -67,10 +67,10 @@ degradation-regression.sh — Phase 35 M13 三层静默降级终验
   --help, -h                          显示本帮助
 
 M13 验收口径：
-  - 三层任意破坏后 cloud-claude doctor --json 必须包含对应 MOUNT_* 错误码
+  - 三层任意破坏后 claudedock doctor --json 必须包含对应 MOUNT_* 错误码
   - 所有 status ∈ {warn,fail} check 必有非空 next_action（"禁止静默降级"）
   - 错误码命名匹配 ^[A-Z]+_[A-Z]+_[A-Z0-9]+(_[A-Z0-9]+)*$
-    （internal/cloudclaude/errcodes/codes.go L56）
+    （internal/claudedock/errcodes/codes.go L56）
 
 安全约束：
   - --confirm-destructive 默认 false，缺省走 dry-run 仅预览破坏命令
@@ -150,10 +150,10 @@ detect_container() {
     return 1
   fi
   TARGET_CTR="$(docker ps \
-    --filter 'label=com.cloud-cli-proxy.managed=true' \
+    --filter 'label=com.claudedock.managed=true' \
     --format '{{.Names}}' 2>/dev/null | head -1 || true)"
   if [[ -z "$TARGET_CTR" ]]; then
-    skip "M13" "未发现 com.cloud-cli-proxy.managed=true 容器"
+    skip "M13" "未发现 com.claudedock.managed=true 容器"
     return 1
   fi
   if [[ ! "$TARGET_CTR" =~ $CTR_NAME_REGEX ]]; then
@@ -234,21 +234,21 @@ restore_layer() {
   case "$layer" in
     mergerfs)
       info "恢复 mergerfs 层（remount 或 docker restart 兜底）"
-      docker exec "$TARGET_CTR" /etc/cloud-claude/remount-mergerfs.sh \
+      docker exec "$TARGET_CTR" /etc/claudedock/remount-mergerfs.sh \
         2>/dev/null \
         || { docker restart "$TARGET_CTR" >/dev/null 2>&1 || true; \
              sleep 5; }
       ;;
     sshfs)
       info "恢复 sshfs 层（remount 或 docker restart 兜底）"
-      docker exec "$TARGET_CTR" /etc/cloud-claude/remount-sshfs.sh \
+      docker exec "$TARGET_CTR" /etc/claudedock/remount-sshfs.sh \
         2>/dev/null \
         || { docker restart "$TARGET_CTR" >/dev/null 2>&1 || true; \
              sleep 5; }
       ;;
     mutagen)
       info "恢复 mutagen 层（重启 agent 或 docker restart 兜底）"
-      docker exec "$TARGET_CTR" sh -c '/etc/cloud-claude/mutagen-agent &' \
+      docker exec "$TARGET_CTR" sh -c '/etc/claudedock/mutagen-agent &' \
         2>/dev/null \
         || { docker restart "$TARGET_CTR" >/dev/null 2>&1 || true; \
              sleep 5; }
@@ -381,7 +381,7 @@ run_layer() {
   # 3) 给 CLI stderr 捕获窗口（REQ-F2-B：≤ 2s 内降级）
   sleep 2
 
-  # 4) 跑 cloud-claude doctor --json
+  # 4) 跑 claudedock doctor --json
   local out
   if [[ "$DRY_RUN" == "true" || "$CONFIRM_DESTRUCTIVE" != "true" ]]; then
     info "${layer}: dry-run 模式，跳过 doctor 调用"
@@ -393,7 +393,7 @@ run_layer() {
     return 2
   fi
 
-  out="$(docker exec "$TARGET_CTR" cloud-claude doctor --json 2>&1 || true)"
+  out="$(docker exec "$TARGET_CTR" claudedock doctor --json 2>&1 || true)"
 
   # 5) 断言
   local outcome="pass" rc=0

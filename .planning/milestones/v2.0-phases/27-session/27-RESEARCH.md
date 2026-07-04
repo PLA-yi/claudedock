@@ -16,7 +16,7 @@
 ## User Constraints (from CONTEXT.md)
 
 ### Locked Decisions
-- **D-01:** 使用 `github.com/pkg/sftp` 在 cloud-claude 进程内嵌入 SFTP server。该库是 Go 生态中最成熟的 SFTP 实现，支持 `sftp.NewServer()` 接受 io.ReadWriter 作为传输层，可直接对接 SSH session channel。
+- **D-01:** 使用 `github.com/pkg/sftp` 在 claudedock 进程内嵌入 SFTP server。该库是 Go 生态中最成熟的 SFTP 实现，支持 `sftp.NewServer()` 接受 io.ReadWriter 作为传输层，可直接对接 SSH session channel。
 - **D-02:** SFTP server 的根目录为用户当前工作目录（`os.Getwd()`），与 MAP-01 需求定义一致。不做 chroot 或虚拟文件系统层，直接服务真实文件。
 - **D-03:** 重构 `ConnectAndRunClaude` 为三个阶段：`connect`（建立 SSH 连接）→ `mountWorkspace`（开启 sshfs session + SFTP server）→ `runClaude`（开启 claude PTY session）。复用同一 SSH 连接（`ssh.Client`），不建立第二条 TCP 连接。
 - **D-04:** 启动顺序为先挂载后运行 claude：先在 session 1 上 exec `sshfs -o slave /workspace`，启动 SFTP server goroutine，等待挂载就绪确认后，再开启 session 2 申请 PTY 执行 `cd /workspace && claude <args>`。
@@ -53,11 +53,11 @@
 
 | Capability | Primary Tier | Secondary Tier | Rationale |
 |------------|-------------|----------------|-----------|
-| SFTP server（服务本地文件） | cloud-claude CLI 进程 | — | SFTP server 必须运行在能访问用户本地文件系统的进程中 |
+| SFTP server（服务本地文件） | claudedock CLI 进程 | — | SFTP server 必须运行在能访问用户本地文件系统的进程中 |
 | sshfs FUSE 挂载 | 用户容器（容器内核态 FUSE） | — | FUSE 挂载是容器内操作，需要 SYS_ADMIN + /dev/fuse |
-| SSH session 复用 | cloud-claude CLI 进程 | SSH Proxy（透传） | 客户端发起多 session，Proxy 逐个转发到容器 |
-| 挂载就绪检测 | cloud-claude CLI 进程 | 容器内 mountpoint 命令 | CLI 通过短生命周期 session 执行远程 mountpoint 命令 |
-| 退出清理 | cloud-claude CLI 进程 | 容器内 fusermount | CLI 关闭 channel 触发主清理，fusermount 做兜底 |
+| SSH session 复用 | claudedock CLI 进程 | SSH Proxy（透传） | 客户端发起多 session，Proxy 逐个转发到容器 |
+| 挂载就绪检测 | claudedock CLI 进程 | 容器内 mountpoint 命令 | CLI 通过短生命周期 session 执行远程 mountpoint 命令 |
+| 退出清理 | claudedock CLI 进程 | 容器内 fusermount | CLI 关闭 channel 触发主清理，fusermount 做兜底 |
 
 ## Standard Stack
 
@@ -99,7 +99,7 @@ go get github.com/pkg/sftp@v1.13.10
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  用户机器 (cloud-claude CLI)                              │
+│  用户机器 (claudedock CLI)                              │
 │                                                          │
 │  ┌──────────┐    io.ReadWriteCloser    ┌───────────────┐ │
 │  │ pkg/sftp │◄────────────────────────►│ SSH Session 1 │─┼──┐
@@ -138,7 +138,7 @@ go get github.com/pkg/sftp@v1.13.10
 
 **数据流路径：**
 
-1. **文件读取（容器→本地）：** claude 读 /workspace/file → FUSE 拦截 → sshfs 发 SFTP read 请求 → SSH session 1 stdout → cloud-claude 的 pkg/sftp server 收到请求 → 读本地 CWD/file → SFTP response → SSH session 1 stdin → sshfs 返回数据给 FUSE
+1. **文件读取（容器→本地）：** claude 读 /workspace/file → FUSE 拦截 → sshfs 发 SFTP read 请求 → SSH session 1 stdout → claudedock 的 pkg/sftp server 收到请求 → 读本地 CWD/file → SFTP response → SSH session 1 stdin → sshfs 返回数据给 FUSE
 2. **文件写入（容器→本地）：** claude 写 /workspace/file → FUSE → sshfs SFTP write → pkg/sftp server → 写本地文件
 3. **文件写入（本地→容器可见）：** 用户直接编辑本地文件 → 容器内下次 read 时 sshfs 通过 SFTP 获取最新内容
 
@@ -239,7 +239,7 @@ func waitForMount(conn *ssh.Client, mountPath string, interval, timeout time.Dur
 
 ### Pitfall 1: sshfs 静默 daemonize 导致管道断裂
 
-**What goes wrong:** sshfs 启动后 fork 到后台，父进程退出。SSH session 的 exit-status 触发，cloud-claude 误以为 sshfs 已结束。子进程虽仍运行但继承的 stdin/stdout fd 可能不再连接到 SSH channel。
+**What goes wrong:** sshfs 启动后 fork 到后台，父进程退出。SSH session 的 exit-status 触发，claudedock 误以为 sshfs 已结束。子进程虽仍运行但继承的 stdin/stdout fd 可能不再连接到 SSH channel。
 **Why it happens:** sshfs 默认行为是 daemonize（与 mount 命令一致）。
 **How to avoid:** 始终使用 `-f` 标志保持前台运行。
 **Warning signs:** `session.Wait()` 在 sshfs 启动后立即返回，`mountpoint -q` 检测失败。
@@ -254,7 +254,7 @@ func waitForMount(conn *ssh.Client, mountPath string, interval, timeout time.Dur
 ### Pitfall 3: I/O 方向搞反
 
 **What goes wrong:** 将 session.StdinPipe 接到 sftp.Server 的 Reader 上，或将 StdoutPipe 接到 Writer 上，导致 SFTP 协议死锁。
-**Why it happens:** 从 cloud-claude 的视角看，StdinPipe 是**写入**到远程 stdin（即 sshfs 的输入），StdoutPipe 是**读取**远程 stdout（即 sshfs 的输出）。而 sftp.Server 需要从 Reader 读取 SFTP 请求、向 Writer 写入 SFTP 响应。sshfs 通过 stdout 发送请求、通过 stdin 接收响应。
+**Why it happens:** 从 claudedock 的视角看，StdinPipe 是**写入**到远程 stdin（即 sshfs 的输入），StdoutPipe 是**读取**远程 stdout（即 sshfs 的输出）。而 sftp.Server 需要从 Reader 读取 SFTP 请求、向 Writer 写入 SFTP 响应。sshfs 通过 stdout 发送请求、通过 stdin 接收响应。
 **How to avoid:** 明确映射：`sftp.Server Reader = session.StdoutPipe()`（读 sshfs 请求），`sftp.Server Writer = session.StdinPipe()`（写 SFTP 响应给 sshfs）。
 **Warning signs:** SFTP 协议握手超时或死锁。
 

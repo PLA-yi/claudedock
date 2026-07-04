@@ -18,7 +18,7 @@
 ### Locked Decisions
 - **D-01:** 直接在现有 `deploy/docker/managed-user/Dockerfile` 中添加 sshfs + fuse3 包，不创建新的镜像变体。所有用户容器统一具备 FUSE 能力，减少镜像维护负担。
 - **D-02:** 在镜像中配置 `/etc/fuse.conf` 启用 `user_allow_other`，允许非 root 用户使用 `-o allow_other` 选项挂载 sshfs。
-- **D-03:** Worker 创建容器时对所有容器统一附加 `--device /dev/fuse` 和 `--cap-add SYS_ADMIN`，不做条件区分。cloud-claude 设计意图是所有用户容器都可被连接。
+- **D-03:** Worker 创建容器时对所有容器统一附加 `--device /dev/fuse` 和 `--cap-add SYS_ADMIN`，不做条件区分。claudedock 设计意图是所有用户容器都可被连接。
 - **D-04:** 新增参数在 `internal/runtime/tasks/worker.go` 的 `createHost()` 函数中添加，与现有 `--cap-add NET_ADMIN` 同级。
 - **D-05:** SSH Proxy 保持零改造。通过代码审查确认现有能力并在本 CONTEXT 中记录结论。
 - **D-06:** 验证结论以文档形式记录在计划中，不新增自动化测试。
@@ -118,7 +118,7 @@ args := []string{
     "--cap-add", "NET_ADMIN",
     "--cap-add", "SYS_ADMIN",
     "--device", "/dev/fuse",
-    "--label", "cloud-cli-proxy.managed=true",
+    "--label", "claudedock.managed=true",
     // ...rest of args
 }
 ```
@@ -131,7 +131,7 @@ args := []string{
 
 2. **全类型请求转发：** `handleChannel()` 第 261-283 行双向转发所有请求类型，包括 pty-req、shell、exec、env、window-change（客户端→目标）和 exit-status、exit-signal（目标→客户端）。
 
-3. **sshfs slave/passive 模式兼容性：** cloud-claude 将通过现有 SSH 连接开启第二个 session channel，在其中执行 `sftp-server` 子系统。SSH Proxy 的 `handleChannel()` 为每个新 channel 建立独立的到目标容器的 session，完整转发 exec 请求，天然支持此模式。
+3. **sshfs slave/passive 模式兼容性：** claudedock 将通过现有 SSH 连接开启第二个 session channel，在其中执行 `sftp-server` 子系统。SSH Proxy 的 `handleChannel()` 为每个新 channel 建立独立的到目标容器的 session，完整转发 exec 请求，天然支持此模式。
 
 **结论：SSH Proxy 无需任何代码改动。**
 
@@ -226,8 +226,8 @@ args := []string{
     "--cap-add", "NET_ADMIN",
     "--cap-add", "SYS_ADMIN",
     "--device", "/dev/fuse",
-    "--label", "cloud-cli-proxy.managed=true",
-    "--label", fmt.Sprintf("cloud-cli-proxy.host_id=%s", request.HostID),
+    "--label", "claudedock.managed=true",
+    "--label", fmt.Sprintf("claudedock.host_id=%s", request.HostID),
     "--hostname", hostname,
     "--shm-size", "1g",
     "--sysctl", "net.ipv6.conf.all.disable_ipv6=1",

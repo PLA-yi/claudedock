@@ -224,32 +224,32 @@ check_item() {
 | REQ-F1-A | `docker exec $ctr mount | grep -q 'type fuse.mergerfs.*on /workspace'` + `docker exec $ctr readlink /workspace` 单一视图 | 无脚本，直接命令 |
 | REQ-F1-B | reuse BASE-02 的 `stderr_progress_matches=true` | 复用 |
 | REQ-F1-C | reuse BASE-01 的 P50 ratio ≤ 1.5 | 复用 |
-| REQ-F1-D | `docker exec $ctr cloud-claude --mount-mode=auto ...` 触发 >50MB 候选目录场景；断言 stderr 含 `MOUNT_MUTAGEN_WHITELIST_REJECT` | 手工场景 |
-| REQ-F1-E | `docker exec $ctr cloud-claude sync conflicts` 输出格式符合 `⚠ 有 N 个文件同步冲突` | 手工 + doctor |
-| REQ-F2-A | `cloud-claude --mount-mode=full|mutagen-only|sshfs-only|auto` 四档分别启动后 banner 显示对应标签 | 手工枚举 |
+| REQ-F1-D | `docker exec $ctr claudedock --mount-mode=auto ...` 触发 >50MB 候选目录场景；断言 stderr 含 `MOUNT_MUTAGEN_WHITELIST_REJECT` | 手工场景 |
+| REQ-F1-E | `docker exec $ctr claudedock sync conflicts` 输出格式符合 `⚠ 有 N 个文件同步冲突` | 手工 + doctor |
+| REQ-F2-A | `claudedock --mount-mode=full|mutagen-only|sshfs-only|auto` 四档分别启动后 banner 显示对应标签 | 手工枚举 |
 | REQ-F2-B | reuse `degradation-regression.sh --layer=all`（Plan 02） | 复用 |
-| REQ-F2-C | `NO_COLOR=1 cloud-claude ...` banner 无 ANSI；非 NO_COLOR 有 ANSI | 手工 |
-| REQ-F3-A | `cloud-claude --server-alive-interval=10 ...` 启动立即报错 `SESSION_KEEPALIVE_TOO_AGGRESSIVE` | 命令 + grep |
+| REQ-F2-C | `NO_COLOR=1 claudedock ...` banner 无 ANSI；非 NO_COLOR 有 ANSI | 手工 |
+| REQ-F3-A | `claudedock --server-alive-interval=10 ...` 启动立即报错 `SESSION_KEEPALIVE_TOO_AGGRESSIVE` | 命令 + grep |
 | REQ-F3-B | reuse uat-network-resilience `--scenario=10s` 的 `token_replayed=true` | 复用 |
 | REQ-F3-C | reuse uat-network-resilience `--scenario=2min` 的 `final_failure_prompt_seen=true` | 复用 |
 | REQ-F3-D | reuse uat-network-resilience `--scenario=2min` 的 `backoff_marks_seen.length>=3` | 复用 |
 | REQ-F4-A | reuse uat-network-resilience 30s 场景的 `pgrep_survived_full_duration=true` | 复用 |
-| REQ-F4-B | `docker exec $ctr tmux ls` + `cloud-claude sessions ls` 列出 ≥ 1 session | 命令 |
-| REQ-F4-C | 临时破坏容器 tmux 二进制权限 → cloud-claude banner 含 `容器内 tmux 不可用` | 手工 |
-| REQ-F5-A | 两端同时 cloud-claude → 第二端无 "被踢" 错误 | 手工（CI SKIP） |
+| REQ-F4-B | `docker exec $ctr tmux ls` + `claudedock sessions ls` 列出 ≥ 1 session | 命令 |
+| REQ-F4-C | 临时破坏容器 tmux 二进制权限 → claudedock banner 含 `容器内 tmux 不可用` | 手工 |
+| REQ-F5-A | 两端同时 claudedock → 第二端无 "被踢" 错误 | 手工（CI SKIP） |
 | REQ-F5-B | 第二端 banner 含 `另 1 个会话正在共享` | 手工 |
 | REQ-F5-C | 测 `--new-session` + `--take-over` | 手工 |
-| REQ-F5-D | 第二端 cloud-claude 日志含 `SESSION_SYNC_LOCKED` | 手工 |
-| REQ-F6-A | `cloud-claude doctor --json | jq '.checks | group_by(.domain) | length'` == 5 | 直接命令 |
-| REQ-F6-B | reuse `bash scripts/ci-doctor-grep.sh $cloud_claude_bin` | 复用 |
-| REQ-F6-C | `cloud-claude doctor --fix --yes` 能修复 ≥ 5 种故障（列出 fix 成功的 check 数） | 命令 |
-| REQ-F6-D | `cloud-claude doctor --verbose`、`--json`、`NO_COLOR=1` + 退出码 ∈ {0,1,2} | 命令枚举 |
-| REQ-F7-A | `docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id>` 返回唯一匹配 | 命令 |
+| REQ-F5-D | 第二端 claudedock 日志含 `SESSION_SYNC_LOCKED` | 手工 |
+| REQ-F6-A | `claudedock doctor --json | jq '.checks | group_by(.domain) | length'` == 5 | 直接命令 |
+| REQ-F6-B | reuse `bash scripts/ci-doctor-grep.sh $claudedock_bin` | 复用 |
+| REQ-F6-C | `claudedock doctor --fix --yes` 能修复 ≥ 5 种故障（列出 fix 成功的 check 数） | 命令 |
+| REQ-F6-D | `claudedock doctor --verbose`、`--json`、`NO_COLOR=1` + 退出码 ∈ {0,1,2} | 命令枚举 |
+| REQ-F7-A | `docker volume ls --filter label=com.claudedock.account_id=<id>` 返回唯一匹配 | 命令 |
 | REQ-F7-B | 容器删除后 `docker volume ls` 仍可见 `claude-state-*`，重建容器后 `~/.claude/.credentials.json` 仍在 | 手工 |
-| REQ-F7-C | 过期 OAuth 场景 → cloud-claude 连接前 stderr 含 `NET_OAUTH_EXPIRED` + 中文 | 手工 |
+| REQ-F7-C | 过期 OAuth 场景 → claudedock 连接前 stderr 含 `NET_OAUTH_EXPIRED` + 中文 | 手工 |
 | REQ-F7-D | `curl -X DELETE .../v1/admin/claude-accounts/<id>` 后 `docker volume ls` 该 volume 不存在 | 手工 |
-| REQ-F8-A/B | `cloud-claude explain --all \| jq length ≥ 42` + `errcodes` 注册表完整性（遍历代码 diff） | 命令 + diff |
-| REQ-F8-C | `cloud-claude explain MOUNT_MUTAGEN_VERSION_SKEW` 返回非空且含"建议" | 命令 |
+| REQ-F8-A/B | `claudedock explain --all \| jq length ≥ 42` + `errcodes` 注册表完整性（遍历代码 diff） | 命令 + diff |
+| REQ-F8-C | `claudedock explain MOUNT_MUTAGEN_VERSION_SKEW` 返回非空且含"建议" | 命令 |
 | M5 (APFS) | **仅 macos 真机**：创建 `/workspace/Foo.txt`（"A"）+ `/workspace/foo.txt`（"B"）；Mutagen 同步后断言两文件内容各自保留 | 手工（ci/linux SKIP） |
 | M13 | reuse degradation-regression.sh，**主脚本调用时必须透传 `--confirm-destructive`**（Plan 02 T-35-02-04 opt-in 闸门），调用形如 `bash scripts/degradation-regression.sh --layer=all --target-container="$TARGET_CONTAINER" --confirm-destructive`；缺省 `--confirm-destructive` 时 degradation-regression.sh 走 dry-run 提示退出，主脚本将其判为 SKIP 而非 FAIL | 复用 Plan 02 |
 | C6 | **仅 ubuntu25 真机**：`bash deploy/scripts/host-preflight.sh && bash scripts/verify-fuse-compat.sh`，退出码 0 + 三路 mount 全 PASS | 复用 |
@@ -259,7 +259,7 @@ check_item() {
 runner_m5_apfs() {
   is_macos && has_apfs || { skip "M5 APFS: 非 macOS APFS 环境"; return; }
   has_docker || { skip "M5 APFS: 缺 docker"; return; }
-  # 前置 cloud-claude 已连接的容器（用户提供 --target-container）
+  # 前置 claudedock 已连接的容器（用户提供 --target-container）
   local ctr="${TARGET_CONTAINER:?}"
   local tmp_local; tmp_local=$(mktemp -d)
   printf 'A-upper' > "$tmp_local/Foo.txt"
@@ -267,7 +267,7 @@ runner_m5_apfs() {
     # APFS 默认 case-insensitive 时，第 2 条会覆盖；切到 --mode=two-way-resolved 后应保留
     warn "M5 APFS: 本地 APFS case-insensitive 覆盖行为触发，观测 Mutagen 冲突策略"
   }
-  # 推同步（假设 cloud-claude 默认同步 /workspace）
+  # 推同步（假设 claudedock 默认同步 /workspace）
   sleep 10    # 给 Mutagen 同步窗口
   local remote_foo_upper remote_foo_lower
   remote_foo_upper=$(docker exec "$ctr" cat /workspace/Foo.txt 2>/dev/null || echo "")
@@ -366,14 +366,14 @@ summarize() {
 1. **背景** — v3.0 验收 phase 目标 + 三环境矩阵（CI / macOS APFS / Ubuntu 25.04 AppArmor）
 2. **前置条件** —
    - CI：`.github/workflows/ci.yml` 已含 perf-benchmark + image-size-regression（Plan 04）
-   - macOS：Apple Silicon、APFS case-insensitive、Docker Desktop、已 `cloud-claude login`
+   - macOS：Apple Silicon、APFS case-insensitive、Docker Desktop、已 `claudedock login`
    - Ubuntu 25.04：裸机或云主机、内核 ≥ 6.12、AppArmor override 已部署（引用 `v3-apparmor-deployment.md`）
 3. **执行流程**
    - **3.1 CI 环境（PR 触发自动）**：列出 GH Actions 两个 job 的期望 ✅；手工触发 `gh workflow run ci.yml`
    - **3.2 macOS APFS 真机**：
      ```bash
-     # 3.2 步骤 1：启动 cloud-claude 到目标容器
-     cloud-claude --mount-mode=auto
+     # 3.2 步骤 1：启动 claudedock 到目标容器
+     claudedock --mount-mode=auto
      # 3.2 步骤 2：在另一个终端跑验收
      bash scripts/v3-acceptance-checklist.sh \
        --track=all \
@@ -487,7 +487,7 @@ summarize() {
 echo "hostname: $(hostname)"
 echo "uname:    $(uname -a)"
 echo "docker:   $(docker --version 2>/dev/null)"
-echo "cloud-claude: $(cloud-claude --version 2>/dev/null)"
+echo "claudedock: $(claudedock --version 2>/dev/null)"
 # macOS 补充：diskutil info / | grep -E 'Type|Encrypted'
 # Ubuntu 补充：. /etc/os-release && echo "ubuntu: $VERSION_ID"
 ```

@@ -42,7 +42,7 @@ func TestEnsureDockerVolume_NotExists_RunsCreate(t *testing.T) {
 	t.Cleanup(func() { dockerVolumeRunner = orig })
 
 	if err := realEnsureDockerVolume(context.Background(), "claude-state-abc",
-		map[string]string{"com.cloud-cli-proxy.account_id": "abc", "com.cloud-cli-proxy.managed": "true"}); err != nil {
+		map[string]string{"com.claudedock.account_id": "abc", "com.claudedock.managed": "true"}); err != nil {
 		t.Fatalf("create flow should succeed: %v", err)
 	}
 	if calls != 2 {

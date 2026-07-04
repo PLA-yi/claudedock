@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/agentapi"
 )
 
 func minimalCreateHostRequest(hostID string) agentapi.HostActionRequest {
@@ -17,7 +17,7 @@ func minimalCreateHostRequest(hostID string) agentapi.HostActionRequest {
 		DefaultUser:   "workspace",
 		HomeMount:     "/workspace",
 		ContainerName: "c-test",
-		HomeDir:       "/tmp/cloudproxy-test-home-" + hostID,
+		HomeDir:       "/tmp/claudedock-test-home-" + hostID,
 		// Phase 29.1：buildCreateArgs/syncContainerCredentials 对空 EntryPassword fail-fast，
 		// 工厂默认填占位密码以避免无关用例（如 volume 类）误触发空密码守卫；
 		// 真要测试空密码分支的用例需显式 override 为 ""。
@@ -169,7 +169,7 @@ func TestBuildCreateArgs_VolumesMount(t *testing.T) {
 func TestBuildCreateArgs_EmptyVolumes_NoExtraArgs(t *testing.T) {
 	w := &Worker{}
 	reqNil := minimalCreateHostRequest("e1")
-	argsNil, err := w.buildCreateArgs(reqNil, "cloudproxy-e1", "cloudproxy-e1", nil)
+	argsNil, err := w.buildCreateArgs(reqNil, "claudedock-e1", "claudedock-e1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestBuildCreateArgs_EmptyVolumes_NoExtraArgs(t *testing.T) {
 
 	reqEmpty := minimalCreateHostRequest("e2")
 	reqEmpty.Volumes = []agentapi.VolumeMount{}
-	argsEmpty, err := w.buildCreateArgs(reqEmpty, "cloudproxy-e2", "cloudproxy-e2", nil)
+	argsEmpty, err := w.buildCreateArgs(reqEmpty, "claudedock-e2", "claudedock-e2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

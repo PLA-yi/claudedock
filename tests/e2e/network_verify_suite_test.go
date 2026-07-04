@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// NetworkVerifySuite 针对已有 running cloudproxy 容器做网络安全验证。
+// NetworkVerifySuite 针对已有 running claudedock 容器做网络安全验证。
 // 此套件不创建/销毁容器，仅在已有运行环境中执行只读验证。
 type NetworkVerifySuite struct {
 	suite.Suite
@@ -27,9 +27,9 @@ func (s *NetworkVerifySuite) SetupSuite() {
 	if _, err := exec.LookPath("docker"); err != nil {
 		s.T().Skip("docker not available")
 	}
-	out, err := exec.Command("docker", "ps", "--filter", "name=cloudproxy-", "--format", "{{.Names}}").Output()
+	out, err := exec.Command("docker", "ps", "--filter", "name=claudedock-", "--format", "{{.Names}}").Output()
 	if err != nil || len(strings.TrimSpace(string(out))) == 0 {
-		s.T().Skip("no running cloudproxy container")
+		s.T().Skip("no running claudedock container")
 	}
 	s.containerName = strings.Split(strings.TrimSpace(string(out)), "\n")[0]
 	s.T().Logf("testing container: %s", s.containerName)

@@ -13,10 +13,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
-	runtimetasks "github.com/zanel1u/cloud-cli-proxy/internal/runtime/tasks"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/broadcast"
+	"github.com/claudedock/claudedock/internal/network"
+	runtimetasks "github.com/claudedock/claudedock/internal/runtime/tasks"
 )
 
 type Server struct {

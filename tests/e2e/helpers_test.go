@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	bootstraperrors "github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http"
+	bootstraperrors "github.com/claudedock/claudedock/internal/controlplane/http"
 )
 
 // readLeakFixture 是 Phase 49 LEAK-* 纯函数单测的 fixture 加载入口。
@@ -1313,7 +1313,7 @@ func TestHelpersClassifyStress_KILL03_InconclusiveOnAbstain(t *testing.T) {
 // ─── Phase 50 / Pumba 参数构建 + 输出解析 ──────────────────────────────
 
 func TestHelpersBuildPumbaNetemArgs_DelayDefaults(t *testing.T) {
-	argv := BuildPumbaNetemArgs("cloudproxy-gw-alpha", PumbaNetemParams{})
+	argv := BuildPumbaNetemArgs("claudedock-gw-alpha", PumbaNetemParams{})
 	if len(argv) == 0 {
 		t.Fatalf("expected non-empty argv")
 	}
@@ -1330,7 +1330,7 @@ func TestHelpersBuildPumbaNetemArgs_DelayDefaults(t *testing.T) {
 	if !strings.Contains(joined, "delay --time 1000") {
 		t.Fatalf("expected default delay 1000ms, got %q", joined)
 	}
-	if argv[len(argv)-1] != "cloudproxy-gw-alpha" {
+	if argv[len(argv)-1] != "claudedock-gw-alpha" {
 		t.Fatalf("target must be last arg, got %q", argv[len(argv)-1])
 	}
 }
@@ -1441,10 +1441,10 @@ func TestHelpersPumbaOutcome_String(t *testing.T) {
 // ─── Phase 50 / KILL-04 网络选择纯函数 ─────────────────────────────────
 
 func TestHelpersPickGatewayBridgeNetwork_CloudproxyPreferred(t *testing.T) {
-	raw := "cloudproxy-net-alpha=10.99.0.2;bridge=172.17.0.5;"
+	raw := "claudedock-net-alpha=10.99.0.2;bridge=172.17.0.5;"
 	net, ip := PickGatewayBridgeNetwork(raw)
-	if net != "cloudproxy-net-alpha" {
-		t.Fatalf("expected cloudproxy-net-alpha, got %q", net)
+	if net != "claudedock-net-alpha" {
+		t.Fatalf("expected claudedock-net-alpha, got %q", net)
 	}
 	if ip != "10.99.0.2" {
 		t.Fatalf("expected ip 10.99.0.2, got %q", ip)
@@ -1482,10 +1482,10 @@ func TestHelpersPickGatewayBridgeNetwork_EmptyInput(t *testing.T) {
 }
 
 func TestHelpersPickGatewayBridgeNetwork_MultiCloudproxyTakesFirst(t *testing.T) {
-	raw := "cloudproxy-net-alpha=10.99.0.2;cloudproxy-net-beta=10.99.1.2;bridge=172.17.0.5;"
+	raw := "claudedock-net-alpha=10.99.0.2;claudedock-net-beta=10.99.1.2;bridge=172.17.0.5;"
 	net, _ := PickGatewayBridgeNetwork(raw)
-	if net != "cloudproxy-net-alpha" {
-		t.Fatalf("expected first cloudproxy-net-*, got %q", net)
+	if net != "claudedock-net-alpha" {
+		t.Fatalf("expected first claudedock-net-*, got %q", net)
 	}
 }
 

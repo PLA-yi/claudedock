@@ -22,8 +22,8 @@ func TestResolve(t *testing.T) {
 		{
 			name:     "mirror replaces ghcr.io",
 			envValue: "ghcr.1ms.run",
-			image:    "ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest",
-			want:     "ghcr.1ms.run/zanel1u/cloud-cli-proxy/managed-user:latest",
+			image:    "ghcr.io/claudedock/claudedock/managed-user:latest",
+			want:     "ghcr.1ms.run/claudedock/claudedock/managed-user:latest",
 		},
 		{
 			name:     "mirror replaces sing-box image",
@@ -34,8 +34,8 @@ func TestResolve(t *testing.T) {
 		{
 			name:     "no ghcr.io prefix returns unchanged",
 			envValue: "ghcr.1ms.run",
-			image:    "cloud-cli-proxy/managed-user:v4-local",
-			want:     "cloud-cli-proxy/managed-user:v4-local",
+			image:    "claudedock/managed-user:v4-local",
+			want:     "claudedock/managed-user:v4-local",
 		},
 	}
 

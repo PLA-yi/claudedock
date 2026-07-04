@@ -24,7 +24,7 @@ created: 2026-05-14
   - 新增 8 个 ParseTcpdumpCount / Classify / Contract / String 单测：`TestHelpersParseTcpdumpCount_{FivePackets,ZeroPackets,SingularPacket,EmptyStderr,NoMatchSubstring}`、`TestHelpersClassifyKillswitch_{OK,ProbeUnexpectedlySucceeded,PacketLeak,Both}`、`TestHelpersKillswitchVerdict_String`、`TestHelpersKillswitchTimingContract_Locked`。
   - 新增 `errors` import。
 - `tests/e2e/helpers_linux.go`（`e2e && linux`）：
-  - 新增私有 helper `(*GoldenPath).gatewayDockerName()`、`workerDockerName()` —— 优先用 `ContainerID/ContainerName`，回退到约定命名 `cloudproxy-gw-<HostID>` / `cloudproxy-<HostID>`。
+  - 新增私有 helper `(*GoldenPath).gatewayDockerName()`、`workerDockerName()` —— 优先用 `ContainerID/ContainerName`，回退到约定命名 `claudedock-gw-<HostID>` / `claudedock-<HostID>`。
   - 新增 `(*GoldenPath).KillGateway(ctx)` —— `docker kill --signal=KILL` + `docker inspect -f '{{.State.Running}}'` 二次确认。
   - 新增 `(*GoldenPath).ProbeOutboundFromUser(ctx, url, timeout) (exitCode, err)` —— `docker exec <worker> curl -sS --max-time N url`，exec.ExitError 解包退出码。
   - 新增 `(*GoldenPath).TcpdumpOnHostEth0(ctx, bpf, count, timeout)` —— 默认走 `docker run --rm --network host --cap-add NET_RAW --cap-add NET_ADMIN nicolaka/netshoot:v0.13 tcpdump ...`；`E2E_ALLOW_HOST_TCPDUMP=1 && uid==0` 走宿主机原生 tcpdump 路径。镜像名通过 `E2E_TCPDUMP_IMAGE` 可覆盖。
@@ -41,7 +41,7 @@ created: 2026-05-14
 
 ## 与 PLAN 偏差
 
-- PLAN §Steps Step 5 草案曾写「fallback 到 `cloudproxy-gw-<HostID>` 命名约定」，实现侧又加了一层「HostID 也为空时尝试 `Host.ID`」的兜底（更稳的多源回退）。这是落地时新增的防御性逻辑，签名 / 行为契约不受影响。
+- PLAN §Steps Step 5 草案曾写「fallback 到 `claudedock-gw-<HostID>` 命名约定」，实现侧又加了一层「HostID 也为空时尝试 `Host.ID`」的兜底（更稳的多源回退）。这是落地时新增的防御性逻辑，签名 / 行为契约不受影响。
 - PLAN §Steps Step 7 草案的 sidecar 镜像名 `nicolaka/netshoot:v0.13` 在实现中通过 `E2E_TCPDUMP_IMAGE` 环境变量可覆盖（默认值不变）。这是为了让 air-gapped CI runner 可指向私有镜像仓库；不影响主路径。
 - PLAN §Steps Step 8 草案的「workerIP via `hostname -i`」改成 `docker inspect -f '{{.NetworkSettings.IPAddress}}'`：避免依赖容器内有无 `hostname` 工具，且更稳。新增的 `InspectContainerIPv4` 也成为本 plan 暴露给下游 Phase 49/50 的接口。
 - PLAN 未提：`TcpdumpOnHostEth0` 在 tcpdump 子进程被 ctx 杀掉时仍可能写出统计行，所以 `ParseTcpdumpCountOutput` 失败时把 `run err` 与 `stderr` 一起包进 error，便于失败排障。

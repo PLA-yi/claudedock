@@ -114,8 +114,8 @@ Resume: `/clear` 后 `/gsd-new-milestone` 进入下一里程碑
 v4.0 审计发现的 5 项技术债务已在 close 前全部清理：
 
 1. ✅ 删除孤立的 `gateway_singbox_config.go` + 测试文件，`buildGatewayProxyOutbound`/`buildGatewayDirectOutbound` 迁移到 `container_singbox_config.go`
-2. ✅ 删除 `app.go` 中过期的 `rejoinHostNetworks` 函数（v3.x `cloudproxy-net-*` bridge 重连逻辑）
-3. ✅ 删除 `admin_hosts.go` 中过期的 `cloudproxy-gw-*`/`cloudproxy-net-*` 清理路径 + 未使用的 `dockerNetworkRm` 函数
+2. ✅ 删除 `app.go` 中过期的 `rejoinHostNetworks` 函数（v3.x `claudedock-net-*` bridge 重连逻辑）
+3. ✅ 删除 `admin_hosts.go` 中过期的 `claudedock-gw-*`/`claudedock-net-*` 清理路径 + 未使用的 `dockerNetworkRm` 函数
 4. ✅ 修复 6 处文档中过期的 `sing-box-gateway`/`make gateway-image` 引用（zh/en FAQ、architecture、configuration）
 5. ✅ 补全 Phase 54-56 SUMMARY.md 的 `requirements-completed` frontmatter（13 条 REQ）
 

@@ -24,9 +24,9 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/config.go
-    - internal/cloudclaude/last_session.go
-    - internal/cloudclaude/last_session_test.go
+    - internal/claudedock/config.go
+    - internal/claudedock/last_session.go
+    - internal/claudedock/last_session_test.go
 
 key-decisions:
   - "HotSyncMaxFileMB 零值/负值统一走 defaultHotSyncMaxFileMB=50，不在 Validate() 强校验上限（D-04）"
@@ -75,9 +75,9 @@ Each task was committed atomically:
 _Note: Task 2 标记 `tdd="true"`，按 RED/GREEN 拆分为独立 commit；无需 REFACTOR（实现简洁、无清理空间）。_
 
 ## Files Created/Modified
-- `internal/cloudclaude/config.go` — `Config` 末尾追加 `HotSyncMaxFileMB`，`EffectiveProxyCommands` 之后追加 `defaultHotSyncMaxFileMB=50` 常量与 `EffectiveHotSyncMaxFileMB()` accessor。
-- `internal/cloudclaude/last_session.go` — `LastSessionSnapshot` 末尾追加 `OversizedFiles []OversizedFile` 字段，`DowngradeStep` 之后新增 `OversizedFile` struct。
-- `internal/cloudclaude/last_session_test.go` — 末尾追加 `TestLastSession_OversizedFiles_Roundtrip` / `_OmitemptyEmpty` / `_OmitemptyNil` 三条测试。
+- `internal/claudedock/config.go` — `Config` 末尾追加 `HotSyncMaxFileMB`，`EffectiveProxyCommands` 之后追加 `defaultHotSyncMaxFileMB=50` 常量与 `EffectiveHotSyncMaxFileMB()` accessor。
+- `internal/claudedock/last_session.go` — `LastSessionSnapshot` 末尾追加 `OversizedFiles []OversizedFile` 字段，`DowngradeStep` 之后新增 `OversizedFile` struct。
+- `internal/claudedock/last_session_test.go` — 末尾追加 `TestLastSession_OversizedFiles_Roundtrip` / `_OmitemptyEmpty` / `_OmitemptyNil` 三条测试。
 
 ## Decisions Made
 - HotSyncMaxFileMB 零值/负值统一返回 50：避免 yaml 缺省值场景需要用户感知；超大值（如 1000）由 doctor disk 维度间接发现，不在 Validate() 强校验（与 D-04 一致）。
@@ -111,9 +111,9 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - 文件存在：
-  - `internal/cloudclaude/config.go` FOUND
-  - `internal/cloudclaude/last_session.go` FOUND
-  - `internal/cloudclaude/last_session_test.go` FOUND
+  - `internal/claudedock/config.go` FOUND
+  - `internal/claudedock/last_session.go` FOUND
+  - `internal/claudedock/last_session_test.go` FOUND
   - `.planning/phases/36-sshfs/36-02-SUMMARY.md` FOUND（本文件）
 - 提交存在：
   - `a8c3cb5` FOUND（Task 1 feat）
@@ -121,7 +121,7 @@ None - no external service configuration required.
   - `b1bdbdd` FOUND（Task 2 GREEN feat）
 - 验证：
   - `go build ./...` PASS
-  - `go test ./internal/cloudclaude/...` 全包 PASS（无回归）
+  - `go test ./internal/claudedock/...` 全包 PASS（无回归）
   - `go test -run TestLastSession_OversizedFiles -v` 3 条全 PASS
 
 ---

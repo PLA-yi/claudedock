@@ -15,16 +15,16 @@ must_haves:
   truths:
     - "mergerfs 2.41.1 `.deb`（匹配 dpkg arch）已通过 sha256 校验并 dpkg -i 安装；`mergerfs --version` 输出含 2.41.1"
     - "mutagen-agents.tar.gz（v0.18.1 配套）放在 /opt/mutagen-agents.tar.gz；tarball 本身保留，不在构建期解包子 tarball"
-    - "/etc/cloud-claude/mergerfs.version 文件存在且内容为 `2.41.1`"
-    - "/etc/cloud-claude/mutagen.version 文件存在且内容为 `v0.18.1`"
-    - "/etc/cloud-claude/tmux.version 文件存在（构建期占位，运行时由 entrypoint 回填）"
+    - "/etc/claudedock/mergerfs.version 文件存在且内容为 `2.41.1`"
+    - "/etc/claudedock/mutagen.version 文件存在且内容为 `v0.18.1`"
+    - "/etc/claudedock/tmux.version 文件存在（构建期占位，运行时由 entrypoint 回填）"
   artifacts:
     - path: "deploy/docker/managed-user/Dockerfile"
       provides: "mergerfs `.deb` 下载 + dpkg -i + mutagen tarball 下载 + 版本元数据写入（新增 3 条 RUN）"
       contains: "MERGERFS_VERSION=2.41.1"
     - path: "image:/opt/mutagen-agents.tar.gz"
       provides: "Mutagen agent bundle（多架构，runtime 由 entrypoint 解压）"
-    - path: "image:/etc/cloud-claude/*.version"
+    - path: "image:/etc/claudedock/*.version"
       provides: "版本元数据文件（C4 防御）"
       contains: "mergerfs.version, mutagen.version, tmux.version"
   key_links:
@@ -53,14 +53,14 @@ must_haves:
 2. 新增 `curl + sha256sum -c - + dpkg -i + rm + mergerfs --version` 单 RUN（mergerfs `.deb` 安装）
 3. 新增 `ARG MUTAGEN_VERSION=v0.18.1` + `ARG MUTAGEN_SHA256_AMD64=7735286c778cc438418209f24d03a64f3a0151c8065ef0fe079cfaf093af6f8f` + `ARG MUTAGEN_SHA256_ARM64=bcba735aebf8cbc11da9b3742118a665599ac697fa06bc5751cac8dcd540db8a`（sha256 已由 RESEARCH 给出可直接入 Dockerfile）
 4. 新增 `curl + sha256sum -c - + tar -xzf + mv` 单 RUN（mutagen tarball 下载 + 保留 `mutagen-agents.tar.gz`）
-5. 新增单 RUN 写入 `/etc/cloud-claude/{mergerfs,mutagen,tmux}.version`
+5. 新增单 RUN 写入 `/etc/claudedock/{mergerfs,mutagen,tmux}.version`
 
 ### Out（属于其他 plan 的职责，本 plan 禁止触碰）
 
 **Dockerfile 共享但责任切分（插入点互斥）：**
 - **Plan 01 — Sub-scope A 镜像构建基线 — 负责** `Dockerfile` 顶部 BuildKit `# syntax` 指令 / `docker-clean` 移除 RUN / apt 清单 RUN（含 `tini`）加 `--mount=type=cache` / 预建 `/home/claude` 家族目录 + `chown 1000:1000` RUN / `ENTRYPOINT ["/usr/bin/tini", "--", ...]`。本 plan 的 3 条新 RUN **追加** 在 Plan 01 现有 Chromium RUN 之后、`locale-gen` RUN 之前，不修改 Plan 01 任何 RUN。
-- **Plan 03 — Sub-scope C entrypoint & 配置 — 负责** `deploy/docker/managed-user/{entrypoint.sh,tmux.conf,profile.d-cloud-claude.sh,sshd_config}` + `Dockerfile` 的 `COPY tmux.conf` / `COPY profile.d-cloud-claude.sh` 两行 + 相应 chmod。Plan 03 的 entrypoint `prepare_mutagen_agent` 在 runtime 解压 `mutagen-agents.tar.gz` 到 `/usr/local/libexec/mutagen/agents/` —— **本 plan 不触碰 tarball 内部，保留为 `.tar.gz` 形式**。
-- **Plan 06 — Sub-scope F image.lock + CI gate — 负责** `deploy/docker/managed-user/image.lock` 追加 `mergerfs_version: 2.41.1` / `mutagen_agent_version: v0.18.1` / `tmux_version_min: "3.4"` 等 6 字段 + `.github/workflows/build-images.yml` 的 size gate step。**本 plan 只写镜像内 `/etc/cloud-claude/*.version` 文件**，不触碰仓库内 image.lock / workflow。
+- **Plan 03 — Sub-scope C entrypoint & 配置 — 负责** `deploy/docker/managed-user/{entrypoint.sh,tmux.conf,profile.d-claudedock.sh,sshd_config}` + `Dockerfile` 的 `COPY tmux.conf` / `COPY profile.d-claudedock.sh` 两行 + 相应 chmod。Plan 03 的 entrypoint `prepare_mutagen_agent` 在 runtime 解压 `mutagen-agents.tar.gz` 到 `/usr/local/libexec/mutagen/agents/` —— **本 plan 不触碰 tarball 内部，保留为 `.tar.gz` 形式**。
+- **Plan 06 — Sub-scope F image.lock + CI gate — 负责** `deploy/docker/managed-user/image.lock` 追加 `mergerfs_version: 2.41.1` / `mutagen_agent_version: v0.18.1` / `tmux_version_min: "3.4"` 等 6 字段 + `.github/workflows/build-images.yml` 的 size gate step。**本 plan 只写镜像内 `/etc/claudedock/*.version` 文件**，不触碰仓库内 image.lock / workflow。
 
 **与本 plan 无文件交集的 plan（无需互斥，只需列明以闭合 traceability）：**
 - **Plan 04 — Sub-scope D Worker volumes contract — 负责** `internal/agentapi/contracts.go` + `internal/runtime/tasks/worker.go` + `internal/runtime/tasks/worker_volume_test.go`。与本 plan Dockerfile 改动完全正交。
@@ -141,13 +141,13 @@ must_haves:
       && ls -l /opt/mutagen-agents.tar.gz
   ```
 - `tar -xzf ... -C /tmp mutagen-agents.tar.gz` 仅解包顶层 tarball 的一个成员（RESEARCH Assumption A2 已验证 tarball 顶层是 `mutagen` + `mutagen-agents.tar.gz` 两文件，无子目录）
-- **不**解压 `mutagen-agents.tar.gz`；保留为 `.tar.gz` 形式（D-05：runtime 由 cloud-claude / entrypoint 触发 extract）
+- **不**解压 `mutagen-agents.tar.gz`；保留为 `.tar.gz` 形式（D-05：runtime 由 claudedock / entrypoint 触发 extract）
 
 **对应：** D-05（Mutagen tarball 来源） / D-03（合并 RUN）
-**PATTERNS：** 汇总行 B 列；Anti-pattern：不把 `mutagen` CLI 二进制也进镜像（D-05 明确只要 agent bundle；CLI 由 Phase 31 cloud-claude 通过 `go:embed` 分发）
+**PATTERNS：** 汇总行 B 列；Anti-pattern：不把 `mutagen` CLI 二进制也进镜像（D-05 明确只要 agent bundle；CLI 由 Phase 31 claudedock 通过 `go:embed` 分发）
 **Risks：** 若 `tar -tzf` 发现 tarball 内部结构与假设不符（RESEARCH A2），executor 必须在失败时调整 `-C` 参数和解包成员名；见本 plan §Risks 2
 
-### Task 2.3 — 写入 /etc/cloud-claude/*.version 版本元数据
+### Task 2.3 — 写入 /etc/claudedock/*.version 版本元数据
 
 **文件：** `deploy/docker/managed-user/Dockerfile`
 
@@ -156,10 +156,10 @@ must_haves:
 - 新增 RUN（单层，写 3 个小文件）：
   ```dockerfile
   # 版本元数据（C4 Mutagen 版本漂移防御 / Phase 30 Entry API 读取的旁路数据源）
-  RUN mkdir -p /etc/cloud-claude \
-      && echo "${MERGERFS_VERSION}" > /etc/cloud-claude/mergerfs.version \
-      && echo "${MUTAGEN_VERSION}" > /etc/cloud-claude/mutagen.version \
-      && echo "runtime-filled" > /etc/cloud-claude/tmux.version
+  RUN mkdir -p /etc/claudedock \
+      && echo "${MERGERFS_VERSION}" > /etc/claudedock/mergerfs.version \
+      && echo "${MUTAGEN_VERSION}" > /etc/claudedock/mutagen.version \
+      && echo "runtime-filled" > /etc/claudedock/tmux.version
   ```
 - `tmux.version` 构建期占位 `runtime-filled`；运行时由 entrypoint `assert_tmux_version`（Plan 03）回填实际 `tmux -V` 输出
 - **严禁**在这里写 `image.lock` 的镜像内副本（image.lock 是构建仓库内资产，不嵌入镜像；参考 D-27）
@@ -181,9 +181,9 @@ grep -F 'ARG MUTAGEN_VERSION=v0.18.1' deploy/docker/managed-user/Dockerfile
 grep -F 'MUTAGEN_SHA256_AMD64=7735286c778cc438418209f24d03a64f3a0151c8065ef0fe079cfaf093af6f8f' deploy/docker/managed-user/Dockerfile
 grep -F 'MUTAGEN_SHA256_ARM64=bcba735aebf8cbc11da9b3742118a665599ac697fa06bc5751cac8dcd540db8a' deploy/docker/managed-user/Dockerfile
 grep -F '/opt/mutagen-agents.tar.gz' deploy/docker/managed-user/Dockerfile
-grep -F '/etc/cloud-claude/mergerfs.version' deploy/docker/managed-user/Dockerfile
-grep -F '/etc/cloud-claude/mutagen.version' deploy/docker/managed-user/Dockerfile
-grep -F '/etc/cloud-claude/tmux.version' deploy/docker/managed-user/Dockerfile
+grep -F '/etc/claudedock/mergerfs.version' deploy/docker/managed-user/Dockerfile
+grep -F '/etc/claudedock/mutagen.version' deploy/docker/managed-user/Dockerfile
+grep -F '/etc/claudedock/tmux.version' deploy/docker/managed-user/Dockerfile
 ! grep -F 'apt-get install' deploy/docker/managed-user/Dockerfile | grep -F 'mergerfs'   # AP5 + M3 反向断言
 ```
 
@@ -205,14 +205,14 @@ docker exec mu-p02 test -f /opt/mutagen-agents.tar.gz
 docker exec mu-p02 file /opt/mutagen-agents.tar.gz | grep -Eq 'gzip compressed'
 
 # 版本元数据文件内容
-docker exec mu-p02 cat /etc/cloud-claude/mergerfs.version | grep -Fq '2.41.1'
-docker exec mu-p02 cat /etc/cloud-claude/mutagen.version | grep -Fq 'v0.18.1'
-docker exec mu-p02 cat /etc/cloud-claude/tmux.version | grep -Fq 'runtime-filled'
+docker exec mu-p02 cat /etc/claudedock/mergerfs.version | grep -Fq '2.41.1'
+docker exec mu-p02 cat /etc/claudedock/mutagen.version | grep -Fq 'v0.18.1'
+docker exec mu-p02 cat /etc/claudedock/tmux.version | grep -Fq 'runtime-filled'
 ```
 
 ### Coverage contribution
 
-> **Coverage contribution:** SC3（`/etc/cloud-claude/mutagen.version` + mutagen agent 预置） → 本 plan 负责镜像层的 mergerfs/mutagen 二进制 + 元数据落位；`mutagen-agent --version` 等于 `/etc/cloud-claude/mutagen.version` 的 runtime 断言由 Phase 31 消费 entrypoint 解压后完成。
+> **Coverage contribution:** SC3（`/etc/claudedock/mutagen.version` + mutagen agent 预置） → 本 plan 负责镜像层的 mergerfs/mutagen 二进制 + 元数据落位；`mutagen-agent --version` 等于 `/etc/claudedock/mutagen.version` 的 runtime 断言由 Phase 31 消费 entrypoint 解压后完成。
 >
 > **Pitfall coverage:** M3（禁 apt mergerfs） / C4 前置（版本元数据写入）→ 本 plan 用 GitHub release `.deb` + `sha256sum -c -` + 版本文件三位一体防御。
 
@@ -224,7 +224,7 @@ docker exec mu-p02 cat /etc/cloud-claude/tmux.version | grep -Fq 'runtime-filled
 
 1. `feat(29-02): Dockerfile install mergerfs 2.41.1 from GitHub release deb`
 2. `feat(29-02): Dockerfile stage mutagen-agents tarball for v0.18.1`
-3. `feat(29-02): Dockerfile write /etc/cloud-claude version metadata files`
+3. `feat(29-02): Dockerfile write /etc/claudedock version metadata files`
 
 **不合并**：每条下载/校验都可能因为 sha256 不匹配而失败回滚；独立 commit 便于 `git bisect` 定位。
 
@@ -235,7 +235,7 @@ docker exec mu-p02 cat /etc/cloud-claude/tmux.version | grep -Fq 'runtime-filled
 | Pitfall | 防御手段 | 本 plan 对应任务 |
 |---------|---------|-----------------|
 | **M3** apt mergerfs 版本滞后 | 走 GitHub release `.deb` + `dpkg -i` | Task 2.1 |
-| **C4** Mutagen 版本漂移（前置） | 写 `/etc/cloud-claude/mutagen.version` 供 Phase 31 握手比对 | Task 2.3 |
+| **C4** Mutagen 版本漂移（前置） | 写 `/etc/claudedock/mutagen.version` 供 Phase 31 握手比对 | Task 2.3 |
 | **M18** 镜像体积（间接） | `rm /tmp/*.deb` / `rm /tmp/*.tar.gz` + 合并 RUN 避免多层 | Task 2.1 / 2.2 |
 
 ---

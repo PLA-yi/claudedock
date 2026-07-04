@@ -294,7 +294,7 @@ runner_req_f1_a() {
 runner_req_f1_b() { skip "REQ-F1-B: reuse BASE-02 stderr_progress_matches=true（见 BASE-02 JSON）"; }
 runner_req_f1_c() { skip "REQ-F1-C: reuse BASE-01 P50 ratio ≤ 1.5（见 BASE-01 JSON）"; }
 runner_req_f1_d() { skip "REQ-F1-D: 手工场景 — >50MB 候选目录触发 MOUNT_MUTAGEN_WHITELIST_REJECT"; }
-runner_req_f1_e() { skip "REQ-F1-E: 手工场景 — cloud-claude sync conflicts 输出格式校验"; }
+runner_req_f1_e() { skip "REQ-F1-E: 手工场景 — claudedock sync conflicts 输出格式校验"; }
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Runner 函数 — REQ-F2（mount-mode 四档）
@@ -341,15 +341,15 @@ runner_req_f4_b() {
   if [ "${n:-0}" -ge 1 ]; then
     pass "REQ-F4-B: 容器内 tmux 会话 ≥ 1（实际 $n）"
   else
-    fail "REQ-F4-B: 容器内 tmux ls 无会话（可能 cloud-claude 未运行或 tmux 不可用）"
+    fail "REQ-F4-B: 容器内 tmux ls 无会话（可能 claudedock 未运行或 tmux 不可用）"
   fi
 }
-runner_req_f4_c() { skip "REQ-F4-C: 手工场景 — 破坏 tmux 二进制权限后 cloud-claude banner 含「容器内 tmux 不可用」"; }
+runner_req_f4_c() { skip "REQ-F4-C: 手工场景 — 破坏 tmux 二进制权限后 claudedock banner 含「容器内 tmux 不可用」"; }
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Runner 函数 — REQ-F5（多端共存）— 全手工
 # ───────────────────────────────────────────────────────────────────────────────
-runner_req_f5_a() { skip "REQ-F5-A: 手工场景 — 双端 cloud-claude 第二端无「被踢」错误（CI 必 SKIP）"; }
+runner_req_f5_a() { skip "REQ-F5-A: 手工场景 — 双端 claudedock 第二端无「被踢」错误（CI 必 SKIP）"; }
 runner_req_f5_b() { skip "REQ-F5-B: 手工场景 — 第二端 banner 含「另 1 个会话正在共享」"; }
 runner_req_f5_c() { skip "REQ-F5-C: 手工场景 — 测 --new-session + --take-over 流程"; }
 runner_req_f5_d() { skip "REQ-F5-D: 手工场景 — 第二端日志含 SESSION_SYNC_LOCKED"; }
@@ -363,7 +363,7 @@ runner_req_f6_a() {
     return 0
   fi
   local n
-  n="$(docker exec "$TARGET_CONTAINER" cloud-claude doctor --json 2>/dev/null \
+  n="$(docker exec "$TARGET_CONTAINER" claudedock doctor --json 2>/dev/null \
        | jq -r '.checks | group_by(.domain) | length' 2>/dev/null || echo 0)"
   if [ "${n:-0}" -eq 5 ]; then
     pass "REQ-F6-A: doctor JSON 五维度齐备（network/auth/ssh/mount/disk）"
@@ -376,9 +376,9 @@ runner_req_f6_b() {
     skip "REQ-F6-B: scripts/ci-doctor-grep.sh 缺失"
     return 0
   fi
-  local cc_bin="${CLOUD_CLAUDE_BIN:-./cloud-claude}"
+  local cc_bin="${CLOUD_CLAUDE_BIN:-./claudedock}"
   if [ ! -x "$cc_bin" ]; then
-    skip "REQ-F6-B: cloud-claude 二进制不可执行（CLOUD_CLAUDE_BIN=$cc_bin）"
+    skip "REQ-F6-B: claudedock 二进制不可执行（CLOUD_CLAUDE_BIN=$cc_bin）"
     return 0
   fi
   local rc=0
@@ -409,7 +409,7 @@ runner_req_f7_a() {
   fi
 }
 runner_req_f7_b() { skip "REQ-F7-B: 手工场景 — 容器删除后 docker volume ls 仍可见 + 重建后 .credentials.json 存活"; }
-runner_req_f7_c() { skip "REQ-F7-C: 手工场景 — 过期 OAuth → cloud-claude stderr 含 NET_OAUTH_EXPIRED 中文"; }
+runner_req_f7_c() { skip "REQ-F7-C: 手工场景 — 过期 OAuth → claudedock stderr 含 NET_OAUTH_EXPIRED 中文"; }
 runner_req_f7_d() { skip "REQ-F7-D: 手工场景 — DELETE /v1/admin/claude-accounts/<id> 后卷消失"; }
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -421,10 +421,10 @@ runner_req_f8_a() {
     return 0
   fi
   local n
-  n="$(docker exec "$TARGET_CONTAINER" cloud-claude explain --all 2>/dev/null \
+  n="$(docker exec "$TARGET_CONTAINER" claudedock explain --all 2>/dev/null \
        | jq -r 'length' 2>/dev/null || echo 0)"
   if [ "${n:-0}" -ge 42 ]; then
-    pass "REQ-F8-A: cloud-claude explain --all 返回 ≥ 42 条（实际 $n）"
+    pass "REQ-F8-A: claudedock explain --all 返回 ≥ 42 条（实际 $n）"
   else
     fail "REQ-F8-A: explain --all 数量 = $n < 42"
   fi
@@ -436,9 +436,9 @@ runner_req_f8_c() {
     return 0
   fi
   local out
-  out="$(docker exec "$TARGET_CONTAINER" cloud-claude explain MOUNT_MUTAGEN_VERSION_SKEW 2>/dev/null || echo '')"
+  out="$(docker exec "$TARGET_CONTAINER" claudedock explain MOUNT_MUTAGEN_VERSION_SKEW 2>/dev/null || echo '')"
   if [ -n "$out" ] && echo "$out" | grep -qE '建议|recommend'; then
-    pass "REQ-F8-C: cloud-claude explain MOUNT_MUTAGEN_VERSION_SKEW 含「建议」段"
+    pass "REQ-F8-C: claudedock explain MOUNT_MUTAGEN_VERSION_SKEW 含「建议」段"
   else
     fail "REQ-F8-C: explain 输出缺「建议」段或为空"
   fi
@@ -457,7 +457,7 @@ runner_m5_apfs() {
     return 0
   fi
   if [ -z "$TARGET_CONTAINER" ]; then
-    skip "M5 APFS: 缺 --target-container（需 cloud-claude 已连接的容器）"
+    skip "M5 APFS: 缺 --target-container（需 claudedock 已连接的容器）"
     return 0
   fi
   local ctr="$TARGET_CONTAINER"
@@ -544,7 +544,7 @@ run_track_req_f1() {
   check_item REQ-F1-B req-f1 "首连三段式进度（reuse BASE-02）" runner_req_f1_b
   check_item REQ-F1-C req-f1 "rg/ls 性能比 ≤ 1.5×（reuse BASE-01）" runner_req_f1_c
   check_item REQ-F1-D req-f1 ">50MB 候选目录拒绝（MOUNT_MUTAGEN_WHITELIST_REJECT）" runner_req_f1_d
-  check_item REQ-F1-E req-f1 "cloud-claude sync conflicts 输出格式" runner_req_f1_e
+  check_item REQ-F1-E req-f1 "claudedock sync conflicts 输出格式" runner_req_f1_e
 }
 
 run_track_req_f3() {
@@ -555,13 +555,13 @@ run_track_req_f3() {
 }
 
 run_track_req_f4() {
-  check_item REQ-F4-A req-f4 "30s 抖动期 cloud-claude 进程持续存活" runner_req_f4_a
-  check_item REQ-F4-B req-f4 "容器内 tmux ls + cloud-claude sessions ls ≥ 1" runner_req_f4_b
-  check_item REQ-F4-C req-f4 "tmux 不可用时 cloud-claude banner 显式提示" runner_req_f4_c
+  check_item REQ-F4-A req-f4 "30s 抖动期 claudedock 进程持续存活" runner_req_f4_a
+  check_item REQ-F4-B req-f4 "容器内 tmux ls + claudedock sessions ls ≥ 1" runner_req_f4_b
+  check_item REQ-F4-C req-f4 "tmux 不可用时 claudedock banner 显式提示" runner_req_f4_c
 }
 
 run_track_req_f5() {
-  check_item REQ-F5-A req-f5 "双端 cloud-claude 第二端无「被踢」错误" runner_req_f5_a
+  check_item REQ-F5-A req-f5 "双端 claudedock 第二端无「被踢」错误" runner_req_f5_a
   check_item REQ-F5-B req-f5 "第二端 banner 含「另 1 个会话正在共享」" runner_req_f5_b
   check_item REQ-F5-C req-f5 "--new-session / --take-over 流程" runner_req_f5_c
   check_item REQ-F5-D req-f5 "第二端日志含 SESSION_SYNC_LOCKED" runner_req_f5_d
@@ -582,7 +582,7 @@ run_track_req_f7() {
 }
 
 run_track_req_f8() {
-  check_item REQ-F8-A req-f8 "cloud-claude explain --all ≥ 42 条" runner_req_f8_a
+  check_item REQ-F8-A req-f8 "claudedock explain --all ≥ 42 条" runner_req_f8_a
   check_item REQ-F8-B req-f8 "errcodes 注册表完整性 diff" runner_req_f8_b
   check_item REQ-F8-C req-f8 "explain MOUNT_MUTAGEN_VERSION_SKEW 含「建议」段" runner_req_f8_c
 }

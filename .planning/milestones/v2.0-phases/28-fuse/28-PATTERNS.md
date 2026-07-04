@@ -80,7 +80,7 @@ docker image inspect "${IMAGE_NAME}" >/dev/null
 docker run --rm --entrypoint sh "${IMAGE_NAME}" -lc 'sshd -T >/dev/null && command -v claude && command -v chromium && command -v xdpyinfo && command -v xterm && command -v pcmanfm && getent passwd workspace && test -d /workspace'
 ```
 
-**语义对齐（非 shell，供验证逻辑复用）：** `internal/cloudclaude/mount.go` 已用 `mountpoint -q /workspace` 作为挂载就绪判据；验证脚本在容器内应优先使用相同判据。
+**语义对齐（非 shell，供验证逻辑复用）：** `internal/claudedock/mount.go` 已用 `mountpoint -q /workspace` 作为挂载就绪判据；验证脚本在容器内应优先使用相同判据。
 
 **挂载就绪轮询与 mountpoint**（lines 82-89）：
 
@@ -174,9 +174,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/network"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/network"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 ```
 
@@ -190,8 +190,8 @@ import (
 		"--cap-add", "NET_ADMIN",
 		"--cap-add", "SYS_ADMIN",
 		"--device", "/dev/fuse",
-		"--label", "cloud-cli-proxy.managed=true",
-		"--label", fmt.Sprintf("cloud-cli-proxy.host_id=%s", request.HostID),
+		"--label", "claudedock.managed=true",
+		"--label", fmt.Sprintf("claudedock.host_id=%s", request.HostID),
 		"--hostname", hostname,
 		"--shm-size", "1g",
 		"--sysctl", "net.ipv6.conf.all.disable_ipv6=1",
@@ -310,7 +310,7 @@ fi
 
 ### FUSE 卸载兜底（验证脚本 teardown 可参考，非必须同一命令）
 
-**Source:** `internal/cloudclaude/mount.go` — `fusermountCleanup`
+**Source:** `internal/claudedock/mount.go` — `fusermountCleanup`
 
 ```go
 	_ = sess.Run("fusermount -u /workspace 2>/dev/null || true")
@@ -332,6 +332,6 @@ fi
 
 ## Metadata
 
-**Analog search scope:** `scripts/`、`deploy/scripts/`、`internal/runtime/tasks/`、`internal/cloudclaude/`、`internal/network/`、`docs/zh/guide/`、`docs/en/guide/`、`deploy/docker/managed-user/`  
+**Analog search scope:** `scripts/`、`deploy/scripts/`、`internal/runtime/tasks/`、`internal/claudedock/`、`internal/network/`、`docs/zh/guide/`、`docs/en/guide/`、`deploy/docker/managed-user/`  
 **Files scanned:** 10+（含上述路径代表性文件）  
 **Pattern extraction date:** 2026-04-15

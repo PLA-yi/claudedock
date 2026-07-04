@@ -11,29 +11,29 @@ gap_closure: true
 requirements:
   - REQ-F3-B
 files_modified:
-  - internal/cloudclaude/session.go
-  - internal/cloudclaude/session_test.go
-  - internal/cloudclaude/input_buffer.go
-  - internal/cloudclaude/input_buffer_test.go
+  - internal/claudedock/session.go
+  - internal/claudedock/session_test.go
+  - internal/claudedock/input_buffer.go
+  - internal/claudedock/input_buffer_test.go
 must_haves:
   truths:
     - "SC5（REQ-F3-B）断网时本地键入字符以灰色未确认样式显示，重连后按序提交，无丢字 / 无乱序"
     - "session.go::runClaudePTYWithReconnect 把 BufferedStdin + Reconnector 的创建提升到 pTYAttachOnce 循环外层：单个 Reconnector 跨所有 attach 周期持有 atomic.Int32 state，pTYAttachOnce 内部的 BufferedStdin 通过 `reconnector.StateAddr()` 共享同一个 *atomic.Int32 —— 断网 → Reconnector.Run 写 StateReconnecting → BufferedStdin 立即进入 ringBuf + 灰色 echo 分支（Gap #1 missing#1 核心闭合路径）"
-    - "`rg 'var state atomic\\.Int32' internal/cloudclaude/session.go` 在 pTYAttachOnce 函数范围内 0 hits（局部 state 被移除）；`rg 'reconnector\\.StateAddr\\(\\)' internal/cloudclaude/session.go` ≥ 1 hit（共享路径生效）"
+    - "`rg 'var state atomic\\.Int32' internal/claudedock/session.go` 在 pTYAttachOnce 函数范围内 0 hits（局部 state 被移除）；`rg 'reconnector\\.StateAddr\\(\\)' internal/claudedock/session.go` ≥ 1 hit（共享路径生效）"
     - "reconnect 成功的 onReconnected 回调中调 `bs.Flush()` 把 ringBuf 按序写回 io.Pipe 的 pipeW；新一轮 pTYAttachOnce 创建的 session.Stdin = pipeR 立即读到缓冲字节（无丢字 / 无乱序 —— 新增集成测试 TestPTYReconnect_BufferedInputFlush 断言 fake conn.Wait 触发 reconnect → pipe 喂 \"abc\" → 成功后新 pipeR 读到 \"abc\"）"
     - "WR-03 co-fix：BufferedStdin 作为 runClaudePTYWithReconnect 循环前的单例存在，单个 goroutine 读 os.Stdin；pTYAttachOnce 退出后 bs 不被 Close —— 旧 attach 周期结束不启动新 bs.Run goroutine，彻底消除 WR-03 的多 goroutine 并发读 os.Stdin 问题（RESEARCH §Anti-Patterns WR-03 闭合）"
-    - "WR-04 co-fix：input_buffer.go 新增 `echoMu sync.Mutex` 保护 `grayOpen` + 所有 pipeW 写入 + closeGrayIfOpen；Flush 与 handleReconnecting 不再出现跨 goroutine data race（`go test -race ./internal/cloudclaude/...` PASS）"
+    - "WR-04 co-fix：input_buffer.go 新增 `echoMu sync.Mutex` 保护 `grayOpen` + 所有 pipeW 写入 + closeGrayIfOpen；Flush 与 handleReconnecting 不再出现跨 goroutine data race（`go test -race ./internal/claudedock/...` PASS）"
   artifacts:
-    - path: "internal/cloudclaude/session.go"
+    - path: "internal/claudedock/session.go"
       provides: "runClaudePTYWithReconnect 外层持有 Reconnector + BufferedStdin 单例；pTYAttachOnce 函数签名新增 bufferedPipeR io.Reader 参数；pTYAttachOnce 内部不再创建 BufferedStdin / 局部 atomic.Int32"
       contains: "reconnector.StateAddr()"
-    - path: "internal/cloudclaude/input_buffer.go"
+    - path: "internal/claudedock/input_buffer.go"
       provides: "BufferedStdin.echoMu sync.Mutex 保护 grayOpen + pipeW 写入；Flush / handleReconnecting / closeGrayIfOpen 全部在 mutex 内"
       contains: "echoMu"
-    - path: "internal/cloudclaude/session_test.go"
+    - path: "internal/claudedock/session_test.go"
       provides: "TestPTYReconnect_BufferedInputFlush 集成级单测：fake conn.Wait 返回 io.EOF → reconnect 触发 → 断网期 io.Pipe 喂 'abc' → reconnect 成功后 pipeR 读到 'abc' + echo 含 ansiGray"
       contains: "TestPTYReconnect_BufferedInputFlush"
-    - path: "internal/cloudclaude/input_buffer_test.go"
+    - path: "internal/claudedock/input_buffer_test.go"
       provides: "保持现有 5 个测试全 PASS（nil-check state 指针场景 + race mode）"
       contains: "TestBufferedStdin"
   key_links:
@@ -62,7 +62,7 @@ must_haves:
   - `reconnect.NewReconnector` / `ErrReconnectGaveUp` / `FormatGiveUpMessage`
 - **Plan 02（Wave 2 原始）必须已 ship**：本 plan 重构的 `runClaudeWithSession` / `runClaudePTYWithReconnect` / `pTYAttachOnce` 由 Plan 02 Task 2.1b 落地
 - **Plan 04（本批次另一个 gap plan）与本 plan 无文件重叠**：本 plan 改 session.go / session_test.go / input_buffer.go / input_buffer_test.go；Plan 04 改 mount_strategy.go / mount_strategy_test.go —— 两个 plan 同 wave 可并行提交
-- **本 plan 不碰**：mount_strategy.go / ssh.go / sync_lock.go / keepalive.go / reconnect.go / last_session.go / errcodes/* / colors.go / cmd/cloud-claude/* —— 修复范围严格限定在 Gap #1 + WR-03 + WR-04 co-fix
+- **本 plan 不碰**：mount_strategy.go / ssh.go / sync_lock.go / keepalive.go / reconnect.go / last_session.go / errcodes/* / colors.go / cmd/claudedock/* —— 修复范围严格限定在 Gap #1 + WR-03 + WR-04 co-fix
 - **接口补强说明**：Gap #1 missing#2 提供了"备选方案"（补 RegisterStateListener + SetReconnector 方法到 Plan 01），但 missing#1 是**更小改动**（直接复用 Plan 01 已暴露的 `reconnector.StateAddr()` getter）。本 plan 采纳 missing#1 路径，**不改 reconnect.go / input_buffer.go 的公开接口**（input_buffer.go 仅内部新增 echoMu sync.Mutex，签名 zero diff）
 </plan_dependencies>
 
@@ -71,7 +71,7 @@ must_haves:
 
 **根因**（来自 32-VERIFICATION.md gaps[0]）：
 
-`internal/cloudclaude/session.go:724-726` 在 `pTYAttachOnce` 内：
+`internal/claudedock/session.go:724-726` 在 `pTYAttachOnce` 内：
 
 ```go
 var state atomic.Int32
@@ -115,17 +115,17 @@ Output: `session.go` ~60 行 diff（pTYAttachOnce 减 BufferedStdin 创建段 + 
 @.planning/phases/32-ssh-tmux/plans/01-net-resilience/SUMMARY.md
 @.planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/PLAN.md
 @.planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/SUMMARY.md
-@internal/cloudclaude/session.go
-@internal/cloudclaude/session_test.go
-@internal/cloudclaude/input_buffer.go
-@internal/cloudclaude/input_buffer_test.go
-@internal/cloudclaude/reconnect.go
-@internal/cloudclaude/keepalive.go
+@internal/claudedock/session.go
+@internal/claudedock/session_test.go
+@internal/claudedock/input_buffer.go
+@internal/claudedock/input_buffer_test.go
+@internal/claudedock/reconnect.go
+@internal/claudedock/keepalive.go
 
 <interfaces>
 <!-- Plan 01 已 ship 的关键接口（本 plan 直接消费，不修改）。 -->
 
-internal/cloudclaude/reconnect.go（Plan 01 Task 1.3 已 ship）：
+internal/claudedock/reconnect.go（Plan 01 Task 1.3 已 ship）：
 
 ```go
 // StateAddr 暴露 atomic.Int32 指针，供 BufferedStdin 共享读取（reconnect.go:81-82 已 ship）。
@@ -142,7 +142,7 @@ func (r *Reconnector) Trigger()
 func (r *Reconnector) ReconnectCount() int
 ```
 
-internal/cloudclaude/input_buffer.go（Plan 01 Task 1.3 已 ship）：
+internal/claudedock/input_buffer.go（Plan 01 Task 1.3 已 ship）：
 
 ```go
 // NewBufferedStdin 用 io.Pipe 拿到 (pipeR, pipeW)；返回的 io.Reader 直接喂给 ssh.Session.Stdin。
@@ -253,30 +253,30 @@ type BufferedStdin struct {
 <task type="auto">
   <name>Task 5.1: input_buffer.go 新增 echoMu sync.Mutex（WR-04 co-fix）+ 保持 5 个既有单测 PASS</name>
   <files>
-    internal/cloudclaude/input_buffer.go
-    internal/cloudclaude/input_buffer_test.go
+    internal/claudedock/input_buffer.go
+    internal/claudedock/input_buffer_test.go
   </files>
   <read_first>
-    - internal/cloudclaude/input_buffer.go（line 1-149 全文 —— 结构体定义 line 24-34；NewBufferedStdin line 41-55；Run line 58-88；handleReconnecting line 90-119；closeGrayIfOpen line 121-126；Flush line 129-141；Close line 144-149）
-    - internal/cloudclaude/input_buffer_test.go（现有 5 个测试：TestBufferedStdin_ConnectedDirectWrite / _ReconnectingBuffersAndGrayEchoes / _RingBufOverflowDropsAndWarns / _EnterTriggersOnEnter / _FlushClearsBuffer —— 必须保持全 PASS，尤其 race mode）
+    - internal/claudedock/input_buffer.go（line 1-149 全文 —— 结构体定义 line 24-34；NewBufferedStdin line 41-55；Run line 58-88；handleReconnecting line 90-119；closeGrayIfOpen line 121-126；Flush line 129-141；Close line 144-149）
+    - internal/claudedock/input_buffer_test.go（现有 5 个测试：TestBufferedStdin_ConnectedDirectWrite / _ReconnectingBuffersAndGrayEchoes / _RingBufOverflowDropsAndWarns / _EnterTriggersOnEnter / _FlushClearsBuffer —— 必须保持全 PASS，尤其 race mode）
     - .planning/phases/32-ssh-tmux/32-REVIEW.md WR-04（grayOpen/localEcho 无 mutex；本 task 闭合）
     - .planning/phases/32-ssh-tmux/32-VERIFICATION.md gaps[0]（Gap #1 提到 WR-04 是 SC5 修复路径的必要共修项）
   </read_first>
   <acceptance_criteria>
-    - `go build ./internal/cloudclaude/...` 成功
-    - `go vet ./internal/cloudclaude/...` 通过
-    - `rg -n "echoMu\\s+sync\\.Mutex" internal/cloudclaude/input_buffer.go` 命中 1 次（新字段）
-    - `rg -n "b\\.echoMu\\.Lock\\(\\)" internal/cloudclaude/input_buffer.go` 命中 ≥ 3 次（Run-Connected 分支 / handleReconnecting / Flush 内部）
-    - `rg -n "b\\.echoMu\\.Unlock\\(\\)" internal/cloudclaude/input_buffer.go` 命中 ≥ 3 次（配对）
-    - `go test ./internal/cloudclaude/... -run TestBufferedStdin -count=1` 5 个既有用例全 PASS（签名 zero diff）
-    - `go test ./internal/cloudclaude/... -run TestBufferedStdin -count=1 -race` PASS（race mode 无 data race 警告 —— WR-04 核心断言）
-    - `git diff internal/cloudclaude/input_buffer.go | grep '^+' | grep -v '^+++' | wc -l` 输出 ≤ 20（最小侵入：1 字段 + 3-4 处 Lock/Unlock 调用）
-    - 公开 API 签名 zero diff：`NewBufferedStdin / Run / Flush / Close / RingBufCapacity` 全部不改（执行器 grep `git diff internal/cloudclaude/input_buffer.go` 确认）
+    - `go build ./internal/claudedock/...` 成功
+    - `go vet ./internal/claudedock/...` 通过
+    - `rg -n "echoMu\\s+sync\\.Mutex" internal/claudedock/input_buffer.go` 命中 1 次（新字段）
+    - `rg -n "b\\.echoMu\\.Lock\\(\\)" internal/claudedock/input_buffer.go` 命中 ≥ 3 次（Run-Connected 分支 / handleReconnecting / Flush 内部）
+    - `rg -n "b\\.echoMu\\.Unlock\\(\\)" internal/claudedock/input_buffer.go` 命中 ≥ 3 次（配对）
+    - `go test ./internal/claudedock/... -run TestBufferedStdin -count=1` 5 个既有用例全 PASS（签名 zero diff）
+    - `go test ./internal/claudedock/... -run TestBufferedStdin -count=1 -race` PASS（race mode 无 data race 警告 —— WR-04 核心断言）
+    - `git diff internal/claudedock/input_buffer.go | grep '^+' | grep -v '^+++' | wc -l` 输出 ≤ 20（最小侵入：1 字段 + 3-4 处 Lock/Unlock 调用）
+    - 公开 API 签名 zero diff：`NewBufferedStdin / Run / Flush / Close / RingBufCapacity` 全部不改（执行器 grep `git diff internal/claudedock/input_buffer.go` 确认）
   </acceptance_criteria>
   <action>
     ### Step 1 — 新增 echoMu 字段
 
-    `internal/cloudclaude/input_buffer.go` 的 `BufferedStdin` struct 末尾（line 24-34 之间），在 `ringMu` 后新增：
+    `internal/claudedock/input_buffer.go` 的 `BufferedStdin` struct 末尾（line 24-34 之间），在 `ringMu` 后新增：
 
     ```go
     type BufferedStdin struct {
@@ -478,13 +478,13 @@ type BufferedStdin struct {
     现有 5 个单测（TestBufferedStdin_*）签名 zero diff 下必须全 PASS，并且 race mode 通过：
 
     ```bash
-    go test ./internal/cloudclaude/... -run TestBufferedStdin -count=1 -race
+    go test ./internal/claudedock/... -run TestBufferedStdin -count=1 -race
     ```
 
     如 race mode 发现任何残留 data race（比如 localEcho 单独 Fprintln 与 echoMu 段并发），执行器追加最小锁保护；不追加新测试用例（新的集成级测试在 Task 5.3）。
   </action>
   <verify>
-    <automated>go test ./internal/cloudclaude/... -run TestBufferedStdin -count=1 -race &amp;&amp; rg -q "echoMu\\s+sync\\.Mutex" internal/cloudclaude/input_buffer.go &amp;&amp; rg -c "b\\.echoMu\\.Lock\\(\\)" internal/cloudclaude/input_buffer.go | grep -E "^[3-9]|^[1-9][0-9]" &amp;&amp; go vet ./internal/cloudclaude/...</automated>
+    <automated>go test ./internal/claudedock/... -run TestBufferedStdin -count=1 -race &amp;&amp; rg -q "echoMu\\s+sync\\.Mutex" internal/claudedock/input_buffer.go &amp;&amp; rg -c "b\\.echoMu\\.Lock\\(\\)" internal/claudedock/input_buffer.go | grep -E "^[3-9]|^[1-9][0-9]" &amp;&amp; go vet ./internal/claudedock/...</automated>
   </verify>
   <done>
     - BufferedStdin 新增 echoMu sync.Mutex；Run-Connected / handleReconnecting 的 grayOpen+localEcho 段 / Flush 三条路径全部在 echoMu 保护下
@@ -498,16 +498,16 @@ type BufferedStdin struct {
 <task type="auto">
   <name>Task 5.2: session.go 重构 —— Reconnector + BufferedStdin 单例提升到 runClaudePTYWithReconnect 外层（Gap #1 + WR-03 co-fix）</name>
   <files>
-    internal/cloudclaude/session.go
+    internal/claudedock/session.go
   </files>
   <read_first>
-    - internal/cloudclaude/session.go line 600-782（runClaudePTYWithReconnect 全函数 + pTYAttachOnce 全函数）—— 修改范围严格限定这两个函数
-    - internal/cloudclaude/session.go line 572-598（runClaudeWithSession —— 本 plan zero diff）
-    - internal/cloudclaude/session.go line 671-782 **逐行阅读** pTYAttachOnce 现状，特别是 line 715-730（Gap #1 根因段）
-    - internal/cloudclaude/reconnect.go（Plan 01 ship）—— NewReconnector / Run / StateAddr / Trigger / ReconnectCount 全部签名
-    - internal/cloudclaude/input_buffer.go（Task 5.1 已加 echoMu 但 API zero diff）—— NewBufferedStdin 签名
-    - internal/cloudclaude/keepalive.go（RunKeepAlive 签名 —— pTYAttachOnce 内已在 keepCtx 下启动，本 plan 不改）
-    - internal/cloudclaude/colors.go（ansiGray / colorEnabled —— 本 plan 不改）
+    - internal/claudedock/session.go line 600-782（runClaudePTYWithReconnect 全函数 + pTYAttachOnce 全函数）—— 修改范围严格限定这两个函数
+    - internal/claudedock/session.go line 572-598（runClaudeWithSession —— 本 plan zero diff）
+    - internal/claudedock/session.go line 671-782 **逐行阅读** pTYAttachOnce 现状，特别是 line 715-730（Gap #1 根因段）
+    - internal/claudedock/reconnect.go（Plan 01 ship）—— NewReconnector / Run / StateAddr / Trigger / ReconnectCount 全部签名
+    - internal/claudedock/input_buffer.go（Task 5.1 已加 echoMu 但 API zero diff）—— NewBufferedStdin 签名
+    - internal/claudedock/keepalive.go（RunKeepAlive 签名 —— pTYAttachOnce 内已在 keepCtx 下启动，本 plan 不改）
+    - internal/claudedock/colors.go（ansiGray / colorEnabled —— 本 plan 不改）
     - .planning/phases/32-ssh-tmux/32-VERIFICATION.md gaps[0] missing#1 全文（本 plan 采纳路径）
     - .planning/phases/32-ssh-tmux/32-REVIEW.md WR-03（多 goroutine 读 os.Stdin —— 本 task 通过 bs 单例天然闭合）
     - .planning/phases/32-ssh-tmux/plans/02-tmux-multiclient/PLAN.md `<interfaces>` 段（Plan 02 原计划的 RegisterStateListener / SetReconnector 接口 —— 本 plan **不走该路径**，用 StateAddr 更简单）
@@ -515,18 +515,18 @@ type BufferedStdin struct {
   </read_first>
   <acceptance_criteria>
     - `go build ./...` 成功
-    - `go vet ./internal/cloudclaude/...` 通过
-    - `rg -n "reconnector\\.StateAddr\\(\\)" internal/cloudclaude/session.go` 命中 1 次（**Gap #1 核心断言** —— 共享 atomic 路径生效）
+    - `go vet ./internal/claudedock/...` 通过
+    - `rg -n "reconnector\\.StateAddr\\(\\)" internal/claudedock/session.go` 命中 1 次（**Gap #1 核心断言** —— 共享 atomic 路径生效）
     - **pTYAttachOnce 函数范围内**（grep 需带函数边界判定；执行器可 head-count + rg 验证）`var state atomic\\.Int32` 0 hits（Gap #1 局部 state 被彻底删除）
-    - `rg -n "var state atomic\\.Int32" internal/cloudclaude/session.go` 全文 0 hits（简化断言：整个 session.go 都不该再有局部 state）
-    - `rg -n "bs\\.Flush\\(\\)" internal/cloudclaude/session.go` 命中 ≥ 1 次（onReconnected 回调或 reconnector.Run 成功后调用）
-    - `rg -n "NewBufferedStdin\\(" internal/cloudclaude/session.go` 命中 1 次（仅在 runClaudePTYWithReconnect 循环外一次）
-    - `rg -n "NewReconnector\\(" internal/cloudclaude/session.go` 命中 1 次（runClaudePTYWithReconnect 循环外一次；原 line 642 的循环内版本被移除）
-    - `rg -n "go bs\\.Run\\(|go func\\(\\) \\{ _ = bs\\.Run" internal/cloudclaude/session.go` 命中 1 次（单个 goroutine，不再 pTYAttachOnce 内 iter 泄漏 —— WR-03 核心断言）
-    - pTYAttachOnce 函数签名新增 `bufferedPipeR io.Reader` 参数：`rg -n "func pTYAttachOnce" internal/cloudclaude/session.go` 其参数列表含 `bufferedPipeR io.Reader`
-    - `go test ./internal/cloudclaude/... -count=1 -short` PASS（所有既有 22+ 个 session_test 用例）
-    - `go test ./internal/cloudclaude/... -count=1 -race -short` PASS（WR-03 + WR-04 综合验证 —— 多 goroutine 读 os.Stdin 已消除）
-    - `git diff internal/cloudclaude/session.go | grep '^+' | grep -v '^+++' | wc -l` 输出 ≤ 80；`git diff internal/cloudclaude/session.go | grep '^-' | grep -v '^---' | wc -l` 输出 ≤ 30
+    - `rg -n "var state atomic\\.Int32" internal/claudedock/session.go` 全文 0 hits（简化断言：整个 session.go 都不该再有局部 state）
+    - `rg -n "bs\\.Flush\\(\\)" internal/claudedock/session.go` 命中 ≥ 1 次（onReconnected 回调或 reconnector.Run 成功后调用）
+    - `rg -n "NewBufferedStdin\\(" internal/claudedock/session.go` 命中 1 次（仅在 runClaudePTYWithReconnect 循环外一次）
+    - `rg -n "NewReconnector\\(" internal/claudedock/session.go` 命中 1 次（runClaudePTYWithReconnect 循环外一次；原 line 642 的循环内版本被移除）
+    - `rg -n "go bs\\.Run\\(|go func\\(\\) \\{ _ = bs\\.Run" internal/claudedock/session.go` 命中 1 次（单个 goroutine，不再 pTYAttachOnce 内 iter 泄漏 —— WR-03 核心断言）
+    - pTYAttachOnce 函数签名新增 `bufferedPipeR io.Reader` 参数：`rg -n "func pTYAttachOnce" internal/claudedock/session.go` 其参数列表含 `bufferedPipeR io.Reader`
+    - `go test ./internal/claudedock/... -count=1 -short` PASS（所有既有 22+ 个 session_test 用例）
+    - `go test ./internal/claudedock/... -count=1 -race -short` PASS（WR-03 + WR-04 综合验证 —— 多 goroutine 读 os.Stdin 已消除）
+    - `git diff internal/claudedock/session.go | grep '^+' | grep -v '^+++' | wc -l` 输出 ≤ 80；`git diff internal/claudedock/session.go | grep '^-' | grep -v '^---' | wc -l` 输出 ≤ 30
   </acceptance_criteria>
   <action>
     ### Step 1 — pTYAttachOnce 函数签名改造
@@ -816,14 +816,14 @@ type BufferedStdin struct {
 
     ### Step 5 — 移除不再使用的 import
 
-    删除 pTYAttachOnce 局部 state 后，`"sync/atomic"` import 如果 session.go 无其它使用点应移除。执行器 `goimports -w internal/cloudclaude/session.go` 自动处理。
+    删除 pTYAttachOnce 局部 state 后，`"sync/atomic"` import 如果 session.go 无其它使用点应移除。执行器 `goimports -w internal/claudedock/session.go` 自动处理。
 
     ### Step 6 — runClaudeWithSession zero diff 验证
 
     `runClaudeWithSession`（line 572-598）**完全不改**；执行器 `git diff` 确认 line 572-598 范围内无变更。
   </action>
   <verify>
-    <automated>go build ./... &amp;&amp; go vet ./internal/cloudclaude/... &amp;&amp; go test ./internal/cloudclaude/... -count=1 -short &amp;&amp; rg -q "reconnector\\.StateAddr\\(\\)" internal/cloudclaude/session.go &amp;&amp; rg -q "bs\\.Flush\\(\\)" internal/cloudclaude/session.go &amp;&amp; ! rg -q "var state atomic\\.Int32" internal/cloudclaude/session.go &amp;&amp; rg -c "NewReconnector\\(" internal/cloudclaude/session.go | grep -q "^1$" &amp;&amp; rg -c "NewBufferedStdin\\(" internal/cloudclaude/session.go | grep -q "^1$"</automated>
+    <automated>go build ./... &amp;&amp; go vet ./internal/claudedock/... &amp;&amp; go test ./internal/claudedock/... -count=1 -short &amp;&amp; rg -q "reconnector\\.StateAddr\\(\\)" internal/claudedock/session.go &amp;&amp; rg -q "bs\\.Flush\\(\\)" internal/claudedock/session.go &amp;&amp; ! rg -q "var state atomic\\.Int32" internal/claudedock/session.go &amp;&amp; rg -c "NewReconnector\\(" internal/claudedock/session.go | grep -q "^1$" &amp;&amp; rg -c "NewBufferedStdin\\(" internal/claudedock/session.go | grep -q "^1$"</automated>
   </verify>
   <done>
     - pTYAttachOnce 不再拥有 BufferedStdin 生命周期；新增 bufferedPipeR io.Reader 参数；局部 `var state atomic.Int32` 彻底消失（Gap #1 根因删除）
@@ -838,25 +838,25 @@ type BufferedStdin struct {
 <task type="auto">
   <name>Task 5.3: 新增 TestPTYReconnect_BufferedInputFlush 集成级单测（SC5 端到端断言）</name>
   <files>
-    internal/cloudclaude/session_test.go
+    internal/claudedock/session_test.go
   </files>
   <read_first>
-    - internal/cloudclaude/session.go（Task 5.2 重构后的 runClaudePTYWithReconnect / pTYAttachOnce 完整实现）
-    - internal/cloudclaude/reconnect.go（Reconnector / ConnState / StateReconnecting / StateConnected / StateAddr —— 测试直接操控 state）
-    - internal/cloudclaude/input_buffer.go（Task 5.1 加 echoMu 后的 BufferedStdin —— 测试复用已有 NewBufferedStdin API）
-    - internal/cloudclaude/session_test.go（现有 22+ 个测试模式 —— 优先复用 bytes.Buffer / io.Pipe / atomic.Int32 直接注入方式，避免 ssh.Client mock）
+    - internal/claudedock/session.go（Task 5.2 重构后的 runClaudePTYWithReconnect / pTYAttachOnce 完整实现）
+    - internal/claudedock/reconnect.go（Reconnector / ConnState / StateReconnecting / StateConnected / StateAddr —— 测试直接操控 state）
+    - internal/claudedock/input_buffer.go（Task 5.1 加 echoMu 后的 BufferedStdin —— 测试复用已有 NewBufferedStdin API）
+    - internal/claudedock/session_test.go（现有 22+ 个测试模式 —— 优先复用 bytes.Buffer / io.Pipe / atomic.Int32 直接注入方式，避免 ssh.Client mock）
     - .planning/phases/32-ssh-tmux/32-VERIFICATION.md gaps[0] missing#3（测试要求原文："fake conn.Wait 返回 io.EOF 触发 reconnect → 在断网期用 io.Pipe 喂 'abc' 到 BufferedStdin → assert echo 含 ansiGray + ringBuf 非空 → reconnect 成功后 pipeR 读到 'abc'"）
   </read_first>
   <acceptance_criteria>
-    - `rg -n "func TestPTYReconnect_BufferedInputFlush" internal/cloudclaude/session_test.go` 命中 1 次
-    - `go test -run TestPTYReconnect_BufferedInputFlush ./internal/cloudclaude/...` 退出码 0 且用例 PASS
-    - `go test -run TestPTYReconnect_BufferedInputFlush ./internal/cloudclaude/... -race` PASS
+    - `rg -n "func TestPTYReconnect_BufferedInputFlush" internal/claudedock/session_test.go` 命中 1 次
+    - `go test -run TestPTYReconnect_BufferedInputFlush ./internal/claudedock/...` 退出码 0 且用例 PASS
+    - `go test -run TestPTYReconnect_BufferedInputFlush ./internal/claudedock/... -race` PASS
     - 测试代码断言（必须全部包含）：
       1. 断网期间 echo buffer 含 `ansiGray` 字节（\x1b[90m）
       2. BufferedStdin.ringBuf 在 reconnect 前非空
       3. reconnect 成功后（通过手动 state.Store(StateConnected) + 调 Flush 模拟）pipeR 能读到原始字符串（"abc"）
       4. reconnect 完成后 echo buffer 含 `ansiReset` 字节（\x1b[0m）—— 证明 closeGrayIfOpen 被调用
-    - `go test ./internal/cloudclaude/... -count=1 -short` PASS（所有既有测试 + 本新测试）
+    - `go test ./internal/claudedock/... -count=1 -short` PASS（所有既有测试 + 本新测试）
   </acceptance_criteria>
   <action>
     ### 测试设计决策
@@ -871,7 +871,7 @@ type BufferedStdin struct {
 
     ### 新增测试代码
 
-    追加到 `internal/cloudclaude/session_test.go` 末尾：
+    追加到 `internal/claudedock/session_test.go` 末尾：
 
     ```go
     // TestPTYReconnect_BufferedInputFlush 验证 Gap #1 闭合（SC5 / REQ-F3-B）。
@@ -978,13 +978,13 @@ type BufferedStdin struct {
     ### 注意事项
 
     - `ansiGray` / `ansiReset` 是同包常量，直接引用
-    - `bs.ringBuf` / `bs.ringMu` 是同包未导出字段，测试在同一 package cloudclaude 直接访问
+    - `bs.ringBuf` / `bs.ringMu` 是同包未导出字段，测试在同一 package claudedock 直接访问
     - `reconnector.StateAddr().Store(int32(StateReconnecting))` 直接改 atomic —— 模拟 Reconnector.Run 入口行为而不实际调 Run（避免 Run 尝试真实 sshConnect 拨号阻塞）
     - 测试 `noColor=true` 会抑制 ansiGray 输出；必须 `NewBufferedStdin(..., false, ...)`（`noColor` 第 4 个参数）才能断言灰色 escape
     - import 追加（如缺）：`io`（io.Pipe） / `bytes` / `context` / `time` / `testing` —— session_test.go 现有测试应已用到
   </action>
   <verify>
-    <automated>go test -run TestPTYReconnect_BufferedInputFlush ./internal/cloudclaude/... -count=1 &amp;&amp; go test -run TestPTYReconnect_BufferedInputFlush ./internal/cloudclaude/... -race &amp;&amp; go test ./internal/cloudclaude/... -count=1 -short</automated>
+    <automated>go test -run TestPTYReconnect_BufferedInputFlush ./internal/claudedock/... -count=1 &amp;&amp; go test -run TestPTYReconnect_BufferedInputFlush ./internal/claudedock/... -race &amp;&amp; go test ./internal/claudedock/... -count=1 -short</automated>
   </verify>
   <done>
     - TestPTYReconnect_BufferedInputFlush 覆盖 SC5 端到端核心机制（ansiGray echo + ringBuf 缓冲 + Flush 按序写 pipeW + ansiReset 关闭）
@@ -1011,8 +1011,8 @@ type BufferedStdin struct {
 | Threat ID | Category | Component | Disposition | Mitigation Plan |
 |-----------|----------|-----------|-------------|-----------------|
 | T-32G1-01 | Tampering | BufferedStdin echoMu 锁顺序（嵌套 Flush: echoMu→ringMu） | mitigate | 锁顺序文档化（见 Task 5.1 Step 6）；handleReconnecting 串行两锁 / Flush 嵌套两锁 / Run-Connected 单锁，无死锁路径 |
-| T-32G1-02 | DoS | bs.Run 单 goroutine 读 os.Stdin 阻塞不退出 | accept | 与 Plan 01 风险同等级 —— bs.Run 的阻塞在 syscall.Read 是 Go 标准模式；ctx.Done 在下次 Read 返回后才被检查（≤ 1 byte 延迟）；cancelBs 在 defer 中调用，cancelBs 关闭 bsCtx 后 bs.Run 下一次 select 看到 ctx.Done 退出；cloud-claude 进程退出时 os.Stdin 被系统关闭，Read 返回 EOF 让 bs.Run return nil |
-| T-32G1-03 | InformationDisclosure | Reconnector.StateAddr() 暴露 *atomic.Int32 让外部包写入 state | accept | StateAddr 在 Plan 01 已 public 暴露（reconnect.go:81-82）；本 plan 只是从 session.go 调用而非新引入；同包内部 API（cloudclaude 包内）安全态势不变 |
+| T-32G1-02 | DoS | bs.Run 单 goroutine 读 os.Stdin 阻塞不退出 | accept | 与 Plan 01 风险同等级 —— bs.Run 的阻塞在 syscall.Read 是 Go 标准模式；ctx.Done 在下次 Read 返回后才被检查（≤ 1 byte 延迟）；cancelBs 在 defer 中调用，cancelBs 关闭 bsCtx 后 bs.Run 下一次 select 看到 ctx.Done 退出；claudedock 进程退出时 os.Stdin 被系统关闭，Read 返回 EOF 让 bs.Run return nil |
+| T-32G1-03 | InformationDisclosure | Reconnector.StateAddr() 暴露 *atomic.Int32 让外部包写入 state | accept | StateAddr 在 Plan 01 已 public 暴露（reconnect.go:81-82）；本 plan 只是从 session.go 调用而非新引入；同包内部 API（claudedock 包内）安全态势不变 |
 | T-32G1-04 | Tampering | pTYAttachOnce 新增 bufferedPipeR io.Reader 参数可能被调用方传 nil 或任意 io.Reader | accept | pTYAttachOnce 是同包未导出函数，唯一调用方是 runClaudePTYWithReconnect；nil-guard（`if bufferedPipeR != nil`）已在 Step 2 加；type 签名保证非 io.Reader 传入编译失败 |
 
 **Severity 分布（block_on=high）**：
@@ -1029,9 +1029,9 @@ type BufferedStdin struct {
 本 plan 完成后：
 
 1. **Gap #1 闭合 grep 断言**：
-   - `rg "reconnector\\.StateAddr\\(\\)" internal/cloudclaude/session.go` ≥ 1 hit（共享 atomic 路径生效）
-   - `rg "var state atomic\\.Int32" internal/cloudclaude/session.go` = 0 hits（局部 state 根因删除）
-   - `rg "bs\\.Flush\\(\\)" internal/cloudclaude/session.go` ≥ 1 hit（onReconnected 回调）
+   - `rg "reconnector\\.StateAddr\\(\\)" internal/claudedock/session.go` ≥ 1 hit（共享 atomic 路径生效）
+   - `rg "var state atomic\\.Int32" internal/claudedock/session.go` = 0 hits（局部 state 根因删除）
+   - `rg "bs\\.Flush\\(\\)" internal/claudedock/session.go` ≥ 1 hit（onReconnected 回调）
 
 2. **SC5（REQ-F3-B）code-level 证据**：`TestPTYReconnect_BufferedInputFlush` 用例 PASS，断言全 6 条：
    - 断网期间 echo 含 ansiGray
@@ -1042,27 +1042,27 @@ type BufferedStdin struct {
    - Flush 后 echo 含 ansiReset
 
 3. **WR-03 co-fix 验证**：
-   - `rg "go bs\\.Run\\(|go func\\(\\) \\{ _ = bs\\.Run" internal/cloudclaude/session.go` 命中 1 次（单 goroutine）
+   - `rg "go bs\\.Run\\(|go func\\(\\) \\{ _ = bs\\.Run" internal/claudedock/session.go` 命中 1 次（单 goroutine）
    - session.go 在 pTYAttachOnce 函数范围内无 `bs.Run` 调用
 
 4. **WR-04 co-fix 验证**：
-   - `rg "echoMu\\s+sync\\.Mutex" internal/cloudclaude/input_buffer.go` 命中 1 次
-   - `go test -race ./internal/cloudclaude/... -run "TestBufferedStdin|TestPTYReconnect_BufferedInputFlush"` PASS
+   - `rg "echoMu\\s+sync\\.Mutex" internal/claudedock/input_buffer.go` 命中 1 次
+   - `go test -race ./internal/claudedock/... -run "TestBufferedStdin|TestPTYReconnect_BufferedInputFlush"` PASS
 
-5. **Plan 01 / 02 / 03 / 04 回归**：`go test ./internal/cloudclaude/... -count=1 -short` 全 PASS（现有 22+ 个 session_test + 5 个 input_buffer_test + Phase 31 回归测试全部不变）
+5. **Plan 01 / 02 / 03 / 04 回归**：`go test ./internal/claudedock/... -count=1 -short` 全 PASS（现有 22+ 个 session_test + 5 个 input_buffer_test + Phase 31 回归测试全部不变）
 
 **综合 verify 命令**：
 
 ```bash
 go build ./... \
-  && go vet ./internal/cloudclaude/... \
-  && go test ./internal/cloudclaude/... -count=1 -short \
-  && go test ./internal/cloudclaude/... -count=1 -race -short \
-  && rg -q "reconnector\\.StateAddr\\(\\)" internal/cloudclaude/session.go \
-  && rg -q "bs\\.Flush\\(\\)" internal/cloudclaude/session.go \
-  && ! rg -q "var state atomic\\.Int32" internal/cloudclaude/session.go \
-  && rg -q "echoMu\\s+sync\\.Mutex" internal/cloudclaude/input_buffer.go \
-  && go test -run TestPTYReconnect_BufferedInputFlush ./internal/cloudclaude/... -v
+  && go vet ./internal/claudedock/... \
+  && go test ./internal/claudedock/... -count=1 -short \
+  && go test ./internal/claudedock/... -count=1 -race -short \
+  && rg -q "reconnector\\.StateAddr\\(\\)" internal/claudedock/session.go \
+  && rg -q "bs\\.Flush\\(\\)" internal/claudedock/session.go \
+  && ! rg -q "var state atomic\\.Int32" internal/claudedock/session.go \
+  && rg -q "echoMu\\s+sync\\.Mutex" internal/claudedock/input_buffer.go \
+  && go test -run TestPTYReconnect_BufferedInputFlush ./internal/claudedock/... -v
 ```
 
 **human_verification**：SC5 的真实 30s 拔网端到端 UAT（`docker network disconnect` + tmux capture-pane 对比前后无丢字 / 无乱序）留 Phase 35 真机 —— 与 32-VERIFICATION.md human_verification#1 / #5 一致。
@@ -1076,14 +1076,14 @@ go build ./... \
 - 全平台 `go build ./...` PASS（linux / darwin / windows）
 - Gap #1 grep 验证（上方 verification 段 1 条全过）
 - WR-03 验证：pTYAttachOnce 范围内无 `bs.Run`；runClaudePTYWithReconnect 外层 `go bs.Run` 唯一调用
-- WR-04 验证：`go test -race ./internal/cloudclaude/...` PASS
+- WR-04 验证：`go test -race ./internal/claudedock/...` PASS
 - 既有 22+ 个 session_test + 5 个 input_buffer_test 用例全 PASS
 - runClaudeWithSession（Plan 02）/ Plan 03 ssh.go 注入 / Plan 04 mount_strategy 改动零连带影响
 </success_criteria>
 
 <output>
 完成后，create `.planning/phases/32-ssh-tmux/plans/05-bufferedstdin-reconnect-wiring/SUMMARY.md` 描述：
-- runClaudePTYWithReconnect 重构前后的时序对比（BufferedStdin 生命周期从 "per attach" 升级为 "per cloud-claude process"）
+- runClaudePTYWithReconnect 重构前后的时序对比（BufferedStdin 生命周期从 "per attach" 升级为 "per claudedock process"）
 - Gap #1 根因删除证据（pTYAttachOnce line 715-730 的 8 行 `var state atomic.Int32` 块 → 1 行 `session.Stdin = bufferedPipeR`）
 - Reconnector onReconnected 闭包 + pendingNewConn 指针承载的设计论证（为何不用每次重连 new 新 Reconnector）
 - input_buffer.go echoMu 锁顺序表（Run-Connected / handleReconnecting / Flush 三条路径）

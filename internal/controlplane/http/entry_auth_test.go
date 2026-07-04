@@ -16,7 +16,7 @@ import (
 	"database/sql"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // stubEntryStore 覆盖 EntryHandler 的新老依赖：在 Phase 30 Wave 2 需要同时支持
@@ -77,7 +77,7 @@ func doAuth(t *testing.T, store EntryStore, username, password string) (*httptes
 	// 创建临时 image.lock，默认 image_version 与测试常用 v3 tag 对齐
 	dir := t.TempDir()
 	lockPath := filepath.Join(dir, "image.lock")
-	lockContent := "image_name: ghcr.io/example/cloud-claude:v3.0.0\nimage_version: v3.0.0\nhome_mount: /workspace\ndefault_user: workspace\n"
+	lockContent := "image_name: ghcr.io/example/claudedock:v3.0.0\nimage_version: v3.0.0\nhome_mount: /workspace\ndefault_user: workspace\n"
 	if err := os.WriteFile(lockPath, []byte(lockContent), 0644); err != nil {
 		t.Fatalf("write test image.lock: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestEntryAuth_Ready_ViaUsername_V3Image(t *testing.T) {
 			UserID:           "u1",
 			UserStatus:       "active",
 			Username:         "alice",
-			TemplateImageRef: "ghcr.io/example/cloud-claude:v3.0.0",
+			TemplateImageRef: "ghcr.io/example/claudedock:v3.0.0",
 			SSHPrivateKey:    "-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----",
 		},
 		user: repository.User{
@@ -160,7 +160,7 @@ func TestEntryAuth_Ready_ViaUsernameFallback_V3Image(t *testing.T) {
 		},
 		primaryHost: repository.Host{
 			ID: "h-99", UserID: "u-99", Status: "running", ShortID: "h-short",
-			TemplateImageRef: "registry.internal:5000/cloud-claude:v3.0.0",
+			TemplateImageRef: "registry.internal:5000/claudedock:v3.0.0",
 		},
 		resolveAccountID: "claude-acct-7",
 		resolveAccountOK: true,
@@ -197,7 +197,7 @@ func TestEntryAuth_Ready_NoClaudeAccount_OmitsField(t *testing.T) {
 		hostAuth: repository.HostSSHAuth{
 			HostID: "h1", EntryPassword: "p",
 			HostStatus: "running", UserID: "u1", UserStatus: "active", Username: "alice",
-			TemplateImageRef: "ghcr.io/example/cloud-claude:v2.0.0",
+			TemplateImageRef: "ghcr.io/example/claudedock:v2.0.0",
 		},
 		user: repository.User{ID: "u1", Username: "alice", Status: "active", PasswordHash: hash},
 		// resolveAccountOK 默认为 false，resolveAccountID 默认为 ""
@@ -225,7 +225,7 @@ func TestEntryAuth_ResolverError_Returns500(t *testing.T) {
 		hostAuth: repository.HostSSHAuth{
 			HostID: "h1", EntryPassword: "p",
 			HostStatus: "running", UserID: "u1", UserStatus: "active", Username: "alice",
-			TemplateImageRef: "ghcr.io/example/cloud-claude:v3.0.0",
+			TemplateImageRef: "ghcr.io/example/claudedock:v3.0.0",
 		},
 		user:              repository.User{ID: "u1", Username: "alice", Status: "active", PasswordHash: hash},
 		resolveAccountErr: fmt.Errorf("db down"),
@@ -244,7 +244,7 @@ func TestEntryAuth_NotReady_DoesNotForceExtensionFields(t *testing.T) {
 		hostAuth: repository.HostSSHAuth{
 			HostID: "h1", EntryPassword: "p",
 			HostStatus: "stopped", UserID: "u1", UserStatus: "active", Username: "alice",
-			TemplateImageRef: "ghcr.io/example/cloud-claude:v3.0.0",
+			TemplateImageRef: "ghcr.io/example/claudedock:v3.0.0",
 		},
 		user: repository.User{ID: "u1", Username: "alice", Status: "active", PasswordHash: hash},
 	}
@@ -272,7 +272,7 @@ func TestEntryAuth_InvalidCredentials_NoExtensions(t *testing.T) {
 		hostAuth: repository.HostSSHAuth{
 			HostID: "h1", EntryPassword: "p",
 			HostStatus: "running", UserID: "u1", UserStatus: "active", Username: "alice",
-			TemplateImageRef: "ghcr.io/example/cloud-claude:v3.0.0",
+			TemplateImageRef: "ghcr.io/example/claudedock:v3.0.0",
 		},
 		user: repository.User{ID: "u1", Username: "alice", Status: "active", PasswordHash: hash},
 	}

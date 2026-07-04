@@ -15,8 +15,8 @@ import (
 	"database/sql"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type AdminUserStore interface {

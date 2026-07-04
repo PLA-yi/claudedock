@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-让 `cloud-claude` 的参数透传和终端交互与本地 `claude` 完全一致：用户传入的所有 claude 参数原样传递到容器内 Claude Code，终端窗口 resize / 信号 / 退出码完全透传。
+让 `claudedock` 的参数透传和终端交互与本地 `claude` 完全一致：用户传入的所有 claude 参数原样传递到容器内 Claude Code，终端窗口 resize / 信号 / 退出码完全透传。
 
 本阶段**不包含**：sshfs 目录映射（Phase 27）、SSH Proxy 服务端改动、新增 cobra 子命令。
 
@@ -16,9 +16,9 @@
 ## Implementation Decisions
 
 ### 参数解析与透传
-- **D-01:** 根命令使用 cobra 的 `Args: cobra.ArbitraryArgs` 和 `DisableFlagParsing: true`（或 `TraverseChildren: false`），确保 `cloud-claude -p "prompt" --model opus` 的 `-p`、`--model` 等 flag 不被 cobra 拦截，而是完整传入 `args []string`。`init` 子命令仍正常解析自身 flag。
+- **D-01:** 根命令使用 cobra 的 `Args: cobra.ArbitraryArgs` 和 `DisableFlagParsing: true`（或 `TraverseChildren: false`），确保 `claudedock -p "prompt" --model opus` 的 `-p`、`--model` 等 flag 不被 cobra 拦截，而是完整传入 `args []string`。`init` 子命令仍正常解析自身 flag。
 - **D-02:** 远程命令构建方式：将 `args` 拼接为 `claude <arg1> <arg2> ...`，每个 arg 使用 `shellescape` 或手写引号转义以防注入。通过 `session.Start(cmdLine)` 发送到远程 shell。
-- **D-03:** 若用户 `cloud-claude -- -p "prompt"` 使用双横线分隔，cobra 在 `DisableFlagParsing` 模式下会保留 `--`，需在构建远程命令时剥离前导 `--`。
+- **D-03:** 若用户 `claudedock -- -p "prompt"` 使用双横线分隔，cobra 在 `DisableFlagParsing` 模式下会保留 `--`，需在构建远程命令时剥离前导 `--`。
 
 ### 信号转发
 - **D-04:** 当终端处于 raw mode 时，Ctrl+C 和 Ctrl+\ 生成的字节序列直接经 SSH stdin channel 发送到远程，**无需** Go 侧拦截 SIGINT/SIGQUIT 后主动转发——raw mode 下 OS 不会向本进程发送这些信号，而是作为普通字节传到 session.Stdin。
@@ -26,10 +26,10 @@
 
 ### 退出码与 TTY 恢复
 - **D-06:** 修复 Phase 25 代码审查 HI-01：`ssh.ExitError` 时 `os.Exit()` 会跳过 `defer term.Restore`，导致本地终端停留在 raw mode。方案：将退出码通过返回值传递到 `main`，由 `main` 在 `defer Restore` 完成后再 `os.Exit`。
-- **D-07:** 退出码映射：远程 `claude` 的退出码直接作为 `cloud-claude` 的退出码；SSH 连接断开等异常使用 Phase 25 已有的 `exitInternalError (5)` 退出码。
+- **D-07:** 退出码映射：远程 `claude` 的退出码直接作为 `claudedock` 的退出码；SSH 连接断开等异常使用 Phase 25 已有的 `exitInternalError (5)` 退出码。
 
 ### 非 TTY 模式
-- **D-08:** 当 stdin 不是终端时（如管道 `echo "query" | cloud-claude -p -`），跳过 raw mode、PTY 申请和 SIGWINCH 监听，直接以非交互方式运行远程命令。这使 `cloud-claude` 可被脚本调用。
+- **D-08:** 当 stdin 不是终端时（如管道 `echo "query" | claudedock -p -`），跳过 raw mode、PTY 申请和 SIGWINCH 监听，直接以非交互方式运行远程命令。这使 `claudedock` 可被脚本调用。
 
 ### Claude's Discretion
 - shellescape 库选择（标准库方案或三方包）。
@@ -48,14 +48,14 @@
 - `.planning/ROADMAP.md` — Phase 26 Goal、Success Criteria、依赖 Phase 25
 
 ### 前序阶段产出
-- `.planning/phases/25-cloud-claude-cli/25-CONTEXT.md` — D-01~D-12 决策（cobra 结构、Entry API 契约、SSH 连接、退出码分层）
-- `.planning/phases/25-cloud-claude-cli/25-REVIEW.md` — HI-01 TTY 恢复缺陷
+- `.planning/phases/25-claudedock-cli/25-CONTEXT.md` — D-01~D-12 决策（cobra 结构、Entry API 契约、SSH 连接、退出码分层）
+- `.planning/phases/25-claudedock-cli/25-REVIEW.md` — HI-01 TTY 恢复缺陷
 
 ### 现有代码
-- `cmd/cloud-claude/main.go` — cobra 入口与退出码常量
-- `internal/cloudclaude/ssh.go` — SSH 连接、PTY、SIGWINCH、session.Start("claude")
-- `internal/cloudclaude/entry.go` — Entry API 客户端
-- `internal/cloudclaude/config.go` — 配置读写
+- `cmd/claudedock/main.go` — cobra 入口与退出码常量
+- `internal/claudedock/ssh.go` — SSH 连接、PTY、SIGWINCH、session.Start("claude")
+- `internal/claudedock/entry.go` — Entry API 客户端
+- `internal/claudedock/config.go` — 配置读写
 
 ### SSH Proxy
 - `internal/sshproxy/proxy.go` — 客户端经 Proxy 接入容器，多 session 能力
@@ -66,8 +66,8 @@
 ## Existing Code Insights
 
 ### Reusable Assets
-- `internal/cloudclaude/ssh.go`：已有 SIGWINCH 监听、PTY 申请、term.MakeRaw/Restore——本阶段在此基础上扩展参数透传和退出码修复。
-- `cmd/cloud-claude/main.go`：退出码常量已定义，`runRoot` 函数是主流程入口。
+- `internal/claudedock/ssh.go`：已有 SIGWINCH 监听、PTY 申请、term.MakeRaw/Restore——本阶段在此基础上扩展参数透传和退出码修复。
+- `cmd/claudedock/main.go`：退出码常量已定义，`runRoot` 函数是主流程入口。
 
 ### Established Patterns
 - cobra 根命令 + `init` 子命令结构。

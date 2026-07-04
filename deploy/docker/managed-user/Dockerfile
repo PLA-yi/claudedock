@@ -106,9 +106,9 @@ RUN ARCH=$(dpkg --print-architecture) \
     && mergerfs --version
 
 # 版本元数据（mergerfs / tmux 供控制面与诊断读取）
-RUN mkdir -p /etc/cloud-claude \
-    && echo "${MERGERFS_VERSION}" > /etc/cloud-claude/mergerfs.version \
-    && echo "runtime-filled" > /etc/cloud-claude/tmux.version
+RUN mkdir -p /etc/claudedock \
+    && echo "${MERGERFS_VERSION}" > /etc/claudedock/mergerfs.version \
+    && echo "runtime-filled" > /etc/claudedock/tmux.version
 
 RUN locale-gen en_US.UTF-8
 ENV LANG=en_US.UTF-8
@@ -217,16 +217,16 @@ RUN mkdir -p \
 
 COPY deploy/docker/managed-user/sshd_config /etc/ssh/sshd_config
 COPY deploy/docker/managed-user/tmux.conf /etc/tmux.conf
-COPY deploy/docker/managed-user/profile.d-cloud-claude.sh /etc/profile.d/cloud-claude.sh
+COPY deploy/docker/managed-user/profile.d-claudedock.sh /etc/profile.d/claudedock.sh
 COPY deploy/docker/managed-user/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY deploy/docker/managed-user/launch-chromium.sh /usr/local/bin/launch-chromium.sh
 COPY deploy/docker/managed-user/restart-vnc.sh /usr/local/bin/restart-vnc
 
 # v4.0: 容器内 nft default-deny 规则集（D-V4-3 / NET-01 / NET-02）
-COPY deploy/docker/managed-user/default-deny.nft /etc/cloud-claude/default-deny.nft
-RUN chmod 0644 /etc/cloud-claude/default-deny.nft
+COPY deploy/docker/managed-user/default-deny.nft /etc/claudedock/default-deny.nft
+RUN chmod 0644 /etc/claudedock/default-deny.nft
 
-RUN chmod 0644 /etc/tmux.conf /etc/profile.d/cloud-claude.sh
+RUN chmod 0644 /etc/tmux.conf /etc/profile.d/claudedock.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/launch-chromium.sh /usr/local/bin/restart-vnc
 
 WORKDIR /workspace

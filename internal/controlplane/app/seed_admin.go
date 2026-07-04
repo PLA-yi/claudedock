@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // seedAdminRepo 是 ensureSeedAdminWithRepo 所需的仓储方法子集。

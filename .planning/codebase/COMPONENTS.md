@@ -13,10 +13,10 @@
 ### `cmd/host-agent/main.go`
 - 宿主机代理服务入口
 - 连接 SQLite（用于 worker 的 repository 操作）
-- 创建 Unix socket 监听（默认 `/run/cloud-cli-proxy/host-agent.sock`）
-- 在 Linux 上使用默认 socket，非 Linux 使用 `~/.cloud-cli-proxy/host-agent.sock`
+- 创建 Unix socket 监听（默认 `/run/claudedock/host-agent.sock`）
+- 在 Linux 上使用默认 socket，非 Linux 使用 `~/.claudedock/host-agent.sock`
 
-### `cmd/cloud-claude/main.go`
+### `cmd/claudedock/main.go`
 - 终端用户 CLI 入口
 - 使用 Cobra 框架
 - 子命令: `init`, `env check`, `ssh doctor`, `sync`, `sessions`, `explain`, `doctor`, `local`
@@ -128,24 +128,24 @@
 
 ---
 
-## internal/cloudclaude/ — CLI 内部库
+## internal/claudedock/ — CLI 内部库
 
-### `internal/cloudclaude/entry.go`
+### `internal/claudedock/entry.go`
 - **职责:** Entry API 客户端
 - **核心类型:** `EntryClient`, `AuthResponse`
 - **方法:** `CheckGateway`, `Authenticate`, `AuthenticateAndWait`
 - **轮询:** 默认 3 秒间隔，120 秒超时
 
-### `internal/cloudclaude/config.go`
-- **职责:** CLI 配置管理（`~/.cloud-claude/config.yaml`）
+### `internal/claudedock/config.go`
+- **职责:** CLI 配置管理（`~/.claudedock/config.yaml`）
 - **配置项:** gateway, username, password, proxy_commands, hot_sync_max_file_mb
 
-### `internal/cloudclaude/mount*.go`
+### `internal/claudedock/mount*.go`
 - **职责:** 本地工作目录挂载到远程容器
 - **模式:** auto / full / hot-only / sshfs-only
 - **技术:** SSHFS + mergerfs（可选）+ hot sync（文件变更实时同步）
 
-### `internal/cloudclaude/doctor/` — 诊断工具
+### `internal/claudedock/doctor/` — 诊断工具
 - `doctor.go` — 主诊断流程编排
 - `check.go` — 各检查项定义
 - `auth.go` — 认证相关检查
@@ -157,7 +157,7 @@
 - `fix.go` — 自动修复逻辑
 - `render.go` — 诊断结果渲染输出
 
-### `internal/cloudclaude/errcodes/` — 统一错误码注册表
+### `internal/claudedock/errcodes/` — 统一错误码注册表
 - `codes.go` — 注册表核心（`MustRegister`, `Lookup`, `Format`）
 - 命名规范: `^[A-Z]+_[A-Z]+_[A-Z0-9]+$`（DOMAIN_KIND_NAME）
 - 各域文件: `auth.go`, `disk.go`, `mount.go`, `net.go`, `remote_ssh.go`, `session.go`, `ssh.go`, `state.go`, `system.go`
@@ -168,10 +168,10 @@
 ## internal/local/ — Dev Containers 本地工作流
 
 ### `internal/local/local.go`
-- **职责:** `cloud-claude local` 子命令的后端实现
+- **职责:** `claudedock local` 子命令的后端实现
 - **功能:** 在本地 Docker 启动一个开发容器（不经过控制面）
-- **容器命名:** `cloud-claude-local-{md5(projectDir)[:8]}`
-- **默认镜像:** `ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest`
+- **容器命名:** `claudedock-local-{md5(projectDir)[:8]}`
+- **默认镜像:** `ghcr.io/claudedock/claudedock/managed-user:latest`
 - **方法:** `Up`（启动）, `Down`（停止删除）, `Status`（状态查询）
 
 ### `internal/local/egress.go`

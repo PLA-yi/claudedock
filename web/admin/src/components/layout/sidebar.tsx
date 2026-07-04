@@ -66,18 +66,18 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 lg:relative lg:translate-x-0",
+          "sidebar-glass fixed inset-y-0 left-0 z-40 flex w-60 flex-col text-sidebar-foreground transition-transform duration-200 lg:relative lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between gap-2.5 px-5">
           <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Cloud className="h-4.5 w-4.5 text-primary-foreground" />
+            <div className="grad-brand-bg glow-brand flex h-8 w-8 items-center justify-center rounded-lg">
+              <Cloud className="h-4.5 w-4.5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white leading-tight">Cloud CLI</span>
+              <span className="grad-text text-sm font-bold leading-tight">ClaudeDock</span>
               <span className="text-[10px] font-medium text-sidebar-muted tracking-wider uppercase">Proxy</span>
             </div>
           </Link>
@@ -110,11 +110,11 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                   isActive
-                    ? "bg-sidebar-accent text-white shadow-sm"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-white",
+                    ? "nav-active"
+                    : "text-sidebar-foreground/75 hover:bg-white/50 hover:text-sidebar-foreground",
                 )}
               >
-                <item.icon className={cn("h-4 w-4", isActive && "text-primary-foreground")} />
+                <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
@@ -127,14 +127,14 @@ export function Sidebar() {
           <Link
             to="/portal"
             onClick={() => setMobileOpen(false)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/50 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/50 hover:text-sidebar-foreground"
           >
             <Monitor className="h-4 w-4" />
             用户门户预览
           </Link>
           <button
             onClick={() => setLogoutConfirmOpen(true)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/50 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground/60 transition-colors hover:bg-white/50 hover:text-sidebar-foreground"
           >
             <LogOut className="h-4 w-4" />
             退出登录

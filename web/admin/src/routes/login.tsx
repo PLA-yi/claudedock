@@ -76,68 +76,50 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left: branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-sidebar p-12 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-br from-primary/20 via-transparent to-primary/5" />
-        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-primary/8 blur-2xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* 四周极光浮球 */}
+      <div className="brand-orb h-96 w-96" style={{ background: "#f0abfc", top: "-6rem", left: "-4rem" }} />
+      <div className="brand-orb h-[26rem] w-[26rem]" style={{ background: "#67e8f9", bottom: "-8rem", right: "-6rem", animationDelay: "-4s" }} />
+      <div className="brand-orb h-80 w-80" style={{ background: "#a78bfa", top: "8%", right: "12%", animationDelay: "-8s" }} />
+      <div className="brand-orb h-72 w-72" style={{ background: "#93c5fd", bottom: "6%", left: "10%", animationDelay: "-6s" }} />
 
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Cloud className="h-5 w-5 text-primary-foreground" />
+      {/* 居中悬浮单卡 */}
+      <div className="glass relative z-10 w-full max-w-lg space-y-6 rounded-[1.75rem] border border-white/70 p-8 sm:p-10 shadow-[0_40px_100px_-30px_rgba(124,92,246,0.55)]">
+        {/* 项目信息 */}
+        <div className="flex flex-col items-center gap-3.5 text-center">
+          <div className="grad-brand-bg glow-brand flex h-14 w-14 items-center justify-center rounded-2xl">
+            <Cloud className="h-7 w-7 text-white" />
           </div>
-          <span className="text-lg font-semibold">Cloud CLI Proxy</span>
-        </div>
-
-        <div className="relative space-y-4">
-          <h1 className="text-4xl font-bold leading-tight">
-            一条命令
-            <br />
-            一台云主机
+          <span className="grad-text text-2xl font-extrabold tracking-tight">
+            ClaudeDock
+          </span>
+          <h1 className="text-lg font-bold leading-snug text-foreground">
+            一台会伪装的云端开发机
           </h1>
-          <p className="text-lg text-white/60 max-w-md leading-relaxed">
-            预装 Claude Code 的隔离云主机环境，全流量走指定出口 IP，零泄漏。
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            隔离容器预装 Claude Code，绑定独立住宅出口 IP，本地项目目录同名映射——
+            像在自己电脑上写代码，却拥有一个干净、真实的美国开发者身份。
           </p>
-          <div className="flex gap-6 pt-4 text-sm text-white/40">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              全隧道出网
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              5 种代理协议
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              多架构支持
-            </div>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            {["身份伪装", "独立出口 IP", "代码同名映射", "全隧道零泄漏"].map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-white/70 bg-white/55 px-3 py-1 text-xs font-medium text-secondary-foreground"
+              >
+                {t}
+              </span>
+            ))}
           </div>
         </div>
 
-        <p className="relative text-xs text-white/30">
-          © {new Date().getFullYear()} Cloud CLI Proxy · MIT License
-        </p>
-      </div>
+        {/* 分隔 */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          登录进入控制台
+          <span className="h-px flex-1 bg-border" />
+        </div>
 
-      {/* Right: login form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-background">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-              <Cloud className="h-4.5 w-4.5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-semibold">Cloud CLI Proxy</span>
-          </div>
-
-          <div className="space-y-2 text-center lg:text-left">
-            <h2 className="text-2xl font-bold tracking-tight">登录</h2>
-            <p className="text-sm text-muted-foreground">
-              使用用户名与登录密码进入系统
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">用户名</Label>
               <Input
@@ -243,6 +225,5 @@ function LoginPage() {
           )}
         </div>
       </div>
-    </div>
   );
 }

@@ -67,7 +67,7 @@ func init() {
 - disk 维度之后、Summary 聚合之前插入 remote-ssh 维度块
 - 远端 check 复用已有 `ensureRemote()` → `remoteRunner`
 
-### Cobra 命令 (`cmd/cloud-claude/doctor.go:34`)
+### Cobra 命令 (`cmd/claudedock/doctor.go:34`)
 - `ValidArgs` 需要加入 `"remote-ssh"`
 - `Short` 描述文本需要更新（五维度 → 六维度）
 
@@ -124,13 +124,13 @@ func init() {
 
 | Action | File | Description |
 |--------|------|-------------|
-| Create | `internal/cloudclaude/doctor/remote_ssh.go` | remote-ssh 维度 5 个 check 函数 |
-| Create | `internal/cloudclaude/doctor/remote_ssh_test.go` | 单元测试（fakeRunner mock） |
-| Modify | `internal/cloudclaude/doctor/doctor.go` | RunDoctor() 插入 remote-ssh 维度块 |
-| Create | `internal/cloudclaude/errcodes/remote_ssh.go` | SSH_* 新错误码注册 |
-| Modify | `internal/cloudclaude/errcodes/codes.go` | 新增 6 个 Code 常量 |
-| Modify | `internal/cloudclaude/errcodes/explanations.go` | 新增 4 条长说明 + 2 条 ExplainExempt |
-| Modify | `cmd/cloud-claude/doctor.go` | ValidArgs 加入 remote-ssh，更新描述 |
+| Create | `internal/claudedock/doctor/remote_ssh.go` | remote-ssh 维度 5 个 check 函数 |
+| Create | `internal/claudedock/doctor/remote_ssh_test.go` | 单元测试（fakeRunner mock） |
+| Modify | `internal/claudedock/doctor/doctor.go` | RunDoctor() 插入 remote-ssh 维度块 |
+| Create | `internal/claudedock/errcodes/remote_ssh.go` | SSH_* 新错误码注册 |
+| Modify | `internal/claudedock/errcodes/codes.go` | 新增 6 个 Code 常量 |
+| Modify | `internal/claudedock/errcodes/explanations.go` | 新增 4 条长说明 + 2 条 ExplainExempt |
+| Modify | `cmd/claudedock/doctor.go` | ValidArgs 加入 remote-ssh，更新描述 |
 
 ## 8. Gotchas & Risks
 

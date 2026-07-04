@@ -121,7 +121,7 @@ Go 参数列表（queries.go:400-411，无需修改）：
 - `grep -n "host_mounts = EXCLUDED.host_mounts" internal/store/repository/queries.go` 接下来非空一行应是 `updated_at = NOW()`。
   </action>
   <verify>
-    <automated>cd /Users/zaneliu/Projects/open-source/cloud-cli-proxy-main && go vet ./internal/store/... && go build ./internal/store/... && grep -n 'VALUES (\$1' internal/store/repository/queries.go | grep -v '\$13' | grep -q '\$12)' && ! grep -A1 'host_mounts = EXCLUDED.host_mounts,' internal/store/repository/queries.go | head -2 | tail -1 | grep -qE '^[[:space:]]*$'</automated>
+    <automated>cd /Users/zaneliu/Projects/open-source/claudedock-main && go vet ./internal/store/... && go build ./internal/store/... && grep -n 'VALUES (\$1' internal/store/repository/queries.go | grep -v '\$13' | grep -q '\$12)' && ! grep -A1 'host_mounts = EXCLUDED.host_mounts,' internal/store/repository/queries.go | head -2 | tail -1 | grep -qE '^[[:space:]]*$'</automated>
   </verify>
   <done>
 - `internal/store/repository/queries.go` 第 382 行的 VALUES 子句仅有 12 个占位符（`$1` 到 `$12`），无 `$13`。

@@ -1,5 +1,5 @@
 -- 0001_initial.sql
--- Cloud CLI Proxy 初始 schema（SQLite）
+-- ClaudeDock 初始 schema（SQLite）
 -- 将所有增量迁移合并为单文件，直接反映最终表结构。
 
 -- ============================================================

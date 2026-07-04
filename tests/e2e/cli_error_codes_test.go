@@ -4,8 +4,8 @@
 //
 // 验证：bootstrap.sh 在 4 类错误场景下输出锁定的 exit code 与 stderr 关键字。
 //
-// 与 ROADMAP 偏差：ROADMAP 描述「真实 cloud-claude binary 触发各场景」，但
-// cmd/cloud-claude/main.go 实际只定义 exit 1-5；错误码 10-13 由 bootstrap.sh
+// 与 ROADMAP 偏差：ROADMAP 描述「真实 claudedock binary 触发各场景」，但
+// cmd/claudedock/main.go 实际只定义 exit 1-5；错误码 10-13 由 bootstrap.sh
 // 在 case "$error_code" 分支映射。CONTEXT §Area 3「以源码为准」原则下，本
 // 用例以 bootstrap.sh 为被测 binary，详见 helpers.go BootstrapExitCodeContract
 // 注释 + 46-VERIFICATION.md。
@@ -20,7 +20,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 type CLIErrorCodesSuite struct {

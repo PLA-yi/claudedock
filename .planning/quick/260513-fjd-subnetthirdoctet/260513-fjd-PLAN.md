@@ -95,7 +95,7 @@ hostID := "host-" + string(rune('a'+i%26)) + string(rune('0'+i/26))
 - 不动文件顶部的 `//go:build linux` build tag。
   </action>
   <verify>
-    <automated>cd /Users/zaneliu/Projects/open-source/cloud-cli-proxy-main && grep -n "collisions > 40" internal/network/container_proxy_provider_test.go && grep -n "birthday paradox" internal/network/container_proxy_provider_test.go && ! grep -n "collisions > 10" internal/network/container_proxy_provider_test.go && ! grep -n "very few collisions" internal/network/container_proxy_provider_test.go</automated>
+    <automated>cd /Users/zaneliu/Projects/open-source/claudedock-main && grep -n "collisions > 40" internal/network/container_proxy_provider_test.go && grep -n "birthday paradox" internal/network/container_proxy_provider_test.go && ! grep -n "collisions > 10" internal/network/container_proxy_provider_test.go && ! grep -n "very few collisions" internal/network/container_proxy_provider_test.go</automated>
   </verify>
   <done>
 - 测试文件中阈值已改为 `> 40`。
@@ -112,7 +112,7 @@ hostID := "host-" + string(rune('a'+i%26)) + string(rune('0'+i/26))
 
 ```bash
 # 1. 语法/编译检查（即使 darwin 也能通过 build tag 检测）
-cd /Users/zaneliu/Projects/open-source/cloud-cli-proxy-main && go vet ./internal/network/... 2>&1 || true
+cd /Users/zaneliu/Projects/open-source/claudedock-main && go vet ./internal/network/... 2>&1 || true
 
 # 2. 关键修改点确认
 grep -n "collisions > 40\|birthday paradox" internal/network/container_proxy_provider_test.go

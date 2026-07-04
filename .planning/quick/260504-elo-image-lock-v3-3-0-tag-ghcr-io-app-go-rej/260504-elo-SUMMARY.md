@@ -11,10 +11,10 @@ ghcr.io 上不存在 `v3.3.0` tag，启动时 `docker pull` 报 `manifest unknow
 将 `image_name` 和 `local_dev_image_name` 都从 `v3.3.0` 改为 `latest`。
 
 ```diff
--image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:v3.3.0
--local_dev_image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:v3.3.0
-+image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
-+local_dev_image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
+-image_name: ghcr.io/claudedock/claudedock/managed-user:v3.3.0
+-local_dev_image_name: ghcr.io/claudedock/claudedock/managed-user:v3.3.0
++image_name: ghcr.io/claudedock/claudedock/managed-user:latest
++local_dev_image_name: ghcr.io/claudedock/claudedock/managed-user:latest
 ```
 
 `image_version: v3.3.0` 保持不动（语义版本号，与镜像 tag 独立）。

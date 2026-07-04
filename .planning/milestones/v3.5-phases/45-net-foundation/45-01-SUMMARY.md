@@ -51,7 +51,7 @@ requirements_satisfied:
 
 | 维度 | 实测值 | 备注 |
 |------|--------|------|
-| 镜像 | `cloud-cli-proxy-sing-gateway:local` (ID `56f57e5ae5c7`) | 通过 `docker images` 确认存在 |
+| 镜像 | `claudedock-sing-gateway:local` (ID `56f57e5ae5c7`) | 通过 `docker images` 确认存在 |
 | sing-box 版本 | **1.13.3** | `docker run --rm --entrypoint=sing-box <image> version` 输出 |
 | 编译环境 | go1.25.8 linux/arm64 | sing-box 自带 |
 | 关键 tag | `with_gvisor / with_quic / with_dhcp / with_wireguard / with_utls / with_clash_api / with_tailscale` | 满足 tun + DoH + rule-set 全部需要 |

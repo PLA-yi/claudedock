@@ -21,7 +21,7 @@ affects: []
 - KillSingBox: docker exec kill sing-box → 3s fail-closed 等待
 - KILL-02 (tun0 down): 语义改为验证 user 无 NET_ADMIN 不能关 tun0
 - KILL-03 (netem): 注入目标改为 user 容器名
-- KILL-04 (disconnect): v4.0 无 cloudproxy-net-* bridge，用例标记为 backend gap
+- KILL-04 (disconnect): v4.0 无 claudedock-net-* bridge，用例标记为 backend gap
 
 # Dev notes
 - 实际 e2e 执行需要 Linux + Docker + Scenario.Start Step 2..7 实现

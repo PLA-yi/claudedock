@@ -36,8 +36,8 @@ Output: {phase_num}-UAT.md tracking all test results. If issues found: diagnosed
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/verify-work.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/templates/UAT.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/verify-work.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/templates/UAT.md
 </execution_context>
 
 <context>

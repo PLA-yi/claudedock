@@ -19,7 +19,7 @@ key-files:
     - web/admin/src/routes/_dashboard/hosts/index.tsx
     - web/admin/src/routes/_dashboard/hosts/$hostId.tsx
 decisions:
-  - "所有平台统一 disconnect bridge（删除 runtime.GOOS == linux 限制），macOS Docker Desktop 的 SSH 端口映射由 vpnkit 在 cloudproxy-net 上也能工作"
+  - "所有平台统一 disconnect bridge（删除 runtime.GOOS == linux 限制），macOS Docker Desktop 的 SSH 端口映射由 vpnkit 在 claudedock-net 上也能工作"
   - "configureWorkerEgress 改为反竞态脚本：删除所有现有 default 路由 → 添加 metric 0 default → 立即 grep verify → 最多 3 次 retry"
   - "列表页与详情页均以 DB host.status 为唯一状态源，docker_status 仅在详情页作为降级辅助"
   - "worker.Execute 失败路径在 UpdateHostStatus('failed') 之前执行 docker stop，消除状态分裂"

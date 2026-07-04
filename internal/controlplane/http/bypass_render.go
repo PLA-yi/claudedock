@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // bypassRuleSetVersion 与 Phase 45 sing-box rule-set placeholder 锁定的 schema 版本一致。

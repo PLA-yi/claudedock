@@ -9,7 +9,7 @@ import (
 func TestConfig_Defaults(t *testing.T) {
 	cfg := Config{
 		Addr:           ":8080",
-		DatabaseURL:    "file:/var/lib/cloud-cli-proxy/cloud-cli-proxy.db",
+		DatabaseURL:    "file:/var/lib/claudedock/claudedock.db",
 		AdminUsername:  "admin",
 		AdminPassword:  "secret",
 		AdminJWTSecret: "jwt-secret",

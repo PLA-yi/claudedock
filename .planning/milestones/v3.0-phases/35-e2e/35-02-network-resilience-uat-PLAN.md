@@ -36,8 +36,8 @@ must_haves:
       via: "trap disrupt_stop EXIT 保证脚本异常退出一定恢复网络"
       pattern: "trap disrupt_stop EXIT"
     - from: "scripts/degradation-regression.sh"
-      to: "internal/cloudclaude/errcodes/mount.go 注册的 MOUNT_* Code"
-      via: "docker exec + cloud-claude doctor --json 解析 .checks[].code"
+      to: "internal/claudedock/errcodes/mount.go 注册的 MOUNT_* Code"
+      via: "docker exec + claudedock doctor --json 解析 .checks[].code"
       pattern: "jq .*select\\(.code == \"MOUNT_"
     - from: "scripts/uat-network-resilience.sh"
       to: "REQ-F3-D 退避序列 1/2/4/8/30s"
@@ -47,7 +47,7 @@ must_haves:
 
 <objective>
 交付 BASE-03（弱网 30s 无感知 / 2min 自动重连）与 M13（禁止静默降级）两条验收基线的可脚本化 UAT。
-Purpose: 把 REQ-F3-B/C/D + REQ-F4-A 的 UX 行为从"人工观察"升级为"脚本可断言的量化指标"（CONTEXT.md §"无感知量化指标"）；把 M13 从"文档约定"升级为"三层破坏下 cloud-claude 必须吐错误码"的自动化回归。
+Purpose: 把 REQ-F3-B/C/D + REQ-F4-A 的 UX 行为从"人工观察"升级为"脚本可断言的量化指标"（CONTEXT.md §"无感知量化指标"）；把 M13 从"文档约定"升级为"三层破坏下 claudedock 必须吐错误码"的自动化回归。
 Output: 两个 bash 脚本。UAT 脚本需支持 10s / 30s / 2min 三场景；M13 脚本需覆盖三层任意破坏 → 对应 MOUNT_* / SSH_* 错误码断言。两脚本必须做网络破坏的 `trap EXIT` 恢复，**脚本异常退出时一定回滚 tc/iptables 规则**，否则宿主机失联。
 </objective>
 
@@ -66,8 +66,8 @@ Output: 两个 bash 脚本。UAT 脚本需支持 10s / 30s / 2min 三场景；M1
 <!-- 分析对象引用 -->
 @scripts/verify-fuse-compat.sh
 @scripts/ci-doctor-grep.sh
-@internal/cloudclaude/errcodes/mount.go
-@internal/cloudclaude/errcodes/codes.go
+@internal/claudedock/errcodes/mount.go
+@internal/claudedock/errcodes/codes.go
 @deploy/scripts/host-preflight.sh
 </context>
 
@@ -107,7 +107,7 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
 
 1. **CLI flags**：
    - `--scenario=10s|30s|2min`（必选，互斥）
-   - `--target-container=NAME`（默认从 `docker ps --filter label=com.cloud-cli-proxy.managed=true --format '{{.Names}}' | head -1` 自动探测；找不到则 `skip`）
+   - `--target-container=NAME`（默认从 `docker ps --filter label=com.claudedock.managed=true --format '{{.Names}}' | head -1` 自动探测；找不到则 `skip`）
    - `--iface=NAME`（默认 `eth0`；macOS 走 `iptables` fallback 或 `pfctl`，本脚本只实现 tc + iptables 两级）
    - `--host-ip=IP`（iptables fallback 时必须给 — 控制面 IP）
    - `--dry-run`（不真实下 tc/iptables 规则，只打印命令）
@@ -139,11 +139,11 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
    - 失败即退出码 1
 8. **场景 30s**：
    - 执行 10s 场景的三条断言
-   - 额外：恢复网络后 60s 内 `docker exec $ctr cloud-claude --json 2>&1 | grep -q '"reconnect":true'` 或 `tmux capture-pane | grep -qF "自动重连成功"`（REQ-F3-C 反向——成功路径无失败提示）
+   - 额外：恢复网络后 60s 内 `docker exec $ctr claudedock --json 2>&1 | grep -q '"reconnect":true'` 或 `tmux capture-pane | grep -qF "自动重连成功"`（REQ-F3-C 反向——成功路径无失败提示）
 9. **场景 2min**：
    - 拔网 120s，在拔网过程中每 10s `tmux capture-pane` 取样并写 `$WORK/reconnect-samples.txt`
    - **REQ-F3-D 退避序列断言**：`grep -cE '(重连|reconnect|retry).*(1s|2s|4s|8s|30s)' $WORK/reconnect-samples.txt` ≥ 3（证据：至少三档退避 mark 出现过）
-   - **REQ-F3-C 最终失败断言**：2min 结束后 `tmux capture-pane | grep -qE '(按 Enter 重试|cloud-claude doctor)'`（两者任意一条在屏）
+   - **REQ-F3-C 最终失败断言**：2min 结束后 `tmux capture-pane | grep -qE '(按 Enter 重试|claudedock doctor)'`（两者任意一条在屏）
    - **REQ-F4-A 进程存活断言**：`docker exec $ctr pgrep -f claude` 仍返回 0（tmux 内 claude 进程从未退出）
    - 恢复网络后 `tmux send-keys Enter` 重新触发连接，断言 10s 内 `tmux capture-pane` 不再含失败提示字样
 10. **JSON 报告**（`$BENCH_DIR/uat-resilience-${SCENARIO}-$(date +%Y%m%d-%H%M%S).json`）：
@@ -170,7 +170,7 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
     - `grep -qE 'tmux capture-pane' scripts/uat-network-resilience.sh` 退出码 0
     - `grep -qF 'pgrep_survived_full_duration' scripts/uat-network-resilience.sh` 退出码 0（JSON 字段固化）
     - `grep -qF 'backoff_marks_seen' scripts/uat-network-resilience.sh` 退出码 0
-    - `grep -qE '(按 Enter 重试|cloud-claude doctor)' scripts/uat-network-resilience.sh` 退出码 0（REQ-F3-C grep 模板存在）
+    - `grep -qE '(按 Enter 重试|claudedock doctor)' scripts/uat-network-resilience.sh` 退出码 0（REQ-F3-C grep 模板存在）
     - `grep -qE '10s\|30s\|2min' scripts/uat-network-resilience.sh` 退出码 0（场景白名单）
   </acceptance_criteria>
   <done>BASE-03 三场景 UAT 可脚本化运行，支持 tc 与 iptables 两级破坏，异常退出一定恢复网络。</done>
@@ -183,8 +183,8 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
     - scripts/degradation-regression.sh（**新文件**）
     - scripts/ci-doctor-grep.sh（51-72 行 — awk section 匹配 + grep `错误码:\s*[A-Z]+_[A-Z]+_[A-Z0-9]+` 断言，Pattern D）
     - scripts/verify-fuse-compat.sh（74-85 行容器 helper）
-    - internal/cloudclaude/errcodes/codes.go（120-178 行 — MOUNT_* / SYSTEM_* 错误码字面值）
-    - internal/cloudclaude/errcodes/mount.go（init MustRegister 列表，确认 code 实际注册）
+    - internal/claudedock/errcodes/codes.go（120-178 行 — MOUNT_* / SYSTEM_* 错误码字面值）
+    - internal/claudedock/errcodes/mount.go（init MustRegister 列表，确认 code 实际注册）
     - .planning/phases/35-e2e/35-PATTERNS.md Pattern D（L228-256 M13 专用变体）
     - .planning/phases/35-e2e/35-RESEARCH.md §Wave 0 Gaps L335-340
   </read_first>
@@ -198,7 +198,7 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
      pre_check "$LAYER"                  # 验证 mount 尚在
      disrupt_layer "$LAYER"              # 下一节
      sleep 2                             # 给 CLI stderr 捕获窗口（REQ-F2-B 明确"≤ 2s 内降级"）
-     OUT=$(docker exec "$CTR" cloud-claude doctor --json 2>&1 || true)
+     OUT=$(docker exec "$CTR" claudedock doctor --json 2>&1 || true)
      assert_code_present "$OUT" "$LAYER"
      restore_layer "$LAYER"              # 恢复，下一层独立测
    done
@@ -213,9 +213,9 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
    - 错误码非空字符串匹配 `^[A-Z]+_[A-Z]+_[A-Z0-9]+(_[A-Z0-9]+)*$`（codes.go L56 正则）
    - **M13 核心断言**：`status ∈ {warn,fail}` 的 check **必须** 有非空 `next_action`（同 ci-doctor-grep.sh L37-44 守恒）—— "禁止静默降级" 等价于"stderr 必有错误码 + 中文下一步"
 5. **恢复函数**（每层独立）：
-   - mergerfs：`docker exec $CTR /etc/cloud-claude/remount-mergerfs.sh`（若不存在则 `docker restart $CTR` 并 wait healthcheck）
+   - mergerfs：`docker exec $CTR /etc/claudedock/remount-mergerfs.sh`（若不存在则 `docker restart $CTR` 并 wait healthcheck）
    - sshfs：同上（restart 兜底）
-   - mutagen：`docker exec $CTR sh -c '/etc/cloud-claude/mutagen-agent &'` 或 restart
+   - mutagen：`docker exec $CTR sh -c '/etc/claudedock/mutagen-agent &'` 或 restart
    - `trap restore_all EXIT INT TERM`（异常退出时一定恢复）
 6. **产物**：
    - JSON `$BENCH_DIR/degradation-regression-$(date +%Y%m%d-%H%M%S).json`：
@@ -244,7 +244,7 @@ REQ-F3-D 退避序列（REQUIREMENTS.md L34）：`1s → 2s → 4s → 8s → 30
     - `grep -qE 'next_action_present|next_action.*!=\s*""' scripts/degradation-regression.sh` 退出码 0（M13 中文下一步断言）
     - `grep -qE '\-\-confirm-destructive' scripts/degradation-regression.sh` 退出码 0（T-35-02-04 opt-in 闸门存在）
     - `bash scripts/degradation-regression.sh --layer=mergerfs --dry-run` stdout 含 "需 --confirm-destructive 显式 opt-in" 字样（缺省安全提示生效）
-    - `comm -23 <(grep -oE 'MOUNT_[A-Z_]+' scripts/degradation-regression.sh | sort -u) <(grep -oE 'MOUNT_[A-Z_]+' internal/cloudclaude/errcodes/mount.go internal/cloudclaude/errcodes/codes.go | sort -u)` 输出为空（脚本提及的每个 MOUNT_* 码都在注册表中存在）
+    - `comm -23 <(grep -oE 'MOUNT_[A-Z_]+' scripts/degradation-regression.sh | sort -u) <(grep -oE 'MOUNT_[A-Z_]+' internal/claudedock/errcodes/mount.go internal/claudedock/errcodes/codes.go | sort -u)` 输出为空（脚本提及的每个 MOUNT_* 码都在注册表中存在）
   </acceptance_criteria>
   <done>M13 回归脚本可自动破坏三层、断言错误码 + 中文 next_action，并保证退出时恢复容器挂载。</done>
 </task>
@@ -266,7 +266,7 @@ grep -qE 'trap\s+restore_all\s+EXIT' scripts/degradation-regression.sh
 
 # 与 errcodes 注册表交叉一致
 comm -23 <(grep -oE 'MOUNT_[A-Z_]+' scripts/degradation-regression.sh | sort -u) \
-         <(grep -oE 'MOUNT_[A-Z_]+' internal/cloudclaude/errcodes/mount.go internal/cloudclaude/errcodes/codes.go | sort -u) \
+         <(grep -oE 'MOUNT_[A-Z_]+' internal/claudedock/errcodes/mount.go internal/claudedock/errcodes/codes.go | sort -u) \
   | tee /tmp/degradation-unknown-codes.txt
 test ! -s /tmp/degradation-unknown-codes.txt && echo "所有 MOUNT_* 均在注册表"
 

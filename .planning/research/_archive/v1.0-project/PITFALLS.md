@@ -1,6 +1,6 @@
 # Pitfalls Research
 
-**Domain:** cloud-claude 透明远程 CLI + 本地目录到远端容器实时映射（在现有 SSH Proxy、sing-box tun + nftables、`--network=none` 受管容器上叠加）
+**Domain:** claudedock 透明远程 CLI + 本地目录到远端容器实时映射（在现有 SSH Proxy、sing-box tun + nftables、`--network=none` 受管容器上叠加）
 **Researched:** 2026-04-15
 **Confidence:** MEDIUM（核心约束来自本项目 `PROJECT.md` 与公开文档/社区报告；部分为场景归纳，需在集成验证中落地）
 
@@ -15,7 +15,7 @@
 开发者在笔记本上调试时习惯「容器能访问宿主机 `host.docker.internal`」；在 Linux 裸机 Docker 与本项目「无默认网络栈」模型下不成立。文件同步方案文档常按「有 IP 可达」写，未区分**信令/数据平面**。
 
 **How to avoid:**
-- 在设计阶段固定「映射数据走哪条 pipe」：仅 SSH 子系统、反向转发、`cloud-claude`↔Proxy 已有连接复用，或宿主机 host-agent 显式开的 socket；禁止依赖容器内自发现路由。
+- 在设计阶段固定「映射数据走哪条 pipe」：仅 SSH 子系统、反向转发、`claudedock`↔Proxy 已有连接复用，或宿主机 host-agent 显式开的 socket；禁止依赖容器内自发现路由。
 - 若采用 Mutagen 等需在远端跑 agent 的方案，明确 agent 的启动方式与网络可达性由**谁**保证（宿主机注入 vs 用户态转发），并写清与 sing-box/nftables 的边界。
 
 **Warning signs:**
@@ -70,7 +70,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 ### Pitfall 4: SSH 多路复用（ControlMaster）与「僵死 master」——文件通道与交互会话抢同一条命
 
 **What goes wrong:**
-为加速连接启用 `ControlMaster`/`ControlPersist` 后，网络闪断或宿主机休眠后出现 **mux 客户端挂死**、`Broken pipe`、`mux_client_request_session` 超时；或 **MaxSessions** 达到上限导致新会话（含 sftp/子通道）被拒。若 `cloud-claude` 与 sshfs/Mutagen 复用连接，单点故障会同时拖垮 TTY 与目录同步。
+为加速连接启用 `ControlMaster`/`ControlPersist` 后，网络闪断或宿主机休眠后出现 **mux 客户端挂死**、`Broken pipe`、`mux_client_request_session` 超时；或 **MaxSessions** 达到上限导致新会话（含 sftp/子通道）被拒。若 `claudedock` 与 sshfs/Mutagen 复用连接，单点故障会同时拖垮 TTY 与目录同步。
 
 **Why it happens:**
 多路复用把多条逻辑会话绑在同一 TCP 上；master 进程异常退出后控制套接字残留；OpenSSH 服务端默认 `MaxSessions` 较小；部分环境上控制套接字放在 **overlayfs** 上会与 Unix domain socket 行为不睦（社区常用改 `ControlPath` 到 `shm` 等路径缓解）。
@@ -84,7 +84,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 偶发「第二次打开必卡」；断网恢复后必须删 socket 才能恢复；并发 `git`/同步时突增会话失败。
 
 **Phase to address:**
-**连接与会话管理设计**（`cloud-claude` 核心实现阶段）
+**连接与会话管理设计**（`claudedock` 核心实现阶段）
 
 ---
 
@@ -104,7 +104,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 小团队单机难复现；用户切换分支后目录「回滚」；`sync list` 中长期堆积冲突。
 
 **Phase to address:**
-**同步语义与运维可观测性**（与 `cloud-claude` 配置模型同一阶段）
+**同步语义与运维可观测性**（与 `claudedock` 配置模型同一阶段）
 
 ---
 
@@ -125,7 +125,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 仅交互场景失败、脚本模式正常；resize 必现；特定 `sshd` 版本上 signal 异常。
 
 **Phase to address:**
-**TTY 与信号透传专项**（`cloud-claude` 与 Proxy 联调阶段）
+**TTY 与信号透传专项**（`claudedock` 与 Proxy 联调阶段）
 
 ---
 
@@ -223,7 +223,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 - [ ] **同步：** `git checkout`/大规模删除后是否出现反向覆盖或冲突积压？`git status` 在两侧是否一致？
 - [ ] **TTY：** resize、Ctrl+C、管道/非交互模式是否与官方 `claude` 行为一致？
 - [ ] **网络：** 变更防火墙或 sing-box 出站规则后，映射与出口 IP 测试是否**同时**绿？
-- [ ] **跨平台：** macOS 上开发的 `cloud-claude` 是否在 Linux 上做过集成测试？
+- [ ] **跨平台：** macOS 上开发的 `claudedock` 是否在 Linux 上做过集成测试？
 
 ## Recovery Strategies
 
@@ -249,7 +249,7 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 
 ## Sources
 
-- 项目上下文：`.planning/PROJECT.md`（`--network=none`、sing-box tun、cloud-claude 目标）
+- 项目上下文：`.planning/PROJECT.md`（`--network=none`、sing-box tun、claudedock 目标）
 - Docker/FUSE：`https://github.com/docker/for-linux/issues/321`、moby 社区关于 `SYS_ADMIN` + `/dev/fuse` 的讨论
 - SSH 多路复用：ServerFault「Detecting stuck SSH control master sockets」、`mux_client_request_session` 社区讨论；Thomas Broadley「SSH multiplexing gotchas」（MaxSessions 等）
 - 同步语义：Mutagen 官方 synchronization 文档（模式与冲突处理）；Mutagen GitHub issue 中关于会话生命周期与容器重建的讨论
@@ -257,5 +257,5 @@ sshfs 对权限的语义依赖挂载选项与 OpenSSH 服务端配置；FUSE 与
 - OpenSSH：版本发行说明（排查特定版本 mux 相关修复时需对照）`https://www.openssh.com/releasenotes.html`
 
 ---
-*Pitfalls research for: cloud-claude 透明远程 CLI + 目录映射*
+*Pitfalls research for: claudedock 透明远程 CLI + 目录映射*
 *Researched: 2026-04-15*

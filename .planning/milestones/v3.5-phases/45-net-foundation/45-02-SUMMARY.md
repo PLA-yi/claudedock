@@ -183,7 +183,7 @@ $ grep -rn 'gatewayConfigDir\b' internal/
 $ go build ./internal/network/... ./internal/runtime/...    # OK
 $ grep -rn 'gatewayConfigDir\b' internal/                    # 0 matches
 $ go test ./internal/network/ -run TestWorker_CreateHost_CallOrder
-ok   github.com/zanel1u/cloud-cli-proxy/internal/network    0.503s
+ok   github.com/claudedock/claudedock/internal/network    0.503s
 ```
 
 ---
@@ -237,7 +237,7 @@ verifyDNS(ctx, prefix, containerExpectedDNS, &result)
 ```text
 $ go build ./internal/network/... ./internal/runtime/...   # OK
 $ go test ./internal/network/ -run TestWorker_CreateHost_CallOrder
-ok   github.com/zanel1u/cloud-cli-proxy/internal/network    0.503s
+ok   github.com/claudedock/claudedock/internal/network    0.503s
 ```
 
 ---
@@ -274,9 +274,9 @@ ok   github.com/zanel1u/cloud-cli-proxy/internal/network    0.503s
 ```text
 $ go build ./... && go vet ./internal/network/... ./internal/runtime/...    # OK
 $ go test ./internal/network/... ./internal/runtime/... -count=1 -short
-ok   github.com/zanel1u/cloud-cli-proxy/internal/runtime         0.224s
-ok   github.com/zanel1u/cloud-cli-proxy/internal/runtime/tasks   1.058s
-ok   github.com/zanel1u/cloud-cli-proxy/internal/network         0.389s
+ok   github.com/claudedock/claudedock/internal/runtime         0.224s
+ok   github.com/claudedock/claudedock/internal/runtime/tasks   1.058s
+ok   github.com/claudedock/claudedock/internal/network         0.389s
 ```
 
 ---

@@ -6,9 +6,9 @@
 <domain>
 ## Phase Boundary
 
-在目标 Linux 生产宿主机上验证 FUSE + AppArmor/seccomp 安全模块的完整兼容性，确保 cloud-claude 全链路（CLI → SSH Proxy → sshfs 目录映射 → Claude Code 运行）在生产环境端到端可用。
+在目标 Linux 生产宿主机上验证 FUSE + AppArmor/seccomp 安全模块的完整兼容性，确保 claudedock 全链路（CLI → SSH Proxy → sshfs 目录映射 → Claude Code 运行）在生产环境端到端可用。
 
-本阶段不涉及：新功能开发、sshfs 映射逻辑修改（Phase 27 已完成）、cloud-claude CLI 改动（Phase 25-26 已完成）。本阶段可能包含：根据验证结果对 `worker.go` 容器创建参数做 `--security-opt` 调整、编写验证脚本、更新部署文档。
+本阶段不涉及：新功能开发、sshfs 映射逻辑修改（Phase 27 已完成）、claudedock CLI 改动（Phase 25-26 已完成）。本阶段可能包含：根据验证结果对 `worker.go` 容器创建参数做 `--security-opt` 调整、编写验证脚本、更新部署文档。
 
 </domain>
 
@@ -61,7 +61,7 @@
 - `deploy/docker/managed-user/entrypoint.sh` — 已有 `chmod 666 /dev/fuse` 设备权限设置
 
 ### 目录映射实现
-- `internal/cloudclaude/mount.go` — mountWorkspace / waitForMount / fusermountCleanup 完整实现
+- `internal/claudedock/mount.go` — mountWorkspace / waitForMount / fusermountCleanup 完整实现
 
 ### 网络隔离
 - `internal/network/` — WireGuard 和 sing-box 两种 provider 的隧道实现
@@ -74,7 +74,7 @@
 ### Reusable Assets
 - `internal/runtime/tasks/worker.go`: createHost() 已有清晰的 args 切片构建模式，新增 `--security-opt` 参数只需在 `--cap-add SYS_ADMIN` 同级追加
 - `deploy/docker/managed-user/entrypoint.sh`: 已有 FUSE 设备权限设置（`chmod 666 /dev/fuse`），可作为验证基线
-- `internal/cloudclaude/mount.go`: mountWorkspace 和 waitForMount 可直接用于端到端验证流程中的挂载测试
+- `internal/claudedock/mount.go`: mountWorkspace 和 waitForMount 可直接用于端到端验证流程中的挂载测试
 
 ### Established Patterns
 - 容器参数通过 `args = append(args, ...)` 逐步构建，新增 `--security-opt` 参数自然融入此模式

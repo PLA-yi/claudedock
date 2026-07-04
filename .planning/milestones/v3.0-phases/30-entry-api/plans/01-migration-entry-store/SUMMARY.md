@@ -70,7 +70,7 @@ completed: 2026-04-18
 - `ClaudeAccount` 结构体新增 `PersistentVolumeName *string` + `json:"persistent_volume_name,omitempty"`，并在单测中以 JSON 回路确认未分配时字段被省略。
 - 以两条包级 SQL 常量实现 D-05 两阶段解析 `ResolveClaudeAccountIDForEntry(ctx, userID, hostID) (string, bool, error)`；未命中返回 `ok=false` 而非 `error`。
 - `GetHostByShortID` 的 SELECT 通过 `COALESCE(h.template_image_ref, '')` 纳入 `TemplateImageRef`，为 Wave 2 推导 `image_version` / `supports_*` 提供唯一数据入口；上游 `sshproxy` / `controlplane/http` 测试套件保持通过。
-- 新增 Wave 1 边界守护测试，锁死「数据层 only」的职责边界，避免后续计划悄悄把 HTTP / cloudclaude 改动回流到本计划。
+- 新增 Wave 1 边界守护测试，锁死「数据层 only」的职责边界，避免后续计划悄悄把 HTTP / claudedock 改动回流到本计划。
 
 ## Task Commits
 
@@ -98,7 +98,7 @@ completed: 2026-04-18
 
 ## Deviations from Plan
 
-None — plan executed exactly as written。所有任务按 TDD RED→GREEN 推进，未触发 Rule 1/2/3 自动修复，未触及 HTTP / cloudclaude 等非数据层文件。
+None — plan executed exactly as written。所有任务按 TDD RED→GREEN 推进，未触发 Rule 1/2/3 自动修复，未触及 HTTP / claudedock 等非数据层文件。
 
 ## Issues Encountered
 
@@ -136,6 +136,6 @@ Performed the following verifications before completion:
 - `git log --oneline | grep 5c5ca66` → FOUND (Task 2 feat commit)
 - `git log --oneline | grep 7a09965` → FOUND (Task 3 guard commit)
 - `go test ./internal/store/repository/... -count=1` → PASS
-- `go test ./... -count=1 -short` → PASS (cloudclaude, controlplane/http, runtime/tasks, network, repository all green)
+- `go test ./... -count=1 -short` → PASS (claudedock, controlplane/http, runtime/tasks, network, repository all green)
 
 ## Self-Check: PASSED

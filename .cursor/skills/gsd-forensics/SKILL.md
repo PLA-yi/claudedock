@@ -35,7 +35,7 @@ Output: Forensic report saved to `.planning/forensics/`, presented inline, with 
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/forensics.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/forensics.md
 </execution_context>
 
 <context>

@@ -47,7 +47,7 @@ uat-network-resilience.sh — Phase 35 BASE-03 弱网 UAT 三场景（10s|30s|2m
 
 可选:
   --target-container=NAME   目标容器（默认从 docker ps --filter
-                            label=com.cloud-cli-proxy.managed=true 自动探测）
+                            label=com.claudedock.managed=true 自动探测）
   --iface=NAME              tc 模式网卡（默认 eth0）
   --host-ip=IP              iptables fallback 必填（控制面 IP）
   --dry-run                 只打印 tc/iptables 命令，不真实下规则
@@ -60,7 +60,7 @@ uat-network-resilience.sh — Phase 35 BASE-03 弱网 UAT 三场景（10s|30s|2m
   token_replayed == true        本地注入 token 远端完整收到
 
 REQ-F3-D 退避序列：1s → 2s → 4s → 8s → 30s 上限
-REQ-F3-C 失败提示样板：「按 Enter 重试」「cloud-claude doctor」
+REQ-F3-C 失败提示样板：「按 Enter 重试」「claudedock doctor」
 
 退出码：0=PASS / 1=FAIL / 2=SKIP
 EOF
@@ -214,10 +214,10 @@ detect_container() {
     return 1
   fi
   TARGET_CTR="$(docker ps \
-    --filter 'label=com.cloud-cli-proxy.managed=true' \
+    --filter 'label=com.claudedock.managed=true' \
     --format '{{.Names}}' 2>/dev/null | head -1 || true)"
   if [[ -z "$TARGET_CTR" ]]; then
-    skip "BASE-03" "未发现 com.cloud-cli-proxy.managed=true 容器"
+    skip "BASE-03" "未发现 com.claudedock.managed=true 容器"
     return 1
   fi
   if [[ ! "$TARGET_CTR" =~ $CTR_NAME_REGEX ]]; then
@@ -341,7 +341,7 @@ collect_backoff_marks() {
   BACKOFF_MARKS_JSON="$(printf '%s\n' "${seen[@]}" | jq -R . | jq -cs .)"
 }
 
-# REQ-F3-C 最终失败提示断言：屏幕含「按 Enter 重试」或「cloud-claude doctor」
+# REQ-F3-C 最终失败提示断言：屏幕含「按 Enter 重试」或「claudedock doctor」
 check_final_failure_prompt() {
   if [[ "$DRY_RUN" == "true" ]]; then
     FINAL_FAILURE_PROMPT_SEEN=true
@@ -349,12 +349,12 @@ check_final_failure_prompt() {
   fi
   local out
   out="$(capture_pane_retry || true)"
-  if echo "$out" | grep -qE '(按 Enter 重试|cloud-claude doctor)'; then
+  if echo "$out" | grep -qE '(按 Enter 重试|claudedock doctor)'; then
     FINAL_FAILURE_PROMPT_SEEN=true
-    pass "REQ-F3-C 最终失败提示在屏（按 Enter 重试 / cloud-claude doctor）"
+    pass "REQ-F3-C 最终失败提示在屏（按 Enter 重试 / claudedock doctor）"
   else
     FINAL_FAILURE_PROMPT_SEEN=false
-    fail "REQ-F3-C 失败：tmux 屏幕缺少「按 Enter 重试」/「cloud-claude doctor」字样"
+    fail "REQ-F3-C 失败：tmux 屏幕缺少「按 Enter 重试」/「claudedock doctor」字样"
   fi
 }
 
@@ -467,7 +467,7 @@ run_scenario() {
         sleep 10
         local out
         out="$(ctr_exec tmux capture-pane -t claude -p -e 2>/dev/null || true)"
-        if echo "$out" | grep -qE '(按 Enter 重试|cloud-claude doctor)'; then
+        if echo "$out" | grep -qE '(按 Enter 重试|claudedock doctor)'; then
           warn "按 Enter 后 10s 屏仍含失败字样，可能未触发重连"
         else
           pass "按 Enter 后 10s 屏不再含失败字样（手动重连路径生效）"

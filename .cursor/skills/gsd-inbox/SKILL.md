@@ -37,7 +37,7 @@ and optionally applies labels or closes non-compliant submissions.
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/inbox.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/inbox.md
 </execution_context>
 
 <context>

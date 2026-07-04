@@ -2,11 +2,11 @@
 # scripts/ci-doctor-grep.sh — Phase 34 Plan 03 Task 3.6
 #
 # M14 终验脚本（ROADMAP §Phase 34 SC#3）：
-#   (1) cloud-claude doctor --json → schema_version=1 + 所有 warn/fail check 含 next_action
-#   (2) cloud-claude doctor （文本）→ 所有 [!]/[✗] 行含 "建议:" 子串
+#   (1) claudedock doctor --json → schema_version=1 + 所有 warn/fail check 含 next_action
+#   (2) claudedock doctor （文本）→ 所有 [!]/[✗] 行含 "建议:" 子串
 #   (3) 所有 [!]/[✗] 行含错误码 `[XXX_YYY_ZZZ]` 格式
 #
-# 用法：bash scripts/ci-doctor-grep.sh [path/to/cloud-claude-binary]
+# 用法：bash scripts/ci-doctor-grep.sh [path/to/claudedock-binary]
 #
 # 退出码：
 #   0  → M14 + SC#3 全通过
@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-BIN="${1:-./cloud-claude}"
+BIN="${1:-./claudedock}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -71,4 +71,4 @@ if [ -n "$BAD_CODE" ]; then
   exit 1
 fi
 
-echo "OK: cloud-claude doctor M14 gate passed (schema=1 / next_action / 错误码)."
+echo "OK: claudedock doctor M14 gate passed (schema=1 / next_action / 错误码)."

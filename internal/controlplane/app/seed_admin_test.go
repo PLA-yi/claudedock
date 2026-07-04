@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // fakeSeedAdminRepo 实现 seedAdminRepo，记录每个方法调用次数 + 可注入返回值/错误。

@@ -26,7 +26,7 @@ key-files:
     - tests/e2e/fixtures/error-codes.sql
   modified: []
 decisions:
-  - "把『真实 cloud-claude binary』换成『deploy/bootstrap/cloud-bootstrap.sh』作为被测 binary：grep 后 cmd/cloud-claude/main.go 实际只定义 exit 1-5，错误码 10-13 由 bootstrap.sh 在 case \"$error_code\" 分支映射；按 CONTEXT §Area 3 以源码为准"
+  - "把『真实 claudedock binary』换成『deploy/bootstrap/cloud-bootstrap.sh』作为被测 binary：grep 后 cmd/claudedock/main.go 实际只定义 exit 1-5，错误码 10-13 由 bootstrap.sh 在 case \"$error_code\" 分支映射；按 CONTEXT §Area 3 以源码为准"
   - "BootstrapExitCodeContract / CLIErrorCases 与 RunBootstrapScript helper 都在 46-01 一次性落地（helpers.go / helpers_linux.go），本 plan 只新增主用例 + fixture SQL"
   - "fixture SQL 内 bcrypt hash 用占位字符串：CI 接通后由 helper 函数动态生成（避免硬编码过期 hash + 隐私安全）"
   - "host_not_found 用 active 用户但不绑 host 触发；用独立 username 命名空间（user-no-host）避免与 GoldenPath 默认 alice 用户冲突"
@@ -49,15 +49,15 @@ requirements_partial:
 
 ## 与 ROADMAP 偏差（重要）
 
-ROADMAP §Phase 46 §Details 5：「CLI 错误码用真实 cloud-claude binary 触发各场景」。
+ROADMAP §Phase 46 §Details 5：「CLI 错误码用真实 claudedock binary 触发各场景」。
 
-实际 grep `cmd/cloud-claude/`：
+实际 grep `cmd/claudedock/`：
 
-- `cmd/cloud-claude/main.go` 常量 `exitAuthFailed=1 / exitNetworkError=2 / exitTimeout=3 / exitConfigError=4 / exitInternalError=5`，**不含 10-13**。
+- `cmd/claudedock/main.go` 常量 `exitAuthFailed=1 / exitNetworkError=2 / exitTimeout=3 / exitConfigError=4 / exitInternalError=5`，**不含 10-13**。
 - 错误码 10-13 由 `internal/controlplane/http/bootstrap_errors.go` `BootstrapErrorEntries` 定义，并由 `deploy/bootstrap/cloud-bootstrap.sh` 在 `case "$error_code"` 分支落到 exit code。
-- 用户主入口 `curl -sSL .../v1/bootstrap/script | bash` 走的是 bootstrap.sh，**不是** cloud-claude binary。
+- 用户主入口 `curl -sSL .../v1/bootstrap/script | bash` 走的是 bootstrap.sh，**不是** claudedock binary。
 
-→ 按 CONTEXT §Area 3「源码与 ROADMAP 不一致时以源码为准」决策：本 plan 把「真实 cloud-claude binary」换成「`deploy/bootstrap/cloud-bootstrap.sh` 子进程 + 真实控制面 HTTP API」。VERIFICATION.md 中也记录此偏差。
+→ 按 CONTEXT §Area 3「源码与 ROADMAP 不一致时以源码为准」决策：本 plan 把「真实 claudedock binary」换成「`deploy/bootstrap/cloud-bootstrap.sh` 子进程 + 真实控制面 HTTP API」。VERIFICATION.md 中也记录此偏差。
 
 ## 实际产出
 

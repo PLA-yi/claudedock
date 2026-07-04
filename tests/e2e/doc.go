@@ -1,6 +1,6 @@
 //go:build e2e
 
-// Package e2e 是 Cloud CLI Proxy 端到端测试根包。
+// Package e2e 是 ClaudeDock 端到端测试根包。
 //
 // 设计原则：
 //   - 所有 e2e 测试文件统一带 //go:build e2e 构建标签，

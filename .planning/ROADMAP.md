@@ -1,4 +1,4 @@
-# Roadmap: Cloud CLI Proxy
+# Roadmap: ClaudeDock
 
 ## Milestones
 
@@ -7,7 +7,7 @@
 - ✅ v3.6 端到端测试体系与网络隔离验证 (shipped 2026-05-14)
 - ✅ v3.5 Bypass 规则与防火墙热重载 (shipped 2026-04-28)
 - ✅ v3.4 SSH 端口转发与 VS Code Remote SSH (shipped 2026-04-21)
-- ✅ v3.1 cloud-claude CLI 重构 (shipped 2026-03-30)
+- ✅ v3.1 claudedock CLI 重构 (shipped 2026-03-30)
 - ✅ v3.0 用户入口与 SSH 接入 (shipped 2026-03-27)
 - ✅ v2.0 FUSE 与容器内 sing-box (shipped 2026-03-15)
 - ✅ v1.0 - v1.3 (Archived)
@@ -58,7 +58,7 @@ Port forwarding + VS Code integration. See `.planning/milestones/v3.4-ROADMAP.md
 </details>
 
 <details>
-<summary>✅ v3.1 cloud-claude CLI 重构 (Phase 25-30) — SHIPPED 2026-03-30</summary>
+<summary>✅ v3.1 claudedock CLI 重构 (Phase 25-30) — SHIPPED 2026-03-30</summary>
 
 CLI rewrite + entry script + SSH key management. See `.planning/milestones/v3.1-ROADMAP.md`
 

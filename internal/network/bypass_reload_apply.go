@@ -8,7 +8,7 @@ import (
 )
 
 // 容器内白名单文件存放目录。sing-box rule_set 引用此路径。
-const bypassContainerDir = "/etc/cloud-claude/bypass"
+const bypassContainerDir = "/etc/claudedock/bypass"
 
 // 测试注入点：默认绑定真实 docker exec 实现，单测替换为 fake 闭包。
 var (
@@ -94,7 +94,7 @@ var dockerListNftSetHook = dockerListNftSet
 // ---------- 默认实现（docker exec） ----------
 
 func containerName(hostID string) string {
-	return "cloudproxy-" + hostID
+	return "claudedock-" + hostID
 }
 
 // dockerExecNft 将 nft 脚本写入容器临时文件并执行。

@@ -22,7 +22,7 @@ tech-stack:
   patterns: [SSH session pipe → io.ReadWriteCloser 适配, 可注入 check 函数的轮询模式]
 
 key-files:
-  created: [internal/cloudclaude/mount.go, internal/cloudclaude/mount_test.go]
+  created: [internal/claudedock/mount.go, internal/claudedock/mount_test.go]
   modified: [go.mod, go.sum]
 
 key-decisions:
@@ -67,8 +67,8 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `internal/cloudclaude/mount.go` - mountWorkspace / waitForMount / fusermountCleanup / channelRWC / MountNotReadyError
-- `internal/cloudclaude/mount_test.go` - TestWaitForMount 三个子测试
+- `internal/claudedock/mount.go` - mountWorkspace / waitForMount / fusermountCleanup / channelRWC / MountNotReadyError
+- `internal/claudedock/mount_test.go` - TestWaitForMount 三个子测试
 - `go.mod` - 添加 github.com/pkg/sftp v1.13.10，升级 x/crypto 等间接依赖
 - `go.sum` - 依赖校验和更新
 
@@ -86,7 +86,7 @@ Each task was committed atomically:
 - **Issue:** `go get` 升级间接依赖后 go.sum 中 semaphore 包条目缺失
 - **Fix:** 执行 `go mod tidy` 补齐 go.sum
 - **Files modified:** go.sum
-- **Verification:** `go build ./internal/cloudclaude/...` 编译通过
+- **Verification:** `go build ./internal/claudedock/...` 编译通过
 - **Committed in:** 30d691a (Task 1 commit)
 
 ---
@@ -109,8 +109,8 @@ None - no external service configuration required.
 
 ## Self-Check: PASSED
 
-- [x] internal/cloudclaude/mount.go 存在
-- [x] internal/cloudclaude/mount_test.go 存在
+- [x] internal/claudedock/mount.go 存在
+- [x] internal/claudedock/mount_test.go 存在
 - [x] Commit 30d691a 存在
 - [x] Commit aa29d87 存在
 - [x] 无意外文件删除

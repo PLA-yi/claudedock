@@ -10,8 +10,8 @@
 ## 前置条件
 
 - [ ] 宿主机已安装 VS Code + Remote-SSH 扩展
-- [ ] 已运行 `cloud-claude local up` 或 `cloud-claude local up --egress-config <file>` 启动容器
-- [ ] 容器已启动且 sshd 运行中（`docker ps | grep cloud-claude-local`）
+- [ ] 已运行 `claudedock local up` 或 `claudedock local up --egress-config <file>` 启动容器
+- [ ] 容器已启动且 sshd 运行中（`docker ps | grep claudedock-local`）
 - [ ] 记录 SSH 连接信息（host, port, user, password）
 
 **连接信息：**

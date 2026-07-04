@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/agentapi"
 )
 
 func TestEmbeddedDispatcher_PanicRecovered(t *testing.T) {

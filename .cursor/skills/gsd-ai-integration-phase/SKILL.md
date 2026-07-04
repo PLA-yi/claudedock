@@ -34,9 +34,9 @@ Flow: Select Framework → Research Docs → Research Domain → Design Eval Str
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/ai-integration-phase.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ai-frameworks.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ai-evals.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/ai-integration-phase.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ai-frameworks.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ai-evals.md
 </execution_context>
 
 <context>

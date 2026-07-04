@@ -61,9 +61,9 @@ psql "$url" -At -F$'\t' \
 docker run --rm -d -p 5432:5432 \
     -e POSTGRES_PASSWORD=your-secret-here \
     -e POSTGRES_USER=postgres \
-    -e POSTGRES_DB=cloud_cli_proxy_e2e \
+    -e POSTGRES_DB=claudedock_e2e \
     --name pg-debug postgres:18
-export DATABASE_URL="postgres://postgres:your-secret-here@127.0.0.1:5432/cloud_cli_proxy_e2e?sslmode=disable"
+export DATABASE_URL="postgres://postgres:your-secret-here@127.0.0.1:5432/claudedock_e2e?sslmode=disable"
 bash tests/e2e/harness/collect-artifacts.sh ./out scenario_xyz
 ```
 

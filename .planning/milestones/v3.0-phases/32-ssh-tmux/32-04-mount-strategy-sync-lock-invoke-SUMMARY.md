@@ -32,8 +32,8 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - "internal/cloudclaude/mount_strategy.go (+57/-1：MountWorkspace 内插入 SyncSessionLock invoke + ErrSyncLocked 分支 + finalCleanup LIFO 包装 + 2 处失败路径 release 兜底)"
-    - "internal/cloudclaude/mount_strategy_test.go (+173/-0：3 个新测试 TestMountWorkspace_SyncLocked / SyncLockSuccess / SyncLockOtherError + import fmt)"
+    - "internal/claudedock/mount_strategy.go (+57/-1：MountWorkspace 内插入 SyncSessionLock invoke + ErrSyncLocked 分支 + finalCleanup LIFO 包装 + 2 处失败路径 release 兜底)"
+    - "internal/claudedock/mount_strategy_test.go (+173/-0：3 个新测试 TestMountWorkspace_SyncLocked / SyncLockSuccess / SyncLockOtherError + import fmt)"
 key-decisions:
   - "不复用 applyDowngrade：其参数要求 errcodes.Code 而 \"sync_locked\" 不是注册码；改走直接 append DowngradeChain + Fprintf 等价两行实现，避免污染 v3.0 错误码注册表"
   - "double-print 策略：ssh.go 闭包已 stderr 输出 [SESSION_SYNC_LOCKED]，mount_strategy 再输出一行中文 [!] 摘要，双层可见性符合 M13 防御 + 与 MOUNT_AUTO_DOWNGRADED 同等级别"
@@ -83,7 +83,7 @@ completed: 2026-04-20
 
 ### Modified
 
-#### `internal/cloudclaude/mount_strategy.go` (+57 / -1)
+#### `internal/claudedock/mount_strategy.go` (+57 / -1)
 
 **插入点**：能力降级块（line 162-166）之后、tryOrder 决策（line 209）之前，约 line 168-203 新增 36 行代码 + 14 行注释 + 失败路径 +2 处 release 兜底（共 6 行）+ 成功分支 finalCleanup LIFO 包装（共 8 行）。
 
@@ -169,7 +169,7 @@ return finalCleanup, mode, nil
 
 force-mode-failed 路径 + 全档位失败路径各自新增 `if syncRelease != nil { syncRelease() }` 兜底，防止成功拿锁但全栈失败时锁泄漏。
 
-#### `internal/cloudclaude/mount_strategy_test.go` (+173 / -0)
+#### `internal/claudedock/mount_strategy_test.go` (+173 / -0)
 
 新增 import `fmt`；末尾追加 3 个测试函数：
 
@@ -197,15 +197,15 @@ force-mode-failed 路径 + 全档位失败路径各自新增 `if syncRelease != 
 - **Found during:** Task 4.1（编写 TestMountWorkspace_SyncLocked 时）
 - **Issue:** PLAN.md Step 4 模板里的 `if !cfg.IsSecondaryClient { t.Error(...) }` 在 Go 值传递下永远 false（cfg 在 MountWorkspace 内被修改的是局部副本，不会回写到测试的 cfg 变量）。直接抄进去会导致测试 fail。
 - **Fix:** 把断言换成捕获闭包入参 `observedAccountID == "test-acct-gap2"`（间接证明 invoke 真发生），并在测试和 mount_strategy.go 注释中说明：cfg.IsSecondaryClient 的真实写入路径在 ssh.go 闭包通过闭包捕获 mountCfg 指针完成；MountWorkspace 内的赋值仅作"契约文档 + 双保险"。
-- **Files modified:** internal/cloudclaude/mount_strategy_test.go
-- **Verification:** `go test -run TestMountWorkspace_SyncLocked ./internal/cloudclaude/...` PASS
+- **Files modified:** internal/claudedock/mount_strategy_test.go
+- **Verification:** `go test -run TestMountWorkspace_SyncLocked ./internal/claudedock/...` PASS
 - **Committed in:** `d425264`
 
 **2. [Rule 2 - Critical] 失败路径未显式释放 syncRelease 会泄漏 flock**
 - **Found during:** Task 4.1（实现成功分支 finalCleanup LIFO 包装时）
 - **Issue:** PLAN.md "实际简化方案" 提到要在 force-mode failed return + 全档位失败 return 之前各加一行 `if syncRelease != nil { syncRelease() }`。如果不加，成功拿锁但全栈失败时 syncRelease 挂在局部变量上但未挂入 finalCleanup（因为只有成功分支 wrap），错误返回的 cleanup 是 `func(){}`，flock 永不释放 → 锁泄漏 → 后端重试也拿不到。
 - **Fix:** force-mode-failed return 前 + 全档位失败 return 前各加 `if syncRelease != nil { syncRelease() }`。
-- **Files modified:** internal/cloudclaude/mount_strategy.go (+6 行)
+- **Files modified:** internal/claudedock/mount_strategy.go (+6 行)
 - **Verification:** 通过 TestMountWorkspace_SyncLockOtherError + 现有 force-mode failed 测试用例覆盖（lockErr 透传路径走的是另一个 return 但已有专用测试覆盖）
 - **Committed in:** `d425264`
 
@@ -239,14 +239,14 @@ force-mode-failed 路径 + 全档位失败路径各自新增 `if syncRelease != 
 闭合后，SC11 (REQ-F5-D) 端到端链路：
 
 ```
-cloud-claude 启动
+claudedock 启动
   → main.go 调 ConnectAndRunClaudeV3(connA, connB, mountCfg)
   → ssh.go 注入 mountCfg.SyncSessionLock = func(accountID) { ... AcquireSyncLock(connA, accountID) ... }（line 95-110，已 ship）
   → ssh.go 调 MountWorkspace(connA, connB, mountCfg)
   → mount_strategy.go::MountWorkspace 在能力降级块之后、tryOrder 决策之前调
       release, lockErr := cfg.SyncSessionLock(cfg.ClaudeAccountID)   ← [本 plan 新增]
   → ssh.go 闭包 → AcquireSyncLock(connA, accountID)
-  → 容器内远程命令：mkdir -p /tmp/cloud-claude/locks && flock -n -E 99 -F sync-<account>.lock -c 'echo $$; exec sleep infinity' & echo $!
+  → 容器内远程命令：mkdir -p /tmp/claudedock/locks && flock -n -E 99 -F sync-<account>.lock -c 'echo $$; exec sleep infinity' & echo $!
   → 第二端：flock 立即退 99 → ssh.ExitError.ExitStatus() == 99 → return nil, ErrSyncLocked
   → ssh.go 闭包置 mountCfg.IsSecondaryClient = true（外层 mountCfg 通过闭包捕获指针写入）+ stderr [SESSION_SYNC_LOCKED]
   → MountWorkspace errors.Is(lockErr, ErrSyncLocked) 命中 → 本地 cfg.IsSecondaryClient=true（双保险） + DowngradeChain 追加 sync_locked + intended=ModeSSHFSOnly + stderr [!] 中文摘要
@@ -254,7 +254,7 @@ cloud-claude 启动
   → 成功 → printBanner [sshfs-only] + writeLastSessionWarn → finalCleanup（无 syncRelease）→ return
   → ssh.go 读 mountCfg.IsSecondaryClient（line 181）→ SessionConfig.IsSecondaryClient = true
   → session.go::runClaudeWithSession → writeLastSessionTmuxField client_role="secondary"
-  → /workspace/.cloud-claude/clients/<pid>.json client_role="secondary"
+  → /workspace/.claudedock/clients/<pid>.json client_role="secondary"
 ```
 
 ## Verification Evidence
@@ -265,26 +265,26 @@ cloud-claude 启动
 $ go build ./...
 （exit 0，无输出）
 
-$ go vet ./internal/cloudclaude/...
+$ go vet ./internal/claudedock/...
 （exit 0，无输出）
 
-$ go test ./internal/cloudclaude/... -count=1 -short
-ok  	github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude	1.338s
-ok  	github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes	0.494s
+$ go test ./internal/claudedock/... -count=1 -short
+ok  	github.com/claudedock/claudedock/internal/claudedock	1.338s
+ok  	github.com/claudedock/claudedock/internal/claudedock/errcodes	0.494s
 
-$ rg -c "cfg\.SyncSessionLock\(|mountCfg\.SyncSessionLock\(" internal/cloudclaude/mount_strategy.go
+$ rg -c "cfg\.SyncSessionLock\(|mountCfg\.SyncSessionLock\(" internal/claudedock/mount_strategy.go
 1   ← Gap #2 核心断言
 
-$ rg -c "errors\.Is\(.*ErrSyncLocked\)" internal/cloudclaude/mount_strategy.go
+$ rg -c "errors\.Is\(.*ErrSyncLocked\)" internal/claudedock/mount_strategy.go
 1
 
-$ rg -c "sync_locked" internal/cloudclaude/mount_strategy.go
+$ rg -c "sync_locked" internal/claudedock/mount_strategy.go
 3   ← ReasonCode 字面值 + 注释 + Fprintf 模板
 
-$ rg -c "IsSecondaryClient\s*=\s*true" internal/cloudclaude/mount_strategy.go
+$ rg -c "IsSecondaryClient\s*=\s*true" internal/claudedock/mount_strategy.go
 1   ← 双保险路径
 
-$ rg -c "func TestMountWorkspace_SyncLocked" internal/cloudclaude/mount_strategy_test.go
+$ rg -c "func TestMountWorkspace_SyncLocked" internal/claudedock/mount_strategy_test.go
 1
 ```
 
@@ -321,12 +321,12 @@ $ rg -c "func TestMountWorkspace_SyncLocked" internal/cloudclaude/mount_strategy
 
 **已验证项**：
 
-- [x] `internal/cloudclaude/mount_strategy.go` 存在且包含 `cfg.SyncSessionLock(cfg.ClaudeAccountID)` 调用
-- [x] `internal/cloudclaude/mount_strategy_test.go` 存在且包含 `func TestMountWorkspace_SyncLocked`
+- [x] `internal/claudedock/mount_strategy.go` 存在且包含 `cfg.SyncSessionLock(cfg.ClaudeAccountID)` 调用
+- [x] `internal/claudedock/mount_strategy_test.go` 存在且包含 `func TestMountWorkspace_SyncLocked`
 - [x] commit `d425264` 存在于 git log（feat(32-04): MountWorkspace 真实调用 SyncSessionLock 闭合 Gap #2）
 - [x] go build ./... PASS
-- [x] go vet ./internal/cloudclaude/... PASS
-- [x] go test ./internal/cloudclaude/... -count=1 -short PASS（含 12 子用例 DowngradeMatrix + 3 个新增 SyncLock 测试）
+- [x] go vet ./internal/claudedock/... PASS
+- [x] go test ./internal/claudedock/... -count=1 -short PASS（含 12 子用例 DowngradeMatrix + 3 个新增 SyncLock 测试）
 - [x] PLAN.md frontmatter `must_haves.truths` 全部 5 项已实现
 - [x] PLAN.md `<success_criteria>` grep 断言 4 项全部命中（cfg.SyncSessionLock × 1 / errors.Is ErrSyncLocked × 1 / sync_locked × 3 / IsSecondaryClient=true × 1）
 - [x] PLAN.md `requirements: [REQ-F5-D]` 已在本 SUMMARY frontmatter `requirements-completed` 中列出

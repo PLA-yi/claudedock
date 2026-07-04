@@ -25,7 +25,7 @@ key_files:
   modified:
     - internal/runtime/tasks/worker.go
 decisions:
-  - "使用 `# >>> cloud-cli-proxy managed keys (do not edit) >>>` / `<<<` 成对 marker 包裹控制面权威条目，用户自加行保持原位。"
+  - "使用 `# >>> claudedock managed keys (do not edit) >>>` / `<<<` 成对 marker 包裹控制面权威条目，用户自加行保持原位。"
   - "跳过覆盖用户手生成私钥/公钥时，仍主动修正属主与权限（chown+chmod），并把任何失败记录为 runtime.ssh_key_chown_failed warn 事件。"
   - "docker exec 封装为 package-level `var execInContainer`，测试通过替换该变量消除 docker 依赖。"
   - "mergeAuthorizedKeys 抽成纯函数：managed 空 + existing 空 → 返回空串由调用方 skip；managed 空 + existing 非空且无 marker → 返回 existing 原样不触发写入。"
@@ -65,7 +65,7 @@ metrics:
 
 ## 关键决策
 
-1. **Marker 合并（非破坏式）**：`authorized_keys` 用 `# >>> cloud-cli-proxy managed keys (do not edit) >>>` 与 `# <<< cloud-cli-proxy managed keys <<<` 成对包裹控制面条目。marker 外的行完全不动，用户手加的条目永远保留。`mergeAuthorizedKeys` 作为纯函数方便单测直接覆盖边界。
+1. **Marker 合并（非破坏式）**：`authorized_keys` 用 `# >>> claudedock managed keys (do not edit) >>>` 与 `# <<< claudedock managed keys <<<` 成对包裹控制面条目。marker 外的行完全不动，用户手加的条目永远保留。`mergeAuthorizedKeys` 作为纯函数方便单测直接覆盖边界。
 2. **"已存在则跳过"适用于 outbound 私钥/公钥与 legacy 路径**：用 `containerFileNonEmpty` 做存在性检查（经 `[ -s ]`），命中即走 skip 分支并写 `runtime.ssh_key_skipped_existing` 事件；但仍然会对已有文件跑一遍 `chown user:user && chmod 600/644`，保证属主/权限在 rebuild 后不漂移。属主修正失败记 `runtime.ssh_key_chown_failed` warn 事件，不影响主流程。
 3. **docker exec 可注入**：用 `var execInContainer = func(ctx, container, script, stdin) ([]byte, error)` 包裹所有 docker exec，测试用闭包替换；运行时行为完全不变，仅是执行点被函数化，便于 5 个 case 的 fake 文件系统模拟。
 4. **managed 为空 + existing 为空不创建文件**：避免出现"仅有 marker 却没有任何 key"的空壳文件；`merged == existing` 时也不重写，完全幂等。

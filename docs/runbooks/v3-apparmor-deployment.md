@@ -9,7 +9,7 @@
 
 Ubuntu 25.04 起，宿主机 AppArmor 默认 profile 收紧了 `fusermount3` 的能力集，禁止其在已挂载 FUSE 的命名空间内再次嵌套挂载。这会让 v3.0 容器内的「sshfs（cold） + mutagen-agent（hot） + mergerfs（union）」三路并发挂载链中的后续两路直接 EPERM 失败，外在表现为：
 
-- `cloud-claude doctor mount` 输出 `MOUNT_MERGERFS_FAILED` 或 `MOUNT_SSHFS_FAILED`
+- `claudedock doctor mount` 输出 `MOUNT_MERGERFS_FAILED` 或 `MOUNT_SSHFS_FAILED`
 - 容器内 `mount | grep fuse` 仅看到一条 sshfs 记录，无 mergerfs / mutagen
 - 控制面 audit 出现 `runtime.mount_failed` 事件，metadata.error 含 `Operation not permitted`
 
@@ -109,7 +109,7 @@ bash scripts/verify-fuse-compat.sh
 # 期望阶段 2 全部 [PASS]
 ```
 
-`cloud-claude doctor mount` 应不再输出 `SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` 或 `MOUNT_MERGERFS_FAILED`。
+`claudedock doctor mount` 应不再输出 `SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` 或 `MOUNT_MERGERFS_FAILED`。
 
 ---
 
@@ -214,6 +214,6 @@ docker exec <container> mount | grep -E 'fuse|mergerfs|sshfs'
 - `deploy/scripts/host-preflight.sh::check_apparmor_fusermount3`（L11-73）— OS 版本闸门 + 工具闸门 + advisory 检测
 - `scripts/verify-fuse-compat.sh`（L42-58 AppArmor 检测；阶段 2-4 三路 FUSE 烟测）
 - `.planning/research/PITFALLS.md` C6 — Ubuntu 25.04 AppArmor 嵌套 FUSE 证据链
-- `internal/cloudclaude/errcodes/system.go::SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` — doctor 命中码
+- `internal/claudedock/errcodes/system.go::SYSTEM_APPARMOR_FUSERMOUNT3_MISSING` — doctor 命中码
 - `docs/runbooks/v3-doctor-troubleshoot.md` §3.4（mount 维度）— doctor 5 维度联动
 - `docs/runbooks/v3-error-code-index.md` — 8 域错误码全集

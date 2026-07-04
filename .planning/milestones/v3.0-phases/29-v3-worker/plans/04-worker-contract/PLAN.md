@@ -164,7 +164,7 @@ import (
     "strings"
     "testing"
 
-    "github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
+    "github.com/claudedock/claudedock/internal/agentapi"
 )
 
 // V-01 + D-22：空 Volumes 不出现在 JSON（omitempty 行为）

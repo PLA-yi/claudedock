@@ -6,9 +6,9 @@
 <domain>
 ## Phase Boundary
 
-交付容器侧 FUSE/sshfs 的前置条件和运行参数，使受管镜像包含 sshfs + fuse3 工具、容器创建时附加 FUSE 设备权限，并通过代码审查验证 SSH Proxy 现有多 session channel 和 exec 转发能力可直接支持 cloud-claude 连接模式。
+交付容器侧 FUSE/sshfs 的前置条件和运行参数，使受管镜像包含 sshfs + fuse3 工具、容器创建时附加 FUSE 设备权限，并通过代码审查验证 SSH Proxy 现有多 session channel 和 exec 转发能力可直接支持 claudedock 连接模式。
 
-本阶段不涉及 cloud-claude CLI 开发（Phase 25）、参数透传（Phase 26）或目录映射实现（Phase 27），但为这些后续阶段建立服务端基础。
+本阶段不涉及 claudedock CLI 开发（Phase 25）、参数透传（Phase 26）或目录映射实现（Phase 27），但为这些后续阶段建立服务端基础。
 
 </domain>
 
@@ -20,14 +20,14 @@
 - **D-02:** 在镜像中配置 `/etc/fuse.conf` 启用 `user_allow_other`，允许非 root 用户使用 `-o allow_other` 选项挂载 sshfs。
 
 ### FUSE 权限参数范围
-- **D-03:** Worker 创建容器时对所有容器统一附加 `--device /dev/fuse` 和 `--cap-add SYS_ADMIN`，不做条件区分。cloud-claude 设计意图是所有用户容器都可被连接。
+- **D-03:** Worker 创建容器时对所有容器统一附加 `--device /dev/fuse` 和 `--cap-add SYS_ADMIN`，不做条件区分。claudedock 设计意图是所有用户容器都可被连接。
 - **D-04:** 新增参数在 `internal/runtime/tasks/worker.go` 的 `createHost()` 函数中添加，与现有 `--cap-add NET_ADMIN` 同级。
 
 ### SSH Proxy 验证
 - **D-05:** SSH Proxy 保持零改造。通过代码审查确认现有能力并在本 CONTEXT 中记录结论：
   - `handleConnection()` 循环接受所有 session channel（`for newChan := range chans`），天然支持多 session
   - `handleChannel()` 双向转发所有请求类型（pty-req, shell, exec, env, window-change, exit-status, exit-signal）
-  - 单个 SSH 连接可承载多个并发 session channel，满足 cloud-claude 需要同时建立交互 session 和 sshfs slave session 的需求
+  - 单个 SSH 连接可承载多个并发 session channel，满足 claudedock 需要同时建立交互 session 和 sshfs slave session 的需求
 - **D-06:** 验证结论以文档形式记录在计划中，不新增自动化测试（SSH Proxy 代码本身不改动）。
 
 ### Claude's Discretion
@@ -74,7 +74,7 @@
 - 容器已有 `--cap-add NET_ADMIN` 用于网络隔离，`--cap-add SYS_ADMIN` 是同级别的权限添加
 
 ### Integration Points
-- Phase 25 的 cloud-claude CLI 将通过 SSH Proxy 连接到容器，依赖本阶段确保的多 session 能力
+- Phase 25 的 claudedock CLI 将通过 SSH Proxy 连接到容器，依赖本阶段确保的多 session 能力
 - Phase 27 的 sshfs slave 映射依赖本阶段在镜像中预装的 sshfs 和 FUSE 设备权限
 - Phase 28 将验证 FUSE + AppArmor/seccomp 在生产环境的兼容性
 

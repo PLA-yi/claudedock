@@ -122,7 +122,7 @@ func GenerateToken(secret []byte, userID, role string, expiry time.Duration) (st
     claims := AuthClaims{
         RegisteredClaims: jwt.RegisteredClaims{
             Subject:   userID,
-            Issuer:    "cloud-cli-proxy",
+            Issuer:    "claudedock",
             IssuedAt:  jwt.NewNumericDate(now),
             ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
         },

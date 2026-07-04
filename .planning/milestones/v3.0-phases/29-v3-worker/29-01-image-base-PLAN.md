@@ -60,8 +60,8 @@ must_haves:
 5. **预留静态 COPY 行占位**（仅注释或不动；实际 COPY 由 Plan 03 追加）
 
 ### Out（属于其他 plan 的职责，本 plan 禁止触碰）
-- `curl` 下载 mergerfs `.deb` / mutagen tarball、`/etc/cloud-claude/*.version` 写入 → **Plan 02**（会在本 plan 的 RUN 之后串接新 RUN）
-- `COPY deploy/docker/managed-user/tmux.conf` / `profile.d-cloud-claude.sh`、entrypoint.sh 内容修改、sshd_config 修改 → **Plan 03**
+- `curl` 下载 mergerfs `.deb` / mutagen tarball、`/etc/claudedock/*.version` 写入 → **Plan 02**（会在本 plan 的 RUN 之后串接新 RUN）
+- `COPY deploy/docker/managed-user/tmux.conf` / `profile.d-claudedock.sh`、entrypoint.sh 内容修改、sshd_config 修改 → **Plan 03**
 - `internal/agentapi/contracts.go` / `worker.go` / `worker_volume_test.go` → **Plan 04**
 - `deploy/scripts/host-preflight.sh` / 运维文档 → **Plan 05**
 - `deploy/docker/managed-user/image.lock` / `.github/workflows/build-images.yml` → **Plan 06**

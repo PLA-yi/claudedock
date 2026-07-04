@@ -17,15 +17,15 @@ Diagnoses issues across five domains. Can target a single domain or auto-repair.
 | disk | Disk space, inode usage |
 
 ```bash
-cloud-claude doctor                  # run all five checks
-cloud-claude doctor network          # check network only
-cloud-claude doctor mount --fix      # check mount and auto-repair
+claudedock doctor                  # run all five checks
+claudedock doctor network          # check network only
+claudedock doctor mount --fix      # check mount and auto-repair
 ```
 
 ### env check — Remote Environment Check
 
 ```bash
-cloud-claude env check
+claudedock env check
 ```
 
 Outputs the remote container's timezone, locale, egress IP, FUSE status, toolchain versions, and more.
@@ -33,7 +33,7 @@ Outputs the remote container's timezone, locale, egress IP, FUSE status, toolcha
 ### explain — Error Code Lookup
 
 ```bash
-cloud-claude explain MOUNT_SSHFS_DISCONNECTED
+claudedock explain MOUNT_SSHFS_DISCONNECTED
 ```
 
 Outputs the error code's meaning, possible causes, and suggested fixes.
@@ -44,20 +44,20 @@ Outputs the error code's meaning, possible causes, and suggested fixes.
 
 ### Environment Variables
 
-Create `/etc/cloud-cli-proxy/env` (systemd deployment) or `.env` (Docker Compose deployment). Use `setup-env.sh` for interactive generation.
+Create `/etc/claudedock/env` (systemd deployment) or `.env` (Docker Compose deployment). Use `setup-env.sh` for interactive generation.
 
 #### Control Plane
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | No | `file:/data/cloud-cli-proxy.db` | SQLite database file path |
+| `DATABASE_URL` | No | `file:/data/claudedock.db` | SQLite database file path |
 | `CONTROL_PLANE_ADDR` | No | `:8080` | HTTP API listen address |
 | `ADMIN_USERNAME` | No | `admin` | Admin username |
 | `ADMIN_PASSWORD` | Yes | — | Admin password (seed on first startup) |
 | `ADMIN_JWT_SECRET` | Yes | — | JWT signing key (32+ characters) |
 | `HOST_AGENT_MODE` | No | `socket` | `socket` standalone process / `embedded` inside control plane |
-| `HOST_AGENT_SOCKET` | No | `/run/cloud-cli-proxy/host-agent.sock` | Agent socket path |
-| `DATA_DIR` | No | `/var/lib/cloud-cli-proxy` | Data directory |
+| `HOST_AGENT_SOCKET` | No | `/run/claudedock/host-agent.sock` | Agent socket path |
+| `DATA_DIR` | No | `/var/lib/claudedock` | Data directory |
 | `SSH_PROXY_ADDR` | No | `:2222` | SSH proxy listen address |
 | `LOG_FORMAT` | No | `json` | Log format: `json` / `text` |
 | `LOG_LEVEL` | No | `info` | Log level: `debug` / `info` / `warn` / `error` |
@@ -66,7 +66,7 @@ Create `/etc/cloud-cli-proxy/env` (systemd deployment) or `.env` (Docker Compose
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | No | `file:/data/cloud-cli-proxy.db` | SQLite database file path |
+| `DATABASE_URL` | No | `file:/data/claudedock.db` | SQLite database file path |
 
 #### Service Ports
 
@@ -75,9 +75,9 @@ Create `/etc/cloud-cli-proxy/env` (systemd deployment) or `.env` (Docker Compose
 | `CONTROL_PLANE_ADDR` | `:8080` | Control plane listen address (API + Admin UI + SSH proxy) |
 | `SSH_PROXY_PORT` | `2222` | SSH proxy port |
 
-### cloud-claude Config
+### claudedock Config
 
-`~/.cloud-claude/config.yaml`:
+`~/.claudedock/config.yaml`:
 
 ```yaml
 gateway: https://gw.example.com
@@ -202,8 +202,8 @@ All images are built via GitHub Actions for `linux/amd64` and `linux/arm64`.
 
 | Image | Registry |
 |-------|----------|
-| control-plane | `ghcr.io/zanel1u/cloud-cli-proxy/control-plane` |
-| managed-user | `ghcr.io/zanel1u/cloud-cli-proxy/managed-user` |
+| control-plane | `ghcr.io/claudedock/claudedock/control-plane` |
+| managed-user | `ghcr.io/claudedock/claudedock/managed-user` |
 
 Tag convention:
 

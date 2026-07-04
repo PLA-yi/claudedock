@@ -37,7 +37,7 @@ Output: updated VALIDATION.md + generated test files.
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/validate-phase.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/validate-phase.md
 </execution_context>
 
 <context>

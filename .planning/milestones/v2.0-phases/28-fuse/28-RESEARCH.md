@@ -79,7 +79,7 @@ sshfs slave 模式的 SFTP 数据走 SSH session channel 进程内 pipe，不经
 用户终端 (macOS/Linux)
     │
     ▼
-cloud-claude CLI ──SSH连接──▶ SSH Proxy (宿主机 :2222)
+claudedock CLI ──SSH连接──▶ SSH Proxy (宿主机 :2222)
     │                            │
     │  Session 1: PTY (claude)   │  转发到容器 :22
     │  Session 2: sshfs slave    │
@@ -87,7 +87,7 @@ cloud-claude CLI ──SSH连接──▶ SSH Proxy (宿主机 :2222)
     │                    ┌─── Docker 容器 ───────────────────────┐
     │                    │                                       │
     │  [SFTP Server]◄────┤─── stdin/stdout pipe ───►[sshfs -o passive]
-    │  (cloud-claude内)  │         ▲                     │      │
+    │  (claudedock内)  │         ▲                     │      │
     │                    │         │                     mount(2)│
     │                    │    不经过网络栈              ▼      │
     │                    │                        /workspace     │
@@ -143,7 +143,7 @@ args := []string{
 **When to use:** 仅当安全审计要求不能使用 `apparmor=unconfined` 时考虑。
 
 ```
-profile cloud-cli-proxy flags=(attach_disconnected,mediate_deleted) {
+profile claudedock flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
   network,
   capability,
@@ -178,7 +178,7 @@ profile cloud-cli-proxy flags=(attach_disconnected,mediate_deleted) {
 [PASS]  FUSE + nftables 默认拒绝: 共存正常
 [PASS]  FUSE + 全隧道出网: 共存正常
 [INFO]  端到端流程验证
-[PASS]  cloud-claude → SSH Proxy → 目录映射 → Claude Code: 端到端通过
+[PASS]  claudedock → SSH Proxy → 目录映射 → Claude Code: 端到端通过
 ========================================
 验证结果: 7/7 PASS, 0 FAIL
 ```
@@ -263,7 +263,7 @@ args := []string{
     "--cap-add", "SYS_ADMIN",
     "--device", "/dev/fuse",
     "--security-opt", "apparmor=unconfined",
-    "--label", "cloud-cli-proxy.managed=true",
+    "--label", "claudedock.managed=true",
     // ...
 }
 ```
@@ -302,7 +302,7 @@ test_fuse_mount() {
     mkdir -p "$test_dir"
     echo "fuse-test-content" > "$test_dir/test.txt"
 
-    # 在容器内启动 sshfs passive 挂载（模拟 cloud-claude 的挂载流程）
+    # 在容器内启动 sshfs passive 挂载（模拟 claudedock 的挂载流程）
     docker exec "$container" bash -c '
         mkdir -p /tmp/fuse-verify
         sshfs : /tmp/fuse-verify -o passive -f &
@@ -385,7 +385,7 @@ test_fuse_mount() {
 | Pattern | STRIDE | Standard Mitigation |
 |---------|--------|---------------------|
 | 容器 AppArmor 禁用后的 mount 滥用 | Elevation of Privilege | 容器内非 root 用户无 CAP_SYS_ADMIN；网络隔离由 nftables 默认拒绝保障；mount namespace 隔离 |
-| FUSE 挂载点绕过文件系统权限 | Tampering | sshfs 挂载由控制面发起（cloud-claude），不暴露给容器内用户 |
+| FUSE 挂载点绕过文件系统权限 | Tampering | sshfs 挂载由控制面发起（claudedock），不暴露给容器内用户 |
 
 ## Sources
 

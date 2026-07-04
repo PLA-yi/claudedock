@@ -2,7 +2,7 @@
 
 ## Overview
 
-Cloud CLI Proxy consists of four core components: Control Plane, Host Agent, user containers, and the cloud-claude CLI. The control plane handles API, authentication, and task orchestration. The host agent executes Docker and network operations. The two communicate over a Unix socket.
+ClaudeDock consists of four core components: Control Plane, Host Agent, user containers, and the claudedock CLI. The control plane handles API, authentication, and task orchestration. The host agent executes Docker and network operations. The two communicate over a Unix socket.
 
 ```
 User ──curl──> Control Plane (:8080) ──Docker──> │ User Container           │
@@ -42,7 +42,7 @@ Two run modes: `socket` (standalone process, recommended for production) and `em
 
 A managed image based on Ubuntu 24.04, created with `--network=none` for complete network isolation. Pre-installed with OpenSSH, Claude Code, KasmVNC + Chromium, sing-box, and dev tools (Git, tmux, zsh, Node.js).
 
-### cloud-claude CLI
+### claudedock CLI
 
 A Go CLI installed on the user's laptop, bridging the local terminal and the remote container:
 
@@ -55,7 +55,7 @@ A Go CLI installed on the user's laptop, bridging the local terminal and the rem
 
 ### SQLite
 
-The control plane uses a SQLite single-file database (WAL mode), specified via the `DATABASE_URL` environment variable. The database file is stored at `/data/cloud-cli-proxy.db`, persisted by a Docker Compose named volume.
+The control plane uses a SQLite single-file database (WAL mode), specified via the `DATABASE_URL` environment variable. The database file is stored at `/data/claudedock.db`, persisted by a Docker Compose named volume.
 
 ### Container Network Isolation
 
@@ -112,11 +112,11 @@ User → curl /entry/{shortId} → Get entry script
      → SSH params returned → SSH proxy connects to container
 ```
 
-### cloud-claude CLI
+### claudedock CLI
 
 ```
-User → cloud-claude init → Write config
-     → cd project dir → cloud-claude
+User → claudedock init → Write config
+     → cd project dir → claudedock
      → Authenticate + wait for container ready
      → sshfs mount local directory to same path in container
      → Attach or create tmux session
@@ -145,9 +145,9 @@ Control plane creates task → Host Agent receives
 ## Project Structure
 
 ```
-cloud-cli-proxy/
+claudedock/
 ├── cmd/
-│   ├── cloud-claude/           # cloud-claude CLI
+│   ├── claudedock/           # claudedock CLI
 │   ├── control-plane/          # Control plane API
 │   └── host-agent/             # Host agent
 ├── internal/
@@ -159,7 +159,7 @@ cloud-cli-proxy/
 │   ├── agent/                  # Host agent server
 │   ├── agentapi/               # Agent API client
 │   ├── broadcast/              # SSE real-time broadcast
-│   ├── cloudclaude/            # cloud-claude CLI library
+│   ├── claudedock/            # claudedock CLI library
 │   ├── local/                  # Local Dev Containers
 │   ├── network/                # nftables / sing-box configuration
 │   ├── runtime/                # Task runtime, container lifecycle

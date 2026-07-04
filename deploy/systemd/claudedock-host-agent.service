@@ -1,0 +1,22 @@
+[Unit]
+Description=ClaudeDock host-agent
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=claudedock
+Group=claudedock
+WorkingDirectory=/opt/claudedock
+Environment=HOST_AGENT_SOCKET=/run/claudedock/host-agent.sock
+ExecStartPre=/usr/bin/env bash /opt/claudedock/deploy/scripts/host-preflight.sh
+ExecStart=/opt/claudedock/bin/host-agent
+RuntimeDirectory=claudedock
+AmbientCapabilities=CAP_NET_ADMIN CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN
+NoNewPrivileges=true
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -10,7 +10,7 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // AdminBypassPresetStore 聚合 Preset CRUD 所需 Repository 方法子集。

@@ -31,7 +31,7 @@
   PromotionEngine 异步入队
         │
         ▼
-  SFTP 拉取 cold:/workspace-cold/model.bin → hot:/tmp/.cloud-claude-mounts/<hash>/hot/model.bin
+  SFTP 拉取 cold:/workspace-cold/model.bin → hot:/tmp/.claudedock-mounts/<hash>/hot/model.bin
         │
         ▼
   晋升完成 → 下次读取 mergerfs 命中 hot 分支（零 RTT）
@@ -43,8 +43,8 @@
 |------|------|------|
 | cold-promoter 进程 | 容器内 goroutine | inotify 监听 cold 分支根目录，捕获读事件 |
 | PromotionEngine | cold-promoter 内部 | 异步 SFTP 拉取 + 去重 + 重试 + 熔断 |
-| PID file | `~/.cloud-claude/cold-promoter.pid` | 进程存活标记 |
-| last-session.json | `~/.cloud-claude/last-session.json` | 晋升统计（promotion_count / promotion_bytes / promotion_failed_count） |
+| PID file | `~/.claudedock/cold-promoter.pid` | 进程存活标记 |
+| last-session.json | `~/.claudedock/last-session.json` | 晋升统计（promotion_count / promotion_bytes / promotion_failed_count） |
 
 ---
 
@@ -53,8 +53,8 @@
 ### 2.1 自动启动
 
 Full 模式 mount 就绪后，cold-promoter 自动启动：
-- watcher 开始监听 cold 分支根目录（`/tmp/.cloud-claude-mounts/<hash>/cold/`）
-- PID file 写入 `~/.cloud-claude/cold-promoter.pid`
+- watcher 开始监听 cold 分支根目录（`/tmp/.claudedock-mounts/<hash>/cold/`）
+- PID file 写入 `~/.claudedock/cold-promoter.pid`
 - 启动失败时 stderr 输出 `[MOUNT_PROMOTER_FAILED]` 但不阻断 mount
 
 ### 2.2 自动回收
@@ -67,7 +67,7 @@ mount cleanup 时按 LIFO 顺序回收：
 
 ### 2.3 异常退出清理
 
-若 cloud-claude 异常退出（SSH 断连 / panic），下次 mount 启动前自动清理残留：
+若 claudedock 异常退出（SSH 断连 / panic），下次 mount 启动前自动清理残留：
 - 检测 PID file → `kill -0 <pid>` 判断进程是否存活
 - 存活则 `kill <pid>` + `rm <pidfile>`
 - 不依赖 `pkill -f cold-promoter`（避免多用户环境误杀）
@@ -76,10 +76,10 @@ mount cleanup 时按 LIFO 顺序回收：
 
 ```bash
 # 方式 1：环境变量（推荐）
-CLOUD_CLAUDE_NO_PROMOTION=1 cloud-claude
+CLOUD_CLAUDE_NO_PROMOTION=1 claudedock
 
 # 方式 2：运行时终止 watcher
-kill $(cat ~/.cloud-claude/cold-promoter.pid)
+kill $(cat ~/.claudedock/cold-promoter.pid)
 ```
 
 关闭后 cold 分支仍可正常读取（每次回源 sshfs），功能不受影响。
@@ -93,10 +93,10 @@ kill $(cat ~/.cloud-claude/cold-promoter.pid)
 | 现象 | 可能原因 | 诊断命令 |
 |------|---------|---------|
 | watcher 不启动 | inotify watch 耗尽 | `cat /proc/sys/fs/inotify/max_user_watches` |
-| watcher 不启动 | ~/.cloud-claude/ 无写权限 | `ls -la ~/.cloud-claude/cold-promoter.pid` |
-| 晋升一直失败 | SFTP 连接断开 | `cloud-claude doctor mount \| grep sshfs` |
-| 晋升一直失败 | hot staging 磁盘满 | `df -h /tmp/.cloud-claude-mounts/` |
-| 特定文件无法晋升 | 文件在熔断列表中 | `cat ~/.cloud-claude/last-session.json \| jq '.promotion_failed_count'` |
+| watcher 不启动 | ~/.claudedock/ 无写权限 | `ls -la ~/.claudedock/cold-promoter.pid` |
+| 晋升一直失败 | SFTP 连接断开 | `claudedock doctor mount \| grep sshfs` |
+| 晋升一直失败 | hot staging 磁盘满 | `df -h /tmp/.claudedock-mounts/` |
+| 特定文件无法晋升 | 文件在熔断列表中 | `cat ~/.claudedock/last-session.json \| jq '.promotion_failed_count'` |
 
 ### 3.2 熔断机制
 
@@ -125,8 +125,8 @@ sysctl -p
 
 | 层 | 路径 | 权限 | 职责 |
 |----|------|------|------|
-| hot（hot_sync） | `/tmp/.cloud-claude-mounts/<hash>/hot/` | RW | 源码双向同步 + 已晋升文件存储 |
-| cold（sshfs） | `/tmp/.cloud-claude-mounts/<hash>/cold/` | RO | 完整文件系统只读镜像 |
+| hot（hot_sync） | `/tmp/.claudedock-mounts/<hash>/hot/` | RW | 源码双向同步 + 已晋升文件存储 |
+| cold（sshfs） | `/tmp/.claudedock-mounts/<hash>/cold/` | RO | 完整文件系统只读镜像 |
 | merge（mergerfs） | 用户 cwd | — | union mount（hot=RW 在前，cold=RO 在后） |
 
 ### 4.2 晋升文件生命周期
@@ -136,7 +136,7 @@ sysctl -p
 3. 文件出现在 hot 分支后，mergerfs 天然命中（`category.create=ff` 优先返回 hot 层结果）
 4. 晋升文件在 hot 分支存活到 mount cleanup（会话退出时清理）
 
-**注意：** v3.1 不持久化 hot 分支。会话退出后 hot staging 目录被清理，下次 cloud-claude 需要重新晋升。跨会话持久缓存为 v3.2 评估项。
+**注意：** v3.1 不持久化 hot 分支。会话退出后 hot staging 目录被清理，下次 claudedock 需要重新晋升。跨会话持久缓存为 v3.2 评估项。
 
 ### 4.3 不与 hot_sync 轮询冲突
 
@@ -183,7 +183,7 @@ sleep 6
 - **Severity:** WARN
 - **触发:** sshfs 断开 >=15 秒
 - **影响:** cold 分支被从 mergerfs 摘除
-- **修复:** 网络恢复后运行 `cloud-claude doctor mount --fix`
+- **修复:** 网络恢复后运行 `claudedock doctor mount --fix`
 
 ### MOUNT_MERGERFS_FAILED
 - **Severity:** ERROR
@@ -200,19 +200,19 @@ sleep 6
 pgrep -f cold-promoter && echo "watcher 存活" || echo "watcher 未运行"
 
 # 2. 查看晋升统计（从 last-session.json）
-cat ~/.cloud-claude/last-session.json | jq '{promotion_count, promotion_bytes, promotion_failed_count}'
+cat ~/.claudedock/last-session.json | jq '{promotion_count, promotion_bytes, promotion_failed_count}'
 
 # 3. 查看 hot 分支中已晋升的文件
-docker exec $(docker ps --filter label=com.cloud-cli-proxy.managed=true -q | head -1) \
-  ls /tmp/.cloud-claude-mounts/*/hot/ 2>/dev/null
+docker exec $(docker ps --filter label=com.claudedock.managed=true -q | head -1) \
+  ls /tmp/.claudedock-mounts/*/hot/ 2>/dev/null
 
 # 4. 查看晋升相关 doctor check
-cloud-claude doctor mount --json | jq '.checks[] | select(.name | startswith("promotion"))'
+claudedock doctor mount --json | jq '.checks[] | select(.name | startswith("promotion"))'
 
 # 5. 查看 5 个关联错误码的详细说明
-cloud-claude explain MOUNT_PROMOTER_FAILED
-cloud-claude explain MOUNT_HOT_SYNC_FAILED
-cloud-claude explain MOUNT_SSHFS_FAILED
+claudedock explain MOUNT_PROMOTER_FAILED
+claudedock explain MOUNT_HOT_SYNC_FAILED
+claudedock explain MOUNT_SSHFS_FAILED
 ```
 
 ---

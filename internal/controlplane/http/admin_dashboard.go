@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	nethttp "net/http"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type DashboardStatsGetter interface {

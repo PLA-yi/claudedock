@@ -59,11 +59,11 @@ decisions:
 ## 测试结果
 
 ```
-ok  github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen    0.010s  (7 tests)
-ok  github.com/zanel1u/cloud-cli-proxy/internal/controlplane/app         0.329s  (7 tests)
-ok  github.com/zanel1u/cloud-cli-proxy/internal/controlplane/http        0.327s  (2 tests + 既有 admin_users_test 无回归)
-ok  github.com/zanel1u/cloud-cli-proxy/internal/store/repository         0.011s
-ok  github.com/zanel1u/cloud-cli-proxy/internal/runtime/tasks            0.203s
+ok  github.com/claudedock/claudedock/internal/controlplane/credgen    0.010s  (7 tests)
+ok  github.com/claudedock/claudedock/internal/controlplane/app         0.329s  (7 tests)
+ok  github.com/claudedock/claudedock/internal/controlplane/http        0.327s  (2 tests + 既有 admin_users_test 无回归)
+ok  github.com/claudedock/claudedock/internal/store/repository         0.011s
+ok  github.com/claudedock/claudedock/internal/runtime/tasks            0.203s
 ```
 
 - `go build ./...` 通过

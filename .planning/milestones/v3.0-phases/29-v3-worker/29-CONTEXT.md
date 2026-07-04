@@ -31,12 +31,12 @@
 ### 二进制来源 / 版本
 
 - **D-04**：mergerfs 2.41.1 从官方 GitHub release（`trapexit/mergerfs`）下载 `mergerfs_2.41.1.ubuntu-noble_<arch>.deb` 并通过 `dpkg -i` 安装（**禁止 apt repo**，PITFALLS M3）。镜像同时支持 `amd64` + `arm64`，构建时按 `$(dpkg --print-architecture)` 选 deb。
-- **D-05**：mutagen-agent v0.18.1 从 Mutagen GitHub release（`mutagen-io/mutagen`）下载 `mutagen_linux_<arch>_v0.18.1.tar.gz`，解压后只保留 agent bundle `mutagen-agents.tar.gz`，预放到 `/opt/mutagen-agents.tar.gz`。运行时由 cloud-claude（Phase 31）触发 agent extract；本阶段只做预置 + 版本标记。同样支持 amd64 + arm64。
+- **D-05**：mutagen-agent v0.18.1 从 Mutagen GitHub release（`mutagen-io/mutagen`）下载 `mutagen_linux_<arch>_v0.18.1.tar.gz`，解压后只保留 agent bundle `mutagen-agents.tar.gz`，预放到 `/opt/mutagen-agents.tar.gz`。运行时由 claudedock（Phase 31）触发 agent extract；本阶段只做预置 + 版本标记。同样支持 amd64 + arm64。
 - **D-06**：tmux 使用 `ubuntu:24.04` apt 仓库版本（3.4 系列），**entrypoint 启动时断言 `tmux -V` 字符串 ≥ `3.4`**——不强制 3.6a 上游依赖（PPA 引入维护成本过高）；ROADMAP 所列 3.6a 为上限期望，本阶段**放宽下限到 3.4** 以换取镜像体积与稳定性。若 Phase 35 真机验收发现 3.4 下 `terminal-overrides RGB` 行为不达标，则回流到本阶段补 PPA 或从源编译（open follow-up 记录于 `<deferred>`）。
-- **D-07**：在镜像构建阶段写入元数据文件，供 cloud-claude 与 doctor 读取做版本比对（防御 PITFALLS C4 Mutagen 版本漂移）：
-  - `/etc/cloud-claude/mutagen.version` ← `v0.18.1`
-  - `/etc/cloud-claude/mergerfs.version` ← `2.41.1`
-  - `/etc/cloud-claude/tmux.version` ← 运行时 `tmux -V` 回填（构建阶段静态占位）
+- **D-07**：在镜像构建阶段写入元数据文件，供 claudedock 与 doctor 读取做版本比对（防御 PITFALLS C4 Mutagen 版本漂移）：
+  - `/etc/claudedock/mutagen.version` ← `v0.18.1`
+  - `/etc/claudedock/mergerfs.version` ← `2.41.1`
+  - `/etc/claudedock/tmux.version` ← 运行时 `tmux -V` 回填（构建阶段静态占位）
 - **D-08**：libfuse3 采用 `ubuntu:24.04` apt 提供的 `libfuse3-3` / `fuse3` 系列（3.16–3.18 区间均可满足 mergerfs 2.41.1 要求），不引入额外 PPA。
 
 ### Entrypoint 改造
@@ -45,10 +45,10 @@
   1. `prepare_fuse`：`chmod 666 /dev/fuse` + 断言 `/dev/fuse` 存在（现存逻辑强化）
   2. `prepare_v3_dirs`：二次 `chown -R 1000:1000 /home/claude /workspace-hot /workspace-cold`（Dockerfile 已预建，此处兜底 C5 / M17）
   3. `prepare_mutagen_agent`：校验 `/opt/mutagen-agents.tar.gz` 存在，extract 到 `/usr/local/libexec/mutagen/agents/`（供 Phase 31 的 Mutagen daemon 使用）
-  4. `prepare_mergerfs`（可选）：默认**不**在 entrypoint 挂 mergerfs——mergerfs 由 cloud-claude 在 SSH 会话建立后按 `--mount-mode` 动态挂载（Phase 31）。entrypoint 仅校验 `mergerfs --version` 可执行
+  4. `prepare_mergerfs`（可选）：默认**不**在 entrypoint 挂 mergerfs——mergerfs 由 claudedock 在 SSH 会话建立后按 `--mount-mode` 动态挂载（Phase 31）。entrypoint 仅校验 `mergerfs --version` 可执行
   5. `wait` + `exec /usr/sbin/sshd -D -e`
 - **D-10**：PID 1 改为 `tini`——Dockerfile `ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]`。tini 通过 `apt-get install -y --no-install-recommends tini` 安装（ubuntu:24.04 官方包，避免额外下载）。
-- **D-11**：mergerfs 挂载参数固定（由 cloud-claude 在 Phase 31 下发，但镜像文档与 host-preflight 断言保持一致）：`category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash`。
+- **D-11**：mergerfs 挂载参数固定（由 claudedock 在 Phase 31 下发，但镜像文档与 host-preflight 断言保持一致）：`category.create=ff,func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off,inodecalc=path-hash`。
 - **D-12**：mergerfs branch 拓扑本阶段锁定为 **2 路**：`/workspace-hot=RW:/workspace-cold=NC,RO`（解决 Q10）。entrypoint 与镜像文档通过 `CLOUD_CLAUDE_MERGERFS_BRANCHES` 环境变量预留 3 路扩展点（未设置时默认 2 路），Phase 31 若决策 3 路无需动镜像。
 - **D-13**：新增 `/etc/tmux.conf`（容器级默认）：
   ```
@@ -57,7 +57,7 @@
   set -g aggressive-resize on
   set -g history-limit 50000
   ```
-  新增 `/etc/profile.d/cloud-claude.sh` 导出 `CLAUDE_CODE_TMUX_TRUECOLOR=1`（PITFALLS M7 / M8）。
+  新增 `/etc/profile.d/claudedock.sh` 导出 `CLAUDE_CODE_TMUX_TRUECOLOR=1`（PITFALLS M7 / M8）。
 - **D-14**：`sshd_config` 在现有基础上追加：
   ```
   ClientAliveInterval 15
@@ -94,7 +94,7 @@
   并给 `HostActionRequest` 增加 `Volumes []VolumeMount \`json:"volumes,omitempty"\``。
 - **D-19**：worker `createHost` 遍历 `request.Volumes`，为每个元素在 `docker create` args 中追加：
   `--mount type=volume,src=<Name>,dst=<Target>[,readonly]`
-  **不**追加 `--label com.cloud-cli-proxy.volume=<Name>`（labels 只用于上层审计，不写到容器）。
+  **不**追加 `--label com.claudedock.volume=<Name>`（labels 只用于上层审计，不写到容器）。
 - **D-20**：worker 本阶段**不**调用 `docker volume create`——Phase 33 负责通过新增工具函数 `ensureDockerVolume(name, labels)` 幂等创建。本阶段 worker 假设 volume 已存在；若 `docker create` 因 volume 不存在失败，则正常返回错误（与现有错误码 `host_action_failed` 一致）。
 - **D-21**：`ClaudeAccountID` 字段**不**在本阶段新增——Phase 30 `migration 0014` 与 `HostActionRequest.ClaudeAccountID` 共同交付，本阶段仅确保 `Volumes` 字段增加后 v2.0 旧客户端反序列化不破（单元测试 round-trip 验证 `omitempty` 行为）。
 - **D-22**：向后兼容性：`Volumes` 字段为 `omitempty`，v2.0 agent / 控制面若未升级，`HostActionRequest` JSON 不包含该字段，worker 路径不变。
@@ -117,7 +117,7 @@
   > 1. AppArmor override 路径原写为 `/etc/apparmor.d/local/docker-default`，经 29-RESEARCH.md §Conflicts with CONTEXT.md 论证（Launchpad bug #2111105、moby#50013、sysbox#947、stargz-snapshotter#2144 一致指向 fusermount3），统一修正为 `/etc/apparmor.d/local/fusermount3`，以真正防御 Critical Pitfall C6。
   > 2. 脚本路径原写为"新增 `deploy/host-preflight.sh`"，经 29-PATTERNS.md 代码映射确认 `deploy/scripts/host-preflight.sh` **已存在**（见文件 `1-45` 行），修正为"扩展现有脚本、追加 AppArmor 检测函数"。
   > 详见 29-DISCUSSION-LOG.md §修正记录 2026-04-18。
-- **D-24**：`deploy/scripts/host-preflight.sh` **不**嵌入 cloud-cli-proxy 控制面启动流程——保持独立脚本，由运维手动运行 / CI 工作流作为可选 step / Phase 34 `doctor host` 维度调用。理由：宿主机级改动需 sudo，不能由控制面进程 silent 执行。
+- **D-24**：`deploy/scripts/host-preflight.sh` **不**嵌入 claudedock 控制面启动流程——保持独立脚本，由运维手动运行 / CI 工作流作为可选 step / Phase 34 `doctor host` 维度调用。理由：宿主机级改动需 sudo，不能由控制面进程 silent 执行。
 - **D-25**：运维手册 `docs/` 中新增一节 `v3.0 AppArmor override 部署`（或在 deploy/ README 中），包含：override 内容、`apparmor_parser -r` 刷新命令、回滚命令、如何验证 override 生效。
 
 ### image.lock 扩展字段
@@ -227,10 +227,10 @@
 ### Integration Points
 
 - Phase 30 的 Entry API 扩展会从 `image.lock` 读取 `image_version` / `supports_mutagen` / `supports_mergerfs` 字段
-- Phase 31 的 cloud-claude Mutagen 逻辑依赖 `/etc/cloud-claude/mutagen.version` 元数据与 `/opt/mutagen-agents.tar.gz` 预放
+- Phase 31 的 claudedock Mutagen 逻辑依赖 `/etc/claudedock/mutagen.version` 元数据与 `/opt/mutagen-agents.tar.gz` 预放
 - Phase 32 的 SSH KeepAlive 基线依赖本阶段 `sshd_config` 服务端参数
 - Phase 33 的 persistent volume 挂载使用本阶段定义的 `HostActionRequest.Volumes` 契约
-- Phase 34 的 doctor mount 维度从 `/etc/cloud-claude/mergerfs.version` 做版本校验
+- Phase 34 的 doctor mount 维度从 `/etc/claudedock/mergerfs.version` 做版本校验
 - `deploy/host-preflight.sh` 被 Phase 34 doctor host 维度与 Phase 35 真机验收共同调用
 
 </code_context>

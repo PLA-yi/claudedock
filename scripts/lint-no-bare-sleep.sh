@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 45 Plan 05 — Cloud CLI Proxy e2e 套件「禁止裸 sleep」守护脚本。
+# Phase 45 Plan 05 — ClaudeDock e2e 套件「禁止裸 sleep」守护脚本。
 #
 # 设计动机（CONTEXT.md §Area 4 / E2E-05 决策）：
 #   tests/e2e/ 下的所有用例必须通过 tests/e2e/harness/waitfor.go 的
@@ -27,7 +27,7 @@ SCRIPT_NAME="$(basename "$0")"
 
 usage() {
     cat <<EOF
-$SCRIPT_NAME — Cloud CLI Proxy e2e 套件「禁止裸 sleep」守护
+$SCRIPT_NAME — ClaudeDock e2e 套件「禁止裸 sleep」守护
 
 用途：
     扫描 \$TARGET_DIR（默认 tests/e2e）下所有 *.go 中 time.Sleep( 调用。

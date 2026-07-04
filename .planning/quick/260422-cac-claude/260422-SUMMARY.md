@@ -326,7 +326,7 @@ prepare_fingerprint() {
   # 导出环境变量供 Node.js 进程使用
   export SPOOF_HOSTNAME="$fake_hostname"
   export SPOOF_MACHINE_ID="$fake_machine_id"
-  export NODE_OPTIONS="--require /workspace/.cloud-claude/spoof-fingerprint.js ${NODE_OPTIONS:-}"
+  export NODE_OPTIONS="--require /workspace/.claudedock/spoof-fingerprint.js ${NODE_OPTIONS:-}"
 }
 ```
 

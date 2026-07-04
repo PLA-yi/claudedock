@@ -26,12 +26,12 @@ tech-stack:
 
 key-files:
   modified:
-    - "internal/cloudclaude/errcodes/codes.go - MOUNT_PROMOTER_FAILED 常量（37-01 已 ship）"
-    - "internal/cloudclaude/errcodes/mount.go - MOUNT_PROMOTER_FAILED MustRegister（37-01 已 ship）"
-    - "internal/cloudclaude/errcodes/explanations.go - registerExplanation >=200 中文字符（37-01 已 ship）"
-    - "internal/cloudclaude/doctor/mount.go - 新增 4 项 promotion check 函数"
-    - "internal/cloudclaude/doctor/doctor.go - RunDoctor mount 域追加 4 项 promotion check 调用"
-    - "cmd/cloud-claude/explain_test.go - 新增 TestExplain_MountPromoterFailed_Exit0_MinLen"
+    - "internal/claudedock/errcodes/codes.go - MOUNT_PROMOTER_FAILED 常量（37-01 已 ship）"
+    - "internal/claudedock/errcodes/mount.go - MOUNT_PROMOTER_FAILED MustRegister（37-01 已 ship）"
+    - "internal/claudedock/errcodes/explanations.go - registerExplanation >=200 中文字符（37-01 已 ship）"
+    - "internal/claudedock/doctor/mount.go - 新增 4 项 promotion check 函数"
+    - "internal/claudedock/doctor/doctor.go - RunDoctor mount 域追加 4 项 promotion check 调用"
+    - "cmd/claudedock/explain_test.go - 新增 TestExplain_MountPromoterFailed_Exit0_MinLen"
   created: []
 
 key-decisions:
@@ -70,7 +70,7 @@ completed: 2026-04-24
   - `promotion_queue_depth`：通过 last-session.json 判断晋升引擎活跃度
   - `promotion_total`：累计晋升文件计数
   - `promotion_failed_total`：晋升失败次数监控，失败时 warn 带 MOUNT_PROMOTER_FAILED
-- explain 子进程测试通过：`cloud-claude explain MOUNT_PROMOTER_FAILED` exit 0 + stdout >=200 字符
+- explain 子进程测试通过：`claudedock explain MOUNT_PROMOTER_FAILED` exit 0 + stdout >=200 字符
 
 ## Task Commits
 
@@ -82,22 +82,22 @@ completed: 2026-04-24
 
 | 文件 | 变更 | 说明 |
 |------|------|------|
-| `internal/cloudclaude/errcodes/codes.go` | 37-01 已 ship | MOUNT_PROMOTER_FAILED 常量（行 138） |
-| `internal/cloudclaude/errcodes/mount.go` | 37-01 已 ship | MOUNT_PROMOTER_FAILED MustRegister（行 131-136） |
-| `internal/cloudclaude/errcodes/explanations.go` | 37-01 已 ship | registerExplanation >=200 中文字符（行 144-148） |
-| `internal/cloudclaude/doctor/mount.go` | 新增 4 函数 | checkPromoterAlive / checkPromotionQueueDepth / checkPromotionTotal / checkPromotionFailedTotal |
-| `internal/cloudclaude/doctor/doctor.go` | 新增 4 调用 | mount 块 checkDefaultIgnoreLoaded 后追加 4 项 promotion check |
-| `cmd/cloud-claude/explain_test.go` | 新增 1 测试 | TestExplain_MountPromoterFailed_Exit0_MinLen |
+| `internal/claudedock/errcodes/codes.go` | 37-01 已 ship | MOUNT_PROMOTER_FAILED 常量（行 138） |
+| `internal/claudedock/errcodes/mount.go` | 37-01 已 ship | MOUNT_PROMOTER_FAILED MustRegister（行 131-136） |
+| `internal/claudedock/errcodes/explanations.go` | 37-01 已 ship | registerExplanation >=200 中文字符（行 144-148） |
+| `internal/claudedock/doctor/mount.go` | 新增 4 函数 | checkPromoterAlive / checkPromotionQueueDepth / checkPromotionTotal / checkPromotionFailedTotal |
+| `internal/claudedock/doctor/doctor.go` | 新增 4 调用 | mount 块 checkDefaultIgnoreLoaded 后追加 4 项 promotion check |
+| `cmd/claudedock/explain_test.go` | 新增 1 测试 | TestExplain_MountPromoterFailed_Exit0_MinLen |
 
 ## 验证结果
 
 | 检查项 | 状态 |
 |--------|------|
-| `go test ./internal/cloudclaude/errcodes/... -v` | 9/9 PASS |
-| `go test ./cmd/cloud-claude/... -run TestExplain_Mount -v` | 3/3 PASS |
+| `go test ./internal/claudedock/errcodes/... -v` | 9/9 PASS |
+| `go test ./cmd/claudedock/... -run TestExplain_Mount -v` | 3/3 PASS |
 | `go build ./...` | PASS |
-| `go vet ./internal/cloudclaude/doctor/...` | PASS |
-| `bash scripts/ci-doctor-grep.sh ./cloud-claude` | M14 gate PASS |
+| `go vet ./internal/claudedock/doctor/...` | PASS |
+| `bash scripts/ci-doctor-grep.sh ./claudedock` | M14 gate PASS |
 | `grep -c "MOUNT_PROMOTER_FAILED" codes.go` | 1 |
 | `grep -c "MOUNT_PROMOTER_FAILED" mount.go` | 1 |
 | `grep -c checkPromoterAlive\|... doctor.go` | 4 |
@@ -137,7 +137,7 @@ completed: 2026-04-24
 
 ## Next Phase Readiness
 
-- Doctor promotion 可观测就位，Plan 37-05（e2e UAT 脚本）可直接用 `cloud-claude doctor --json | jq '.checks[] | select(.name | startswith("promotion"))'` 做端到端验证
+- Doctor promotion 可观测就位，Plan 37-05（e2e UAT 脚本）可直接用 `claudedock doctor --json | jq '.checks[] | select(.name | startswith("promotion"))'` 做端到端验证
 - explain 测试覆盖 MOUNT_PROMOTER_FAILED，子进程渲染链路完整
 
 ---

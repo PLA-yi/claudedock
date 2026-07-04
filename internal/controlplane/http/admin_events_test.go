@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type stubEventStore struct {

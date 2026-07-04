@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const DefaultSocketPath = "/run/cloud-cli-proxy/host-agent.sock"
+const DefaultSocketPath = "/run/claudedock/host-agent.sock"
 
 type Client struct {
 	socketPath string

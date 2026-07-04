@@ -1,4 +1,4 @@
--- Cloud CLI Proxy e2e fixture：postgres seed
+-- ClaudeDock e2e fixture：postgres seed
 --
 -- 说明：
 --   - 本文件 *不* 做表结构 migration；控制面启动时通过 internal/store/migrations

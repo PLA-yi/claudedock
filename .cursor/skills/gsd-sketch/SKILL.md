@@ -41,13 +41,13 @@ Does not require prior new-project setup — auto-creates `.planning/sketches/` 
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/sketch.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/sketch-wrap-up.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ui-brand.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/sketch-theme-system.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/sketch-interactivity.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/sketch-tooling.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/sketch-variant-patterns.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/sketch.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/sketch-wrap-up.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ui-brand.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/sketch-theme-system.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/sketch-interactivity.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/sketch-tooling.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/sketch-variant-patterns.md
 </execution_context>
 
 <runtime_note>

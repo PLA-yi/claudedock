@@ -73,5 +73,5 @@ func ValidateEgressConfig(filePath string) ([]byte, EgressMode, error) {
 // egressMountArg returns the docker create bind mount argument for the egress config file.
 func egressMountArg(filePath string) string {
 	absPath, _ := filepath.Abs(filePath)
-	return absPath + ":/etc/cloud-claude/sing-box-outbound.json:ro"
+	return absPath + ":/etc/claudedock/sing-box-outbound.json:ro"
 }

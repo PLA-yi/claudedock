@@ -47,7 +47,7 @@ hosted runner 跑通。
 | **QUAL-05** nft 全规则 counter + 169.254/16 drop | `internal/network/firewall_helpers.go` + `worker_firewall_linux.go` 全部 build/add 规则插入 `Counter`；新增 `buildIPDaddrCIDRDropExprs` + `addIPDaddrCIDRDropRule`；`applyWorkerIPv4Rules` 在 OUTPUT 链 lo/ESTABLISHED 之后注入 `169.254.0.0/16 counter drop comment "linklocal-drop"` | `firewall_helpers_test.go::TestBuildIPDaddrCIDRDropExprs_{LinkLocal,RejectsIPv6,RejectsGarbage}` × 3 单测；既有 helpers 单测零修改通过（`findExpr` 类型断言不依赖 index） |
 | **QUAL-06** worker cap-drop NET_RAW + 删 SYS_ADMIN | `internal/runtime/tasks/worker.go::buildCreateArgs` 删 `--cap-add SYS_ADMIN`、加 `--cap-drop NET_RAW`、保留 `--cap-add NET_ADMIN`（sing-box tun 依赖） | `internal/runtime/tasks/worker_caps_test.go::TestBuildCreateArgs_CapabilitiesLocked` 锁三条契约 |
 | **QUAL-07** -race -shuffle 默认 | `Makefile` (`test-go` / `ci-gate`) + `.github/workflows/ci.yml` (`go-test` job) | darwin `go test $(go list ./... | grep -v '/tests/e2e$') -race -shuffle=on -count=1` 19 包全绿 |
-| **QUAL-08** goleak.VerifyTestMain | `cmd/cloud-claude/testmain_test.go` + `internal/network/testmain_test.go` + `internal/controlplane/app/testmain_test.go`；`go.mod` 新增 `go.uber.org/goleak v1.3.0` | `go test ./cmd/cloud-claude/... ./internal/network/... ./internal/controlplane/app/...` 全绿；ignore list 仅 `broadcast.(*Hub).cleanupLoop`（设计内常驻） |
+| **QUAL-08** goleak.VerifyTestMain | `cmd/claudedock/testmain_test.go` + `internal/network/testmain_test.go` + `internal/controlplane/app/testmain_test.go`；`go.mod` 新增 `go.uber.org/goleak v1.3.0` | `go test ./cmd/claudedock/... ./internal/network/... ./internal/controlplane/app/...` 全绿；ignore list 仅 `broadcast.(*Hub).cleanupLoop`（设计内常驻） |
 | **51-09** 双绑 API pre-check | `internal/store/repository/queries.go` 新增 `GetBindingHostIDByEgressIP`；`internal/controlplane/http/admin_bindings.go` 新增 `ErrCodeEgressIPAlreadyBound` 常量 + `Bind` pre-check 路径（409 + 中英 message + error_code + host_id / egress_ip_id 回显） | `admin_bindings_test.go::TestAdminBindingsHandler` table-driven 新增 2 case（双绑 / 同 host 幂等）+ `TestAdminBindings_DoubleBind_ErrorCode` 锁定 error_code / 双语 message / host_id / egress_ip_id 四字段 |
 
 ## 自动闭环的 GAP
@@ -175,6 +175,6 @@ commit 中落地，不影响验证结果。）
 | 偏差 | 说明 | 处置 |
 |------|------|------|
 | Phase 46 `Vote` / `DefaultDenyMatrix` 复用 | 这两个符号定义在 `tests/e2e/helpers.go` 包，production 不能 import tests 包 | 本地 `voteEgressIP` / `defaultLeakTargets` 私有复刻；锁定单测保证双边契约不漂移 |
-| `cmd/host-agent` 不存在 | host-agent 以 embedded 模式跑在 control-plane 进程内（`internal/controlplane/app`） | QUAL-08 goleak 接入到 `cmd/cloud-claude` / `internal/network` / `internal/controlplane/app` 三个最关键的测试包，覆盖 control-plane + cloud-claude 主路径 |
+| `cmd/host-agent` 不存在 | host-agent 以 embedded 模式跑在 control-plane 进程内（`internal/controlplane/app`） | QUAL-08 goleak 接入到 `cmd/claudedock` / `internal/network` / `internal/controlplane/app` 三个最关键的测试包，覆盖 control-plane + claudedock 主路径 |
 | NET_ADMIN 保留 | sing-box 在 worker netns 内创建 tun0 设备依赖 CAP_NET_ADMIN | CONTEXT §Area 4 明确允许折中；Phase 49 LEAK-08 fixture 后续修订 |
 | Cursor agent 重复 commit | 部分 plan 的 SUMMARY 在 implementer 第二轮被自动重写文案 | 生产代码改动只在首 commit 落地，不影响功能 |

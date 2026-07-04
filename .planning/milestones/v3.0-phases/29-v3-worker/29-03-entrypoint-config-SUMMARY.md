@@ -7,7 +7,7 @@ tags: [entrypoint, tmux, sshd, mutagen]
 key-files:
   created:
     - deploy/docker/managed-user/tmux.conf
-    - deploy/docker/managed-user/profile.d-cloud-claude.sh
+    - deploy/docker/managed-user/profile.d-claudedock.sh
   modified:
     - deploy/docker/managed-user/entrypoint.sh
     - deploy/docker/managed-user/sshd_config

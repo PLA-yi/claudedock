@@ -108,7 +108,7 @@ func loadOrGenerateHostKey(path string, logger *slog.Logger) (ssh.Signer, error)
 
 func exportPublicKey(signer ssh.Signer, privKeyPath string, logger *slog.Logger) {
 	pubKeyPath := privKeyPath + ".pub"
-	pubKeyStr := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) + " cloud-cli-proxy-proxy\n"
+	pubKeyStr := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) + " claudedock-proxy\n"
 	if err := os.WriteFile(pubKeyPath, []byte(pubKeyStr), 0o644); err != nil {
 		logger.Warn("cannot export proxy public key", "path", pubKeyPath, "error", err)
 	} else {

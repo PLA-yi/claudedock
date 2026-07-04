@@ -122,7 +122,7 @@ jobs:
 
       - name: Build control plane
         if: steps.preflight.outputs.fixture_available == 'true'
-        run: go build -o /tmp/cloud-cli-proxy ./cmd/control-plane
+        run: go build -o /tmp/claudedock ./cmd/control-plane
 
       - name: Bring up bypass fixture
         if: steps.preflight.outputs.fixture_available == 'true'
@@ -136,8 +136,8 @@ jobs:
       - name: Run uat-bypass scenario=${{ matrix.scenario }}
         if: steps.preflight.outputs.fixture_available == 'true'
         env:
-          CLOUD_CLI_PROXY_ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
-          CLOUD_CLI_PROXY_API_BASE: http://localhost:8080
+          CLAUDEDOCK_ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
+          CLAUDEDOCK_API_BASE: http://localhost:8080
         run: |
           bash scripts/uat-bypass.sh \
             --scenario=${{ matrix.scenario }} \

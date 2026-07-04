@@ -2,7 +2,7 @@
 
 ## 概览
 
-Cloud CLI Proxy 由四个核心组件组成：Control Plane（控制面）、Host Agent（宿主机代理）、用户容器和 cloud-claude CLI。控制面负责 API、认证和任务编排，宿主机代理执行 Docker 和网络操作，两者通过 Unix socket 通信。
+ClaudeDock 由四个核心组件组成：Control Plane（控制面）、Host Agent（宿主机代理）、用户容器和 claudedock CLI。控制面负责 API、认证和任务编排，宿主机代理执行 Docker 和网络操作，两者通过 Unix socket 通信。
 
 ```
 用户 ──curl──> Control Plane (:8080) ──Docker──> │ 用户容器                 │
@@ -42,7 +42,7 @@ Go 编写的 API 服务，是系统的中央调度器：
 
 基于 Ubuntu 24.04 的受管镜像，以 `--network=none` 创建，彻底隔离默认网络。预装 OpenSSH、Claude Code、KasmVNC + Chromium、sing-box 以及 Git、tmux、zsh、Node.js 等开发工具。
 
-### cloud-claude CLI
+### claudedock CLI
 
 用户在本地安装的 Go CLI，作为本地终端与远端容器之间的桥梁：
 
@@ -55,7 +55,7 @@ Go 编写的 API 服务，是系统的中央调度器：
 
 ### SQLite
 
-控制面使用 SQLite 单文件数据库（WAL 模式），通过 `DATABASE_URL` 环境变量指定路径。数据库文件存放于 `/data/cloud-cli-proxy.db`，由 Docker Compose 的 named volume 持久化。
+控制面使用 SQLite 单文件数据库（WAL 模式），通过 `DATABASE_URL` 环境变量指定路径。数据库文件存放于 `/data/claudedock.db`，由 Docker Compose 的 named volume 持久化。
 
 ### 容器网络隔离
 
@@ -112,11 +112,11 @@ sing-box 以 tun 模式运行，捕获所有出站流量并通过指定代理协
      → 返回 SSH 参数 → SSH 代理接入容器
 ```
 
-### cloud-claude CLI 方式
+### claudedock CLI 方式
 
 ```
-用户 → cloud-claude init → 写入配置
-     → cd 项目目录 → cloud-claude
+用户 → claudedock init → 写入配置
+     → cd 项目目录 → claudedock
      → 认证 + 容器就绪等待
      → sshfs 挂载本地目录到容器同名路径
      → attach 或新建 tmux 会话
@@ -145,9 +145,9 @@ sing-box 以 tun 模式运行，捕获所有出站流量并通过指定代理协
 ## 项目结构
 
 ```
-cloud-cli-proxy/
+claudedock/
 ├── cmd/
-│   ├── cloud-claude/           # cloud-claude CLI
+│   ├── claudedock/           # claudedock CLI
 │   ├── control-plane/          # 控制面 API
 │   └── host-agent/             # 宿主机代理
 ├── internal/
@@ -159,7 +159,7 @@ cloud-cli-proxy/
 │   ├── agent/                  # Host Agent 服务端
 │   ├── agentapi/               # Agent API 客户端
 │   ├── broadcast/              # SSE 实时广播
-│   ├── cloudclaude/            # cloud-claude CLI 库
+│   ├── claudedock/            # claudedock CLI 库
 │   ├── local/                  # 本地 Dev Containers
 │   ├── network/                # nftables / sing-box 配置
 │   ├── runtime/                # 任务运行时、容器生命周期

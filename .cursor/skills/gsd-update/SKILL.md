@@ -40,7 +40,7 @@ Routes to the update workflow which handles:
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/update.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/update.md
 </execution_context>
 
 <flags>
@@ -58,6 +58,6 @@ Parse the first token of {{GSD_ARGS}}:
 </process>
 
 <execution_context_extended>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/sync-skills.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/reapply-patches.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/sync-skills.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/reapply-patches.md
 </execution_context_extended>

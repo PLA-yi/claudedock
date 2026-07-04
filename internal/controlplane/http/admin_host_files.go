@@ -127,7 +127,7 @@ func listLocalFiles(dir string) ([]hostFileEntry, error) {
 }
 
 func listContainerFiles(ctx context.Context, hostID, dir string) ([]hostFileEntry, error) {
-	containerName := "cloudproxy-" + hostID
+	containerName := "claudedock-" + hostID
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 

@@ -2,19 +2,19 @@
 layout: home
 
 hero:
-  name: Cloud CLI Proxy
+  name: ClaudeDock
   text: 一个更聪明的 Claude Code Wrapper
   tagline: 把 Claude Code 装进容器，从 IP 到系统指纹全层伪装，像地道的美国开发者在本地写代码
   image:
     src: /logo.svg
-    alt: Cloud CLI Proxy Logo
+    alt: ClaudeDock Logo
   actions:
     - theme: brand
       text: 快速开始
       link: /zh/guide/quickstart
     - theme: alt
       text: GitHub
-      link: https://github.com/ZaneL1u/cloud-cli-proxy
+      link: https://github.com/claudedock/claudedock
 
 features:
   - icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>

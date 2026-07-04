@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
+	"github.com/claudedock/claudedock/internal/broadcast"
 )
 
 // ImageCacheStatus 描述当前镜像缓存的状态。

@@ -10,7 +10,7 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type resolverRepo interface {
@@ -84,7 +84,7 @@ func (r *RepoResolver) resolveTarget(ctx context.Context, auth repository.HostSS
 		return ContainerTarget{}, fmt.Errorf("host not running (status: %s)", auth.HostStatus)
 	}
 
-	containerName := fmt.Sprintf("cloudproxy-%s", auth.HostID)
+	containerName := fmt.Sprintf("claudedock-%s", auth.HostID)
 	addr, err := getContainerSSHAddr(ctx, containerName)
 	if err != nil {
 		return ContainerTarget{}, fmt.Errorf("cannot resolve container address: %w", err)

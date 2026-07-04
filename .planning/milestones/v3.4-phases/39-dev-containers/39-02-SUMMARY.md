@@ -25,7 +25,7 @@ commit: bdb6904
 
 - tun 模式追加 `--cap-add NET_ADMIN` 和 `--device /dev/net/tun`（仅当协议类型需要 tun）
 - proxy 模式不需要额外权限（SOCKS/HTTP 代理在用户空间运行）
-- egress config 文件以只读模式挂载到容器内固定路径 `/etc/cloud-claude/sing-box-outbound.json`
+- egress config 文件以只读模式挂载到容器内固定路径 `/etc/claudedock/sing-box-outbound.json`
 - 通过 `-e SING_BOX_MODE=tun|proxy` 传递模式信息给 entrypoint
 
 ## Test Results

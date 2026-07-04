@@ -39,10 +39,10 @@
 
 **对我们的推荐**（综合"单容器 + 共享 tmux session + 中文使用者直觉"）：
 
-- **默认行为 = 共享 attach，不踢人。** 第二端 `cloud-claude` 进入后，直接 `tmux attach -t claude` 和第一端看同一屏幕、同一 claude 进程。依据：符合用户直觉（"我两个屏都能看 claude 在干嘛"），和 tmate / tmux 原生默认一致，无数据损失风险。
+- **默认行为 = 共享 attach，不踢人。** 第二端 `claudedock` 进入后，直接 `tmux attach -t claude` 和第一端看同一屏幕、同一 claude 进程。依据：符合用户直觉（"我两个屏都能看 claude 在干嘛"），和 tmate / tmux 原生默认一致，无数据损失风险。
 - **显式开关 `--new-session`：** 起一个独立 tmux session（`session_name = claude-<short_id>`），两端互不干扰。用户明确表达"我要并行做两件事"时使用。
 - **显式开关 `--take-over` / `--kick`：** 强制挤掉所有其它端并独占（`tmux detach-client -a` + `tmux attach -d`），给"我在家里忘了断开，公司再上"场景兜底。
-- **检测并提示：** cloud-claude 连上后，如果发现当前 session 已有 N 个 client attach，在顶部输出一行中文提示（参考 tmate 的 `show-messages` 和 Mosh 开屏 banner）：
+- **检测并提示：** claudedock 连上后，如果发现当前 session 已有 N 个 client attach，在顶部输出一行中文提示（参考 tmate 的 `show-messages` 和 Mosh 开屏 banner）：
 
 ```
 检测到另外 1 个会话正在 attach（来源：mac-home / 5 分钟前活跃）
@@ -61,13 +61,13 @@
 
 **对我们的推荐**：
 
-1. **每次 `cloud-claude` 启动时打印一次当前 mount mode**（占一行）：
+1. **每次 `claudedock` 启动时打印一次当前 mount mode**（占一行）：
 
    ```
    ✓ 工作目录已映射到 /workspace（模式：hybrid — mutagen 热同步 + sshfs 冷兜底）
    ```
 
-2. **容器内提供 `/workspace/.cloud-claude-status` 虚文件**（或 `cloud-claude status` 子命令），透出：
+2. **容器内提供 `/workspace/.claudedock-status` 虚文件**（或 `claudedock status` 子命令），透出：
    - 当前 mount mode
    - 最近一次 mutagen sync 完成时间 + 待同步文件数
    - sshfs 是否健康
@@ -75,7 +75,7 @@
 
 3. **Conflict 提示主动向上冒泡**：mutagen 一旦出现 conflict（`two-way-safe` 下），在用户下一次按回车时在 prompt 上方插入一行警告：
    ```
-   ⚠ 有 3 个文件同步冲突，运行 cloud-claude sync conflicts 查看
+   ⚠ 有 3 个文件同步冲突，运行 claudedock sync conflicts 查看
    ```
    依据：Mutagen 社区最痛的反馈就是"冲突发生了用户不知道"（Issue #277）。
 
@@ -115,10 +115,10 @@
    [✗] FUSE 模块
        原因：容器内 /dev/fuse 不可写
        解决：在宿主机上 sudo modprobe fuse && 重启容器
-             或运行 cloud-claude doctor --fix
+             或运行 claudedock doctor --fix
    ```
 4. **`--verbose` / `-v` 展开每项内部探测细节**（flutter doctor -v 约定）。
-5. **通过时的单行总结**：`全部 5 项检查通过，可以开始使用 cloud-claude。`
+5. **通过时的单行总结**：`全部 5 项检查通过，可以开始使用 claudedock。`
 6. **退出码语义：** 0 = 全通过；1 = 有警告；2 = 有失败（参考 `brew doctor` 非零退出）。
 
 ---
@@ -130,7 +130,7 @@
 | 行为 | 业界来源 | 我们的具体化 |
 |------|----------|--------------|
 | 对用户完全透明的统一目录入口 | Codespaces、Dev Containers 都只暴露单一 `/workspace` | 容器内只有 `/workspace` 一个路径，不要求用户理解 hot/cold 分支 |
-| 首次连接有明确 "准备中" 提示 | Dev Containers 启动时显示 "Cloning..." / "Pulling image..."；Codespaces 显示阶段化进度 | cloud-claude 输出 `初始化文件映射 (1/3)：热同步源码中 ...` 三段式进度 |
+| 首次连接有明确 "准备中" 提示 | Dev Containers 启动时显示 "Cloning..." / "Pulling image..."；Codespaces 显示阶段化进度 | claudedock 输出 `初始化文件映射 (1/3)：热同步源码中 ...` 三段式进度 |
 | Git 元数据（`.git/`）在容器内表现一致 | Dev Containers 和 VS Code Remote 都确保 `git status` 在容器内可用 | `.git/` 必须在热同步范围内，并且 `rg`、`git status` 延迟 ≤ 本地 1.5× |
 | 支持跨平台本地路径（macOS / Linux） | Mutagen / Mutagen Compose 的核心卖点 | Darwin 和 Linux 两种本地端都验证过 |
 
@@ -139,15 +139,15 @@
 | 行为 | 价值 | 复杂度 |
 |------|------|--------|
 | 用户首次命中未同步文件时的"秒级懒拉" | 对标 Codespaces prebuild：用户感觉不到冷热差别 | HIGH（需要 sshfs readdir + mergerfs 回源） |
-| 白名单可定制（通过 `~/.cloud-claude/sync.yaml`） | Mutagen 本身支持 `ignores` 配置；给"我不想同步 `node_modules`"的用户逃生路径 | MEDIUM |
+| 白名单可定制（通过 `~/.claudedock/sync.yaml`） | Mutagen 本身支持 `ignores` 配置；给"我不想同步 `node_modules`"的用户逃生路径 | MEDIUM |
 | 显示"本次同步跳过了哪些大文件"（>50MB 被归到冷层） | 比 Mutagen 原生 UX 清楚 | LOW |
-| 提供 `cloud-claude sync flush` 主动触发一次完整同步 | 对标 `mutagen sync flush` | LOW |
+| 提供 `claudedock sync flush` 主动触发一次完整同步 | 对标 `mutagen sync flush` | LOW |
 
 ### Anti-features（具体为什么不做）
 
 | 不做的功能 | 表面上诱人的理由 | 为什么对我们**不适合** | 替代方案 |
 |------------|------------------|------------------------|----------|
-| Web UI 显示同步进度条 | "用户想看同步状态" | cloud-claude 是 CLI 工具，用户 90% 时间在终端；引入 Web 控制面会放大网关认证/鉴权复杂度，且与 v1.0 架构方向相悖 | 在终端顶部插入单行状态 + `cloud-claude status` 子命令 |
+| Web UI 显示同步进度条 | "用户想看同步状态" | claudedock 是 CLI 工具，用户 90% 时间在终端；引入 Web 控制面会放大网关认证/鉴权复杂度，且与 v1.0 架构方向相悖 | 在终端顶部插入单行状态 + `claudedock status` 子命令 |
 | 让用户配置 `alpha-wins-all` / `beta-wins-all` 冲突模式 | Mutagen 原生支持 5 种 | 新手完全不理解 alpha/beta；远程开发场景下 99% 是 "本地编辑为准"，强默认 = `two-way-safe` 本地优先最稳；开放选项反而放大风险（Mutagen Issue #533 就是用户误选 `two-way-resolved` 导致冲突）| 固化为 `two-way-safe`，冲突时用中文提示让用户**手动删除**败者 |
 | 让 Claude Code 直接读写 `/cold`（sshfs 分支） | 避免同步滞后 | sshfs 延迟极高（社区公认写比 NFS 慢 3-10 倍，[mergerfs 文档已指出](https://trapexit.github.io/mergerfs/latest/remote_filesystems/)）；Claude 的 `rg` / `glob` 会扫全目录导致接口雪崩 | 强制所有写入路由到 `/hot`（mergerfs policy=`epmfs` + 写入时优先 alpha） |
 | 支持双向 Git（容器内提交直接 push） | "无缝开发" | 容器出网受 sing-box 全隧道限制，Git push 会走受控出口，和本地凭据仓库不一致，引入凭据同步的大坑 | v3.0 强制 "在本地 commit，在容器内 run/build"，把 Git 凭据留在本地 |
@@ -157,15 +157,15 @@
 
 | 失败场景 | 用户看到的屏幕 | 错误码提示 |
 |----------|----------------|------------|
-| Mutagen agent 无法启动 | 连接 2 秒后红色提示：`[✗] 热同步失败（mutagen agent 无响应），已自动降级到 sshfs-only 模式` | `MOUNT_MUTAGEN_001`，建议 `cloud-claude doctor --fix` |
-| sshfs 挂载失败（FUSE 不可用） | `[✗] 冷兜底挂载失败，FUSE 内核模块未加载` + 退出码 9 | `MOUNT_SSHFS_002`，建议本地运行 `cloud-claude doctor` |
+| Mutagen agent 无法启动 | 连接 2 秒后红色提示：`[✗] 热同步失败（mutagen agent 无响应），已自动降级到 sshfs-only 模式` | `MOUNT_MUTAGEN_001`，建议 `claudedock doctor --fix` |
+| sshfs 挂载失败（FUSE 不可用） | `[✗] 冷兜底挂载失败，FUSE 内核模块未加载` + 退出码 9 | `MOUNT_SSHFS_002`，建议本地运行 `claudedock doctor` |
 | mergerfs 合并失败 | `[!] 文件合并层失败，已回退到纯 mutagen 模式（部分文件可能暂不可见）` | `MOUNT_MERGE_003`，降级但仍可工作 |
 | 用户本地磁盘满导致同步停滞 | prompt 顶部 `⚠ 同步已暂停：本地磁盘剩余 <100MB` | `MOUNT_DISK_FULL_004` |
-| 冲突文件堆积超过 10 个 | `⚠ 有 12 个文件处于冲突状态，运行 cloud-claude sync conflicts 查看` | `MOUNT_CONFLICT_005`（非阻断） |
+| 冲突文件堆积超过 10 个 | `⚠ 有 12 个文件处于冲突状态，运行 claudedock sync conflicts 查看` | `MOUNT_CONFLICT_005`（非阻断） |
 
 ### 可直接转写的 REQ-ID 候选
 
-- **REQ-F1-A：** 用户执行 `cloud-claude` 后，容器内工作目录 `/workspace` 必须同时承载源码（热同步）和其它文件（懒拉），用户无需感知分层。
+- **REQ-F1-A：** 用户执行 `claudedock` 后，容器内工作目录 `/workspace` 必须同时承载源码（热同步）和其它文件（懒拉），用户无需感知分层。
 - **REQ-F1-B：** 首次连接建立到 prompt 可输入必须 ≤ 8s（含首轮 Mutagen 同步完成），用户能看到三段式进度。
 - **REQ-F1-C：** 在 10k 文件源码树执行 `rg .` / `ls -R` 的延迟必须 ≤ 本地 1.5 倍。
 
@@ -177,9 +177,9 @@
 
 | 行为 | 业界来源 | 我们的具体化 |
 |------|----------|--------------|
-| 降级**必须对用户可见**，不能静默 | VS Code Remote 在 SSH fallback 时会在底部状态栏显示 | 降级时红色/黄色提示，不允许 cloud-claude 悄悄切到 sshfs-only |
+| 降级**必须对用户可见**，不能静默 | VS Code Remote 在 SSH fallback 时会在底部状态栏显示 | 降级时红色/黄色提示，不允许 claudedock 悄悄切到 sshfs-only |
 | 提供手动模式开关 | Dev Containers 有 `workspaceMount` 显式配置 | `--mount-mode=auto\|full\|mutagen-only\|sshfs-only` |
-| 降级决策可复现 | Mutagen `mutagen sync create -m=...` 显式模式 | `--mount-mode` 的结果记录在 `~/.cloud-claude/last-session.log` |
+| 降级决策可复现 | Mutagen `mutagen sync create -m=...` 显式模式 | `--mount-mode` 的结果记录在 `~/.claudedock/last-session.log` |
 
 ### Differentiators
 
@@ -194,14 +194,14 @@
 | 不做 | 为什么 |
 |------|--------|
 | 自动"升级"：检测到网络变好自动从 sshfs-only 升级到 hybrid | 中途切换挂载点会让进行中的 Claude 进程看不到文件（FUSE 挂载路径变化），用户正在写的代码可能看不到变更；应只在下次会话升级 |
-| 支持 `--mount-mode=none`（完全不挂载本地） | 这等于回到 v1.0 Web SSH 体验，破坏 cloud-claude 的核心承诺；用户真要这个需求应该用 `ssh` 原生命令 |
+| 支持 `--mount-mode=none`（完全不挂载本地） | 这等于回到 v1.0 Web SSH 体验，破坏 claudedock 的核心承诺；用户真要这个需求应该用 `ssh` 原生命令 |
 
 ### 用户感知的失败模式
 
 | 场景 | 用户看到 |
 |------|----------|
-| auto 模式三层都失败 | `[✗] 文件映射失败：mutagen/sshfs/mergerfs 均不可用。退出码 9，建议 cloud-claude doctor` |
-| mutagen-only 模式下用户尝试访问未同步文件 | 容器内 `ls /workspace/node_modules/` 返回空，用户需要主动 `cloud-claude sync extend node_modules/` |
+| auto 模式三层都失败 | `[✗] 文件映射失败：mutagen/sshfs/mergerfs 均不可用。退出码 9，建议 claudedock doctor` |
+| mutagen-only 模式下用户尝试访问未同步文件 | 容器内 `ls /workspace/node_modules/` 返回空，用户需要主动 `claudedock sync extend node_modules/` |
 | sshfs-only 模式下 `rg` 慢 | 顶部提示 `[!] 当前 sshfs-only 模式，大目录搜索较慢（>5s），建议切回 hybrid` |
 
 ### REQ-ID 候选
@@ -219,7 +219,7 @@
 | 行为 | 业界来源 | 我们的具体化 |
 |------|----------|--------------|
 | keepalive 配置合理 | Microsoft Q&A 推荐 `ClientAliveInterval 60 / ClientAliveCountMax 5` | 使用 `ServerAliveInterval=15`、`ServerAliveCountMax=8`（即 120s 才 TCP reset） |
-| 客户端有独立的重连预算 | VS Code `maxReconnectionAttempts: 8` | cloud-claude 默认重连 5 次，指数退避（1s → 2s → 4s → 8s → 16s） |
+| 客户端有独立的重连预算 | VS Code `maxReconnectionAttempts: 8` | claudedock 默认重连 5 次，指数退避（1s → 2s → 4s → 8s → 16s） |
 | 断网期间不要吃键盘 | Mosh 本地 echo 模式 | 断网时输入**暂存在本地**并显示为暗灰色（未确认），重连后统一提交；和 Mosh 的 underline 语义一致 |
 | 重连后无需重新认证 | Eternal Terminal 透明重连 | 缓存 Entry API token 到进程内存，断网 <5min 内直接复用 |
 
@@ -228,7 +228,7 @@
 | 行为 | 价值 |
 |------|------|
 | 本地 echo 只在 RTT > 150ms 时启用（`--predict=adaptive` 等价） | 对标 Mosh 默认行为，低延迟用户无感知 |
-| 在提示栏显示实时 RTT（`~45ms ↔ cloud-claude-edge-01`） | 让用户知道"抖动是真实发生的" |
+| 在提示栏显示实时 RTT（`~45ms ↔ claudedock-edge-01`） | 让用户知道"抖动是真实发生的" |
 | 支持 IP roaming（手机 4G → WiFi 不断连） | Mosh 核心卖点，需要底层走 UDP，v3.0 可以先不做，v3.1 评估 |
 
 ### Anti-features
@@ -264,14 +264,14 @@
 |------|----------|--------------|
 | 断网后运行中的进程不死 | Eternal Terminal、Mosh、tmate、Codespaces 默认行为 | SSH session 启动时自动 `tmux new-session -A -s claude-<user>` |
 | 重连后回到同一屏幕 | ET 的 BackedReader/Writer 序列号机制 | tmux 自动 reattach，屏幕内容从 tmux 的 history buffer 恢复 |
-| 支持用户主动 detach | tmux `Ctrl-b d`、Mosh `Ctrl-^ .` | `Ctrl-b d` 后 cloud-claude 自动退出本地终端，但容器内 claude 继续跑 |
+| 支持用户主动 detach | tmux `Ctrl-b d`、Mosh `Ctrl-^ .` | `Ctrl-b d` 后 claudedock 自动退出本地终端，但容器内 claude 继续跑 |
 
 ### Differentiators
 
 | 行为 | 价值 |
 |------|------|
-| 提供 `cloud-claude sessions ls` 查看当前用户名下所有活着的会话 | 类似 `tmux ls` 但带中文标签和最后活跃时间 |
-| 支持 `cloud-claude attach <session-id>` 接入指定会话 | 多任务并行场景 |
+| 提供 `claudedock sessions ls` 查看当前用户名下所有活着的会话 | 类似 `tmux ls` 但带中文标签和最后活跃时间 |
+| 支持 `claudedock attach <session-id>` 接入指定会话 | 多任务并行场景 |
 | session 默认命名规则 `claude-<timestamp>-<cwd-basename>` | 让用户一眼看出"这是哪个项目的会话" |
 
 ### Anti-features
@@ -287,14 +287,14 @@
 | 场景 | 用户看到 |
 |------|----------|
 | tmux 不在 PATH 或镜像残缺 | 启动时提示 `[!] 容器内 tmux 不可用，会话恢复已禁用`，但不阻塞 |
-| 重连时 tmux socket 丢失 | `[!] 无法恢复上次会话（socket 已失效），将启动新会话`，给出 `cloud-claude sessions ls` 提示 |
-| 用户主动 `Ctrl-b d` detach | 本地终端退出，提示 `✓ 会话已保留（claude-20260418-proj），下次 cloud-claude 会自动 attach` |
+| 重连时 tmux socket 丢失 | `[!] 无法恢复上次会话（socket 已失效），将启动新会话`，给出 `claudedock sessions ls` 提示 |
+| 用户主动 `Ctrl-b d` detach | 本地终端退出，提示 `✓ 会话已保留（claude-20260418-proj），下次 claudedock 会自动 attach` |
 
 ### REQ-ID 候选
 
 - **REQ-F4-A：** 容器内 SSH 会话默认用 tmux 包装，断网后重连必须恢复到同一会话。
-- **REQ-F4-B：** 用户可通过 `cloud-claude sessions ls/attach` 管理多个并行会话。
-- **REQ-F4-C：** tmux 不可用时 cloud-claude 不得阻塞启动，但必须明确告知用户"会话恢复功能已禁用"。
+- **REQ-F4-B：** 用户可通过 `claudedock sessions ls/attach` 管理多个并行会话。
+- **REQ-F4-C：** tmux 不可用时 claudedock 不得阻塞启动，但必须明确告知用户"会话恢复功能已禁用"。
 
 ---
 
@@ -307,7 +307,7 @@
 | 行为 | 业界来源 | 我们的具体化 |
 |------|----------|--------------|
 | 新端连上时必须检测既有 client | tmux `session_many_attached` 格式化字段 | `tmux list-clients -t claude-<user>` |
-| 给用户明确的"已有人在"提示 | tmate `show-messages` 输出会列出所有 client URL | cloud-claude 打印一行 banner 说明"共 N 个会话 attach 中" |
+| 给用户明确的"已有人在"提示 | tmate `show-messages` 输出会列出所有 client URL | claudedock 打印一行 banner 说明"共 N 个会话 attach 中" |
 | 支持"接管"操作 | tmux `attach -d` / `detach-client -a` | `--take-over` 或交互式 `y/N` 询问 |
 
 ### Differentiators
@@ -315,7 +315,7 @@
 | 行为 | 价值 |
 |------|------|
 | 区分客户端来源（通过本地 hostname 打 tag） | 用户看到 `来源：macbook-home / linux-work` 而非 UUID |
-| `cloud-claude sessions who` 列出当前连接者 + 最后活跃时间 | 类似 tmate 的 `show-messages`，但中文友好 |
+| `claudedock sessions who` 列出当前连接者 + 最后活跃时间 | 类似 tmate 的 `show-messages`，但中文友好 |
 | `--new-session` 独立会话默认命名为 `claude-<cwd-basename>-<n>` | 避免 n 个并行 session 命名冲突 |
 
 ### Anti-features
@@ -332,7 +332,7 @@
 | 场景 | 用户看到 |
 |------|----------|
 | 另一端已 attach，当前端默认 attach 成功 | `✓ 已 attach 到会话 claude-proj（另 1 个会话正在共享：mac-home）` |
-| 用户用 `--new-session` 但容器已到 session 上限（默认 5） | `[✗] 会话数已达上限 (5/5)，请先关闭一个或使用 cloud-claude sessions kill <id>` |
+| 用户用 `--new-session` 但容器已到 session 上限（默认 5） | `[✗] 会话数已达上限 (5/5)，请先关闭一个或使用 claudedock sessions kill <id>` |
 | 用户用 `--take-over` | 其他端收到提示：`⚠ 本会话已被另一端接管（来自 linux-work），本地已退出` + 退出码 130 |
 
 ### REQ-ID 候选
@@ -343,7 +343,7 @@
 
 ---
 
-## F6 · `cloud-claude doctor` 全面升级
+## F6 · `claudedock doctor` 全面升级
 
 ### Table stakes（严格遵循 M4 范式）
 
@@ -368,22 +368,22 @@
 | 不做 | 为什么 |
 |------|--------|
 | 自动上报"诊断报告"到服务端 | 涉及数据脱敏/合规，v3.0 不值得开坑；让用户自己复制粘贴输出即可 |
-| 实时监控模式（`doctor --watch`） | 会变成"迷你 top"，和 `cloud-claude status` 功能重叠；doctor 定位是"一次性诊断"，保持 KISS |
+| 实时监控模式（`doctor --watch`） | 会变成"迷你 top"，和 `claudedock status` 功能重叠；doctor 定位是"一次性诊断"，保持 KISS |
 | 自动修改用户本地 SSH config | 不可逆；参考 VS Code Remote 的踩坑（[Issue #8910](https://github.com/microsoft/vscode-remote-release/issues/8910) 大量用户抱怨默认改动无法关闭）；给出建议但不执行 |
 | 给每条检查打 "完美/良好/一般" 星级 | flutter doctor 就是三档，多档会让用户 decision fatigue |
 
 ### 用户感知的失败模式
 
 ```
-$ cloud-claude doctor
-Doctor summary (运行 cloud-claude doctor -v 查看详情):
+$ claudedock doctor
+Doctor summary (运行 claudedock doctor -v 查看详情):
 [✓] network   — 网关可达，延迟 45ms
 [✓] auth      — token 有效（剩余 23 天）
 [!] ssh       — 主机密钥变更
-                建议：运行 cloud-claude doctor --fix 清理 known_hosts
+                建议：运行 claudedock doctor --fix 清理 known_hosts
 [✗] mount     — mutagen agent 无响应
                 错误码：MOUNT_MUTAGEN_001
-                建议：运行 cloud-claude doctor --fix（会自动重启 agent）
+                建议：运行 claudedock doctor --fix（会自动重启 agent）
 [✓] disk      — 本地剩余 45GB，容器剩余 20GB
 
 发现 1 个错误和 1 个警告。运行 --fix 自动修复可修复项。
@@ -393,7 +393,7 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 
 ### REQ-ID 候选
 
-- **REQ-F6-A：** `cloud-claude doctor` 必须覆盖 network/auth/ssh/mount/disk 五维度。
+- **REQ-F6-A：** `claudedock doctor` 必须覆盖 network/auth/ssh/mount/disk 五维度。
 - **REQ-F6-B：** 每项检查输出必须包含符号、简短原因、中文修复建议、错误码。
 - **REQ-F6-C：** `doctor --fix` 能自动修复至少 5 种常见失败（mutagen agent 无响应、FUSE 残留挂载、known_hosts 冲突、token 过期需刷新、DNS 缓存污染）。
 
@@ -415,7 +415,7 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 | 行为 | 价值 |
 |------|------|
 | `~/.cache/claude` 也独立 volume，加速重连后的 embedding / context 复用 | 减少首次对话延迟 |
-| 每次容器启动检测 credentials 是否过期（`expiresAt` 字段） | 如过期，提前提示用户在本地 `cloud-claude claude login`（refresh token） |
+| 每次容器启动检测 credentials 是否过期（`expiresAt` 字段） | 如过期，提前提示用户在本地 `claudedock claude login`（refresh token） |
 | 当前账号在 banner 显示 | `Claude 账号：user@example.com（订阅到期 2026-06-15）` |
 
 ### Anti-features
@@ -439,7 +439,7 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 
 - **REQ-F7-A：** `~/.claude/` 必须通过独立 Docker named volume 持久化，volume 命名粒度为单个 claude_account。
 - **REQ-F7-B：** 容器重建后，未过期的 OAuth credentials 必须保留，用户无需重新登录。
-- **REQ-F7-C：** credentials 过期时 cloud-claude 必须在连接建立前给出明确中文提示，不能让 claude 进程进入报错后才发现。
+- **REQ-F7-C：** credentials 过期时 claudedock 必须在连接建立前给出明确中文提示，不能让 claude 进程进入报错后才发现。
 
 ---
 
@@ -452,13 +452,13 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 | 每条错误有稳定的 code | AWS、Kubernetes、Docker 都是稳定 code 制 | `CLOUDCLAUDE_<DOMAIN>_<NUM>` 形如 `MOUNT_MUTAGEN_001` |
 | 每条错误必须给"下一步怎么做" | flutter doctor 模式 | 中文一句话建议 + 可选命令 |
 | 非零退出码语义清晰 | sysexits.h 或 brew 的 0/1/2 | 继承 v2.0 的 7 种错误码 + v3.0 新增文件映射/会话相关 |
-| 错误码可搜索（文档页 / --help） | `rustc --explain E0308` 范式 | `cloud-claude explain MOUNT_MUTAGEN_001` 输出详细说明 |
+| 错误码可搜索（文档页 / --help） | `rustc --explain E0308` 范式 | `claudedock explain MOUNT_MUTAGEN_001` 输出详细说明 |
 
 ### Differentiators
 
 | 行为 | 价值 |
 |------|------|
-| 错误码和 doctor 对齐：doctor 输出的码能直接 `cloud-claude explain` | 形成闭环 |
+| 错误码和 doctor 对齐：doctor 输出的码能直接 `claudedock explain` | 形成闭环 |
 | errors 文档在线可查（后期生成静态文档站） | 友好新人 |
 | 错误上下文包含相关日志的最后 N 行（放在 `--verbose` 下） | 对标 npm audit 的详尽模式 |
 
@@ -477,8 +477,8 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 [✗] 启动失败：无法挂载文件映射
     错误码：MOUNT_MERGE_003
     原因：mergerfs 不可执行（容器镜像版本不匹配）
-    建议：运行 cloud-claude explain MOUNT_MERGE_003 查看详细解释
-          或运行 cloud-claude doctor 检查环境
+    建议：运行 claudedock explain MOUNT_MERGE_003 查看详细解释
+          或运行 claudedock doctor 检查环境
 退出码：9
 ```
 
@@ -486,7 +486,7 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 
 - **REQ-F8-A：** v3.0 所有新错误路径必须纳入统一错误码体系，code 格式 `<DOMAIN>_<KIND>_<NUM>`。
 - **REQ-F8-B：** 每条错误输出必须包含 code、中文原因、中文下一步建议，三项缺一不可。
-- **REQ-F8-C：** `cloud-claude explain <code>` 子命令必须对每个 code 给出详细中文说明和常见修复步骤。
+- **REQ-F8-C：** `claudedock explain <code>` 子命令必须对每个 code 给出详细中文说明和常见修复步骤。
 
 ---
 
@@ -497,7 +497,7 @@ Doctor summary (运行 cloud-claude doctor -v 查看详情):
 | A1 | Web UI 显示同步进度 | F1 | CLI 工具的范围偏离，网关架构放大认证复杂度 |
 | A2 | 暴露 Mutagen 的 5 种冲突解决模式给用户 | F1 | 99% 场景下 two-way-safe 够用，开放反而造成误配置 |
 | A3 | mergerfs 升级成 bcachefs/overlayfs | F1 | overlayfs CoW 语义和 sshfs 写入冲突；mergerfs 是现阶段唯一稳定方案 |
-| A4 | `--mount-mode=none` | F2 | 破坏 cloud-claude 核心承诺，用户应改用原生 ssh |
+| A4 | `--mount-mode=none` | F2 | 破坏 claudedock 核心承诺，用户应改用原生 ssh |
 | A5 | 运行中自动升级 mount mode | F2 | 动态改挂载点会让 Claude 进程"看不到文件" |
 | A6 | 用 UDP/Mosh 协议替代 SSH | F3 | 需改镜像、开新端口，收益和 tmux+SSH 自动重连相当 |
 | A7 | 断网自动杀掉 claude 进程 | F3/F4 | VS Code Remote 的踩坑，用户会丢失未保存工作 |

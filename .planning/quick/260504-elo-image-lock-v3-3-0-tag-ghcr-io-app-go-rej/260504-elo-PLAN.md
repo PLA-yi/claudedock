@@ -24,8 +24,8 @@ files_modified:
   <action>
     将 image_name 和 local_dev_image_name 都从 `v3.3.0` 改为 `latest`：
     ```
-    image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
-    local_dev_image_name: ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest
+    image_name: ghcr.io/claudedock/claudedock/managed-user:latest
+    local_dev_image_name: ghcr.io/claudedock/claudedock/managed-user:latest
     ```
   </action>
   <verify>

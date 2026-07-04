@@ -13,7 +13,7 @@ updated: "2026-04-15T04:35:00.000Z"
 ## Tests
 
 ### 1. 参数与退出码联调
-expected: 在可用环境中对比 claude 与 cloud-claude 相同参数时的行为和退出码一致
+expected: 在可用环境中对比 claude 与 claudedock 相同参数时的行为和退出码一致
 result: [pending]
 
 ### 2. 窗口 Resize

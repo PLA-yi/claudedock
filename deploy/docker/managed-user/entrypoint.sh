@@ -145,7 +145,7 @@ prepare_mergerfs_check() {
   fi
   local ver
   ver="$(mergerfs --version 2>&1 | head -n1 || true)"
-  echo "[entrypoint] mergerfs available ($ver) — mount deferred to cloud-claude"
+  echo "[entrypoint] mergerfs available ($ver) — mount deferred to claudedock"
   # mergerfs params (static traceability):
   #   func.readdir=cor:4,cache.attr=30,cache.entry=30,cache.readdir=true,cache.files=off
   #   category.create=ff, inodecalc=path-hash
@@ -159,7 +159,7 @@ assert_tmux_version() {
   case "$tmux_ver" in
     3.4*|3.5*|3.6*|3.7*|3.8*|3.9*|[4-9].*)
       echo "[entrypoint] tmux ${tmux_ver} >= 3.4 ok"
-      echo "$tmux_ver" >/etc/cloud-claude/tmux.version
+      echo "$tmux_ver" >/etc/claudedock/tmux.version
       ;;
     *)
       echo "[entrypoint] FATAL tmux ${tmux_ver} < 3.4" >&2
@@ -178,8 +178,8 @@ assert_tmux_version() {
 
 SING_BOX_CONFIG="/etc/sing-box/config.json"
 SING_BOX_USER="singbox"
-NFT_RULESET="/etc/cloud-claude/default-deny.nft"
-BYPASS_DIR="/etc/cloud-claude/bypass"
+NFT_RULESET="/etc/claudedock/default-deny.nft"
+BYPASS_DIR="/etc/claudedock/bypass"
 TUN_READY_TIMEOUT_S=30
 SING_BOX_PID=""
 
@@ -299,8 +299,8 @@ apply_nft_or_die() {
     if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi
     exit 1
   fi
-  # TODO(v5): 清理 v3.x 残留的 ip cloudproxy 表。所有 v3.x 部署迁移完毕后移除此行。
-  nft delete table ip cloudproxy 2>/dev/null || true
+  # TODO(v5): 清理 v3.x 残留的 ip claudedock 表。所有 v3.x 部署迁移完毕后移除此行。
+  nft delete table ip claudedock 2>/dev/null || true
   if ! nft -f "$NFT_RULESET"; then
     echo "[entrypoint] FATAL: nft 应用失败" >&2
     if [ -n "$SING_BOX_PID" ]; then kill "$SING_BOX_PID" 2>/dev/null || true; fi

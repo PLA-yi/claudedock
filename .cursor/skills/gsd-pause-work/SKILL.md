@@ -39,7 +39,7 @@ Routes to the pause-work workflow which handles:
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/pause-work.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/pause-work.md
 </execution_context>
 
 <context>
@@ -48,7 +48,7 @@ State and phase progress are gathered in-workflow with targeted reads.
 
 <process>
 If `--report` is in {{GSD_ARGS}}:
-Read and execute `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/session-report.md` end-to-end.
+Read and execute `/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/session-report.md` end-to-end.
 
 **Follow the pause-work workflow**.
 

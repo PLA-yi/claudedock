@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phase 31 Plan 03 集成测试 fixture：
-# 起 Phase 29 镜像容器作为 cloud-claude integration test fixture。
+# 起 Phase 29 镜像容器作为 claudedock integration test fixture。
 #
 # 用法：scripts/test-fixture-up.sh
 #
@@ -16,7 +16,7 @@
 # 幂等：重复执行会先 docker compose up -d；docker compose 自身保证 idempotent。
 set -euo pipefail
 
-FIXTURE_DIR="/tmp/cloud-claude-fixture"
+FIXTURE_DIR="/tmp/claudedock-fixture"
 IMAGE="local/managed-user:v3.0.0"
 
 command -v docker >/dev/null || { echo "需要 docker"; exit 1; }

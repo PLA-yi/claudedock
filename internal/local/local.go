@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/containerregistry"
+	"github.com/claudedock/claudedock/internal/containerregistry"
 )
 
 const (
-	defaultImage       = "ghcr.io/zanel1u/cloud-cli-proxy/managed-user:latest"
+	defaultImage       = "ghcr.io/claudedock/claudedock/managed-user:latest"
 	defaultUser        = "workspace"
 	defaultMemoryMB    = 4096
 	defaultCPULimit    = 2.0
 	defaultPasswordLen = 16
-	containerPrefix    = "cloud-claude-local-"
+	containerPrefix    = "claudedock-local-"
 )
 
 // LocalOptions configures local container behavior.
@@ -48,7 +48,7 @@ type ContainerStatus struct {
 	PortMapping string // "127.0.0.1:{port}->22/tcp"
 }
 
-// LocalManager manages local Docker containers for cloud-claude.
+// LocalManager manages local Docker containers for claudedock.
 type LocalManager struct {
 	opts   LocalOptions
 	runner DockerRunner

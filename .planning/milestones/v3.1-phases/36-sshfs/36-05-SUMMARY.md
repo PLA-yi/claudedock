@@ -10,7 +10,7 @@ requires:
     provides: "mount_sshfs.go::mountSSHFS sshfsCmd 字面量基线（4 个抗抖参数）"
 provides:
   - "mount_sshfs.go sshfsCmd 字面量含 4 个 FUSE page cache 参数 cache=yes,kernel_cache,auto_cache,cache_timeout=300"
-  - "internal/cloudclaude/mount_sshfs_test.go 含 TestSSHFSCacheHitsKernelPageCache（fixture SFTP server-side counter 端到端验证 FUSE page cache 命中）"
+  - "internal/claudedock/mount_sshfs_test.go 含 TestSSHFSCacheHitsKernelPageCache（fixture SFTP server-side counter 端到端验证 FUSE page cache 命中）"
   - "countingFileReader（atomic.Int64 + sync.Mutex 计数 sftp.FileReader）+ noopFileWriter 占位 sftp.Handlers.FilePut"
 affects: [36-06-PLAN, doctor/mount.go::checkSSHFSCacheArgs]
 
@@ -23,9 +23,9 @@ tech-stack:
 
 key-files:
   created:
-    - internal/cloudclaude/mount_sshfs_test.go
+    - internal/claudedock/mount_sshfs_test.go
   modified:
-    - internal/cloudclaude/mount_sshfs.go
+    - internal/claudedock/mount_sshfs.go
 
 key-decisions:
   - "sshfsCmd 字面量在 ConnectTimeout=10 之后追加 4 参数（顺序锁死），便于 doctor sshfs_cache_args 字符串匹配"
@@ -59,13 +59,13 @@ completed: 2026-04-23
 ## Accomplishments
 
 - `mount_sshfs.go::mountSSHFS` 的 sshfsCmd 字面量在 `ConnectTimeout=10` 之后、`-f` 之前追加 `cache=yes,kernel_cache,auto_cache,cache_timeout=300`（字面量顺序锁死）。函数签名 / cleanup / error 包装零变更，`go build ./...` 干净。
-- `internal/cloudclaude/mount_sshfs_test.go` 新文件含：
+- `internal/claudedock/mount_sshfs_test.go` 新文件含：
   - `countingFileReader`：实现 `sftp.FileReader`（FileGet），用 `atomic.Int64 + sync.Mutex` 统计每路径 `Fileread` 调用次数。
   - `noopFileWriter`：占位 `sftp.Handlers.FilePut`，返回 `ErrSSHFxOpUnsupported`，规避 L5 nil 地雷。
   - `mustSignerFromKey`：测试专用 RSA host key 生成 helper。
   - `TestSSHFSCacheHitsKernelPageCache`：完整 fixture SSH+SFTP server（`golang.org/x/crypto/ssh` + `sftp.NewRequestServer`）+ 真实 `sshfs` 进程挂载 + 同文件 `os.ReadFile` ×2 + 断言 `ReadCount("/fixture.bin") == 1`。
 - 测试 sshfs / fusermount(3) 任一缺失自动 `t.Skip`（D-11 / D-22）；本机（macOS 无 sshfs）跑出 `--- SKIP`，符合 PASS|SKIP 验收闸门。
-- 全包 `go test ./internal/cloudclaude/...` 46s 内全 PASS，无回归。
+- 全包 `go test ./internal/claudedock/...` 46s 内全 PASS，无回归。
 
 ## Task Commits
 
@@ -78,8 +78,8 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `internal/cloudclaude/mount_sshfs.go` — sshfsCmd 字面量追加 `cache=yes,kernel_cache,auto_cache,cache_timeout=300`（D-10）。
-- `internal/cloudclaude/mount_sshfs_test.go`（新建，236 行）— 含 `countingFileReader` / `noopFileWriter` / `mustSignerFromKey` / `TestSSHFSCacheHitsKernelPageCache`。
+- `internal/claudedock/mount_sshfs.go` — sshfsCmd 字面量追加 `cache=yes,kernel_cache,auto_cache,cache_timeout=300`（D-10）。
+- `internal/claudedock/mount_sshfs_test.go`（新建，236 行）— 含 `countingFileReader` / `noopFileWriter` / `mustSignerFromKey` / `TestSSHFSCacheHitsKernelPageCache`。
 
 ## Decisions Made
 
@@ -99,7 +99,7 @@ Each task was committed atomically:
 - **Found during:** Task 2（写测试时 `go doc github.com/pkg/sftp Handlers` 验证）
 - **Issue:** PLAN `<action>` 字面量与 RESEARCH §F3 / PATTERNS 均使用 `sftp.Handlers{... FileLister: inMem.FileLister}`。实际 v1.13.10 字段名为 `FileList`（类型为 `FileLister` 接口），且 `InMemHandler()` 返回的 struct 同样是 `inMem.FileList`。
 - **Fix:** 测试代码使用正确字段名 `FileList: inMem.FileList`。
-- **Files modified:** `internal/cloudclaude/mount_sshfs_test.go`
+- **Files modified:** `internal/claudedock/mount_sshfs_test.go`
 - **Verification:** `go build` 通过；若按 PLAN 字面量则编译失败 `unknown field FileLister`。
 - **Committed in:** `bd467d0`
 
@@ -107,7 +107,7 @@ Each task was committed atomically:
 - **Found during:** Task 2（同上）
 - **Issue:** PLAN `<interfaces>` 块定义虚构接口 `type ReadWriteAt interface { Fileread + Filewrite }`，并让 `countingFileReader` 与 `noopReadWriteAt` 都实现。pkg/sftp v1.13.10 实际：`FileGet` 类型为 `FileReader`（仅 `Fileread(*Request) (io.ReaderAt, error)`），`FilePut` 类型为 `FileWriter`（仅 `Filewrite(*Request) (io.WriterAt, error)`）。
 - **Fix:** `countingFileReader` 仅实现 `Fileread`；新增 `noopFileWriter` 仅实现 `Filewrite`（不再实现两个方法的合并接口）。
-- **Files modified:** `internal/cloudclaude/mount_sshfs_test.go`
+- **Files modified:** `internal/claudedock/mount_sshfs_test.go`
 - **Verification:** `go build`/`go vet` 通过；测试 SKIP 通过（fixture server handlers 字段类型匹配）。
 - **Committed in:** `bd467d0`
 
@@ -149,15 +149,15 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - 文件存在：
-  - `internal/cloudclaude/mount_sshfs.go` FOUND（已修改）
-  - `internal/cloudclaude/mount_sshfs_test.go` FOUND（新建）
+  - `internal/claudedock/mount_sshfs.go` FOUND（已修改）
+  - `internal/claudedock/mount_sshfs_test.go` FOUND（新建）
   - `.planning/phases/36-sshfs/36-05-SUMMARY.md` FOUND（本文件）
 - 提交存在：
   - `b1d9208` FOUND（Task 1 feat）
   - `bd467d0` FOUND（Task 2 test）
 - 验证：
   - `go build ./...` PASS
-  - `go test ./internal/cloudclaude/... -count=1` 全包 PASS（46s，无回归）
+  - `go test ./internal/claudedock/... -count=1` 全包 PASS（46s，无回归）
   - `go test -run TestSSHFSCacheHits -v` 输出 `--- SKIP` + `PASS`（D-22 / 验收闸门符合）
   - grep 字面量校验全部命中（4 缓存参数、ConnectTimeout=10,cache=yes 计数=1、旧字面量已替换）
 

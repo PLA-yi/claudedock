@@ -19,7 +19,7 @@ files_modified:
 must_haves:
   truths:
     - "同一 claude_account 容器删除并重建后，~/.claude/.credentials.json OAuth token 保留，无需 claude login（SC1 / REQ-F7-B）"
-    - "docker volume ls --filter label=com.cloud-cli-proxy.account_id=<id> 返回唯一 volume claude-state-<id>（SC2 / REQ-F7-A）"
+    - "docker volume ls --filter label=com.claudedock.account_id=<id> 返回唯一 volume claude-state-<id>（SC2 / REQ-F7-A）"
     - "容器内 /home/claude/.claude 与 /home/claude/.cache/claude 属主始终为 1000:1000，无权限错误（SC3 / PITFALLS C5+M17）"
     - "host-agent 重复收到同一 Volumes 创建请求时 docker volume create 幂等返回成功，不报 volume exists（SC5）"
   artifacts:
@@ -417,8 +417,8 @@ echo "OK"'
 const (
 	claudeStateVolumePrefix = "claude-state-"
 	claudeStateMountTarget  = "/var/lib/claude-persist"
-	claudeAccountLabelKey   = "com.cloud-cli-proxy.account_id"
-	claudeManagedLabelKey   = "com.cloud-cli-proxy.managed"
+	claudeAccountLabelKey   = "com.claudedock.account_id"
+	claudeManagedLabelKey   = "com.claudedock.managed"
 	claudeManagedLabelVal   = "true"
 )
 
@@ -653,7 +653,7 @@ func TestEnsureDockerVolume_NotExists_RunsCreate(t *testing.T) {
 	t.Cleanup(func() { dockerVolumeRunner = orig })
 
 	if err := realEnsureDockerVolume(context.Background(), "claude-state-abc",
-		map[string]string{"com.cloud-cli-proxy.account_id": "abc", "com.cloud-cli-proxy.managed": "true"}); err != nil {
+		map[string]string{"com.claudedock.account_id": "abc", "com.claudedock.managed": "true"}); err != nil {
 		t.Fatalf("create flow should succeed: %v", err)
 	}
 	if calls != 2 {
@@ -728,7 +728,7 @@ func TestRemoveDockerVolume_ForceTrue_PassesDashF(t *testing.T) {
 
 **关键不变量（verbatim 守恒）：**
 - 包级常量名 `claudeStateVolumePrefix` / `claudeStateMountTarget` / `claudeAccountLabelKey` / `claudeManagedLabelKey` / `claudeManagedLabelVal`
-- 字符串值 `"claude-state-"` / `"/var/lib/claude-persist"` / `"com.cloud-cli-proxy.account_id"` / `"com.cloud-cli-proxy.managed"` / `"true"`
+- 字符串值 `"claude-state-"` / `"/var/lib/claude-persist"` / `"com.claudedock.account_id"` / `"com.claudedock.managed"` / `"true"`
 - 函数名 `BuildClaudeStateVolumeName` / `realEnsureDockerVolume` / `realRemoveDockerVolume`
 - 包级 var 名 `ensureDockerVolume` / `removeDockerVolume` / `dockerVolumeRunner`
 - 错误码字符串 `"volume_in_use"`（D-15 + RESEARCH §4 错误码表）

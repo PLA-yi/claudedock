@@ -75,7 +75,7 @@ BYPASS-VERIFY-04（端到端 snapshot.applied_status）：
 选项:
   --scenario=NAME           必填，见上方场景列表
   --target-host-id=HID      必填，目标 host id
-  --admin-token=TOKEN       admin JWT（默认读 CLOUD_CLI_PROXY_ADMIN_TOKEN）
+  --admin-token=TOKEN       admin JWT（默认读 CLAUDEDOCK_ADMIN_TOKEN）
   --api-base=URL            control-plane API（默认 http://localhost:8080）
   --dry-run                 只打印命令，不实际下发
   --help, -h                显示本帮助
@@ -87,8 +87,8 @@ EOF
 # ─── 参数解析 ───────────────────────────────────────────────────────────────
 SCENARIO=""
 TARGET_HOST_ID=""
-ADMIN_TOKEN="${CLOUD_CLI_PROXY_ADMIN_TOKEN:-}"
-API_BASE="${CLOUD_CLI_PROXY_API_BASE:-http://localhost:8080}"
+ADMIN_TOKEN="${CLAUDEDOCK_ADMIN_TOKEN:-}"
+API_BASE="${CLAUDEDOCK_API_BASE:-http://localhost:8080}"
 DRY_RUN=false
 
 SCENARIO_NAMES=(loopback-only lan-only loopback-lan custom-ip custom-domain fail-closed-pkill)
@@ -155,7 +155,7 @@ if [[ -z "$TARGET_HOST_ID" ]]; then
 fi
 
 if [[ -z "$ADMIN_TOKEN" && "$DRY_RUN" != "true" ]]; then
-  skip "preflight" "未提供 admin token（--admin-token 或 CLOUD_CLI_PROXY_ADMIN_TOKEN）"
+  skip "preflight" "未提供 admin token（--admin-token 或 CLAUDEDOCK_ADMIN_TOKEN）"
   exit 2
 fi
 
@@ -164,7 +164,7 @@ cleanup() {
   # best-effort：起回 gateway 容器（如果 fail-closed 场景 pkill 过 sing-box）；
   # 即使容器名不存在也吞掉错误，避免 trap 自身抛异常。
   if command -v docker >/dev/null 2>&1; then
-    docker restart "cloudproxy-gw-${TARGET_HOST_ID}" >/dev/null 2>&1 || true
+    docker restart "claudedock-gw-${TARGET_HOST_ID}" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT INT TERM
@@ -207,7 +207,7 @@ worker_pid() {
     echo "0"
     return 0
   fi
-  docker inspect -f '{{.State.Pid}}' "cloudproxy-${TARGET_HOST_ID}" 2>/dev/null
+  docker inspect -f '{{.State.Pid}}' "claudedock-${TARGET_HOST_ID}" 2>/dev/null
 }
 
 # ─── 10 不变量断言 helpers ─────────────────────────────────────────────────
@@ -278,7 +278,7 @@ assert_invariant_I5_fail_closed() {
     pass "I5 sing-box pkill → 白名单也断 (dry-run)"
     return 0
   fi
-  docker exec "cloudproxy-gw-${TARGET_HOST_ID}" pkill sing-box >/dev/null 2>&1 || true
+  docker exec "claudedock-gw-${TARGET_HOST_ID}" pkill sing-box >/dev/null 2>&1 || true
   sleep 2
   local pid
   pid=$(worker_pid)
@@ -321,7 +321,7 @@ assert_invariant_I8() {
     pass "I8 whitelist-cidrs.json valid (dry-run)"
     return 0
   fi
-  if docker exec "cloudproxy-gw-${TARGET_HOST_ID}" \
+  if docker exec "claudedock-gw-${TARGET_HOST_ID}" \
        sh -c 'jq . /etc/sing-box/whitelist-cidrs.json' >/dev/null 2>&1; then
     pass "I8 whitelist-cidrs.json valid JSON"
   else

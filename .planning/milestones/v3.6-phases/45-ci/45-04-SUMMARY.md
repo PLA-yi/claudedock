@@ -21,7 +21,7 @@ tech-stack:
   patterns:
     - "Phase 52 OBS-01..03 接入挂点：5 子目录 + 中文 README 占位"
     - "DumpHook 接口静态断言 var _ DumpHook = (*ArtifactDumper)(nil)"
-    - "环境变量 > 编译默认 配置解析模式（CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR > ./out/e2e-artifacts）"
+    - "环境变量 > 编译默认 配置解析模式（CLAUDEDOCK_E2E_ARTIFACT_DIR > ./out/e2e-artifacts）"
 key-files:
   created:
     - tests/e2e/harness/artifacts.go
@@ -49,7 +49,7 @@ requirements_satisfied:
 
 ## One-liner
 
-实现 `tests/e2e/harness/artifacts.go` —— ArtifactDumper 把失败用例的排障证据按 `<baseDir>/<sanitizedName>/<timestamp>/` 归档到 `./out/e2e-artifacts/`（可被 `CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR` 覆盖），自动建 5 子目录（logs/network/docker/postgres/system）+ 5 份中文 README 占位说明 Phase 52 OBS-01..03 接入后会写什么；同时实现 `OnWaitForTimeout` 把 waitFor 超时备忘录追加到 `system/wait-timeout.txt`。改造 `BaseSuite.TearDownTest` 在 `t.Failed()` 时自动调 `Collect`（dumper 通过 `SetArtifactDumper` 注入）。6 个新 unit test 全 PASS（无 docker 依赖，0.00s）。
+实现 `tests/e2e/harness/artifacts.go` —— ArtifactDumper 把失败用例的排障证据按 `<baseDir>/<sanitizedName>/<timestamp>/` 归档到 `./out/e2e-artifacts/`（可被 `CLAUDEDOCK_E2E_ARTIFACT_DIR` 覆盖），自动建 5 子目录（logs/network/docker/postgres/system）+ 5 份中文 README 占位说明 Phase 52 OBS-01..03 接入后会写什么；同时实现 `OnWaitForTimeout` 把 waitFor 超时备忘录追加到 `system/wait-timeout.txt`。改造 `BaseSuite.TearDownTest` 在 `t.Failed()` 时自动调 `Collect`（dumper 通过 `SetArtifactDumper` 注入）。6 个新 unit test 全 PASS（无 docker 依赖，0.00s）。
 
 ## 实际产出
 
@@ -91,7 +91,7 @@ requirements_satisfied:
 
 ### Plan 05 e2e.yml
 - artifact 上传路径锁定 `./out/e2e-artifacts/`（与 `DefaultArtifactBaseDir` 字面量一致）
-- 环境变量 `CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR` 可在 e2e job 的 env 段覆盖（保留 self-hosted runner 切换持久卷的扩展点）
+- 环境变量 `CLAUDEDOCK_E2E_ARTIFACT_DIR` 可在 e2e job 的 env 段覆盖（保留 self-hosted runner 切换持久卷的扩展点）
 
 ## 决策回顾
 

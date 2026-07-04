@@ -24,11 +24,11 @@ score: 12/12 tests passed
 | 4 | HotSyncEngine 单文件熔断：60MB 未 ignore 文件被标记 oversized 并 delete，30MB 正常通过 | VERIFIED | TestHotSyncOversized_60MB_NotIgnored PASS; TestHotSyncOversized_30MB_NotOversized PASS |
 | 5 | syncOnce 静默跳过超阈文件，不写入 oversized 记录，不刷屏 stderr | VERIFIED | TestHotSyncOversized_IgnoreHit_NotCounted PASS; hot_sync.go applyOversizedFilter(recordOversized=false) |
 | 6 | tryModeReal 在 HotOnly 和 Full 两条路径都注入 MaxFileBytes；mount 成功后 stderr 一次性输出跳过大文件提示 | VERIFIED | mount_strategy.go: 双路径 MaxFileBytes 注入；D-08 stderr 提示块 |
-| 7 | 非 git 目录 cloud-claude 立即拒绝挂载，stderr 含 MOUNT_REQUIRE_GIT_REPO，退出码 4 | VERIFIED | git_check.go: requireGitRepo 实现；main.go line 306 调用；TestRequireGitRepo_NotAGitRepo PASS |
+| 7 | 非 git 目录 claudedock 立即拒绝挂载，stderr 含 MOUNT_REQUIRE_GIT_REPO，退出码 4 | VERIFIED | git_check.go: requireGitRepo 实现；main.go line 306 调用；TestRequireGitRepo_NotAGitRepo PASS |
 | 8 | git 检测时序先于 AuthenticateAndWait（行号 306 < 315） | VERIFIED | main.go: os.Getwd() line 301, requireGitRepo line 306, AuthenticateAndWait line 315 |
 | 9 | sshfs 命令含 4 个 FUSE page cache 参数：cache=yes,kernel_cache,auto_cache,cache_timeout=300 | VERIFIED | mount_sshfs.go 字面量命中；顺序在 ConnectTimeout=10 之后、-f 之前 |
 | 10 | doctor mount 新增 5 项 check，mount 维度从 4 项扩展到 9 项 | VERIFIED | doctor/mount.go 5 个 checker 函数；doctor.go 5 行 append；mount_test.go 13 条矩阵测试全 PASS |
-| 11 | doctor 矩阵测试覆盖 pass/warn/fail/skip 全分支 | VERIFIED | 13 条新测试 + 既有测试全 PASS (go test ./internal/cloudclaude/doctor/... -v) |
+| 11 | doctor 矩阵测试覆盖 pass/warn/fail/skip 全分支 | VERIFIED | 13 条新测试 + 既有测试全 PASS (go test ./internal/claudedock/doctor/... -v) |
 | 12 | CI 闸门通过：go test ./... + ci-doctor-grep.sh + uat dry-run | VERIFIED | make ci-gate PASS; 7 PASS, 0 FAIL, 3 SKIP |
 
 **Score:** 12/12 truths verified
@@ -37,24 +37,24 @@ score: 12/12 tests passed
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| internal/cloudclaude/errcodes/codes.go | MOUNT_REQUIRE_GIT_REPO / MOUNT_OVERSIZED_FILE_SKIPPED 常量 | VERIFIED | 两条常量存在 |
-| internal/cloudclaude/errcodes/mount.go | MustRegister 两条 Entry | VERIFIED | severity/message/next_action 完整 |
-| internal/cloudclaude/errcodes/explanations.go | >=200 字中文长说明 | VERIFIED | 754 rune / 830 rune |
-| cmd/cloud-claude/explain_test.go | 两条 explain 子进程测试 | VERIFIED | TestExplain_MountRequireGitRepo / TestExplain_MountOversizedFileSkipped PASS |
-| internal/cloudclaude/config.go | HotSyncMaxFileMB + EffectiveHotSyncMaxFileMB() | VERIFIED | 字段 + accessor 完整 |
-| internal/cloudclaude/last_session.go | OversizedFiles []OversizedFile omitempty | VERIFIED | 字段存在，schema_version=1 不变 |
-| internal/cloudclaude/last_session_test.go | 3 条序列化测试 | VERIFIED | Roundtrip/OmitemptyEmpty/OmitemptyNil PASS |
-| internal/cloudclaude/hot_sync.go | applyOversizedFilter + maxFileBytes | VERIFIED | initialSync/syncOnce 双路径调用 |
-| internal/cloudclaude/hot_sync_oversized_test.go | 3+ 场景测试 | VERIFIED | 4 条测试全 PASS |
-| internal/cloudclaude/mount_strategy.go | MaxFileBytes 注入 + D-08 stderr | VERIFIED | HotOnly/Full 双路径 + snapshot.OversizedFiles |
-| cmd/cloud-claude/git_check.go | requireGitRepo(cwd) | VERIFIED | 非 git / git 不可用统一处理 |
-| cmd/cloud-claude/git_check_test.go | 3 场景单测 | VERIFIED | InGitRepo/NotAGitRepo/GitUnavailable PASS |
-| cmd/cloud-claude/main.go | os.Getwd 前移 + requireGitRepo 调用 | VERIFIED | line 301/306 < 315 |
-| internal/cloudclaude/mount_sshfs.go | 4 个 cache 参数 | VERIFIED | cache=yes,kernel_cache,auto_cache,cache_timeout=300 |
-| internal/cloudclaude/mount_sshfs_test.go | fixture SFTP counting 测试 | VERIFIED | TestSSHFSCacheHitsKernelPageCache SKIP(Darwin)/PASS(Linux) |
-| internal/cloudclaude/doctor/mount.go | 5 个 checker 函数 | VERIFIED | 10 处 grep 命中(5定义+5引用) |
-| internal/cloudclaude/doctor/doctor.go | 5 项 check 注册 | VERIFIED | 5 行 append |
-| internal/cloudclaude/doctor/mount_test.go | 13 条矩阵测试 | VERIFIED | 全 PASS |
+| internal/claudedock/errcodes/codes.go | MOUNT_REQUIRE_GIT_REPO / MOUNT_OVERSIZED_FILE_SKIPPED 常量 | VERIFIED | 两条常量存在 |
+| internal/claudedock/errcodes/mount.go | MustRegister 两条 Entry | VERIFIED | severity/message/next_action 完整 |
+| internal/claudedock/errcodes/explanations.go | >=200 字中文长说明 | VERIFIED | 754 rune / 830 rune |
+| cmd/claudedock/explain_test.go | 两条 explain 子进程测试 | VERIFIED | TestExplain_MountRequireGitRepo / TestExplain_MountOversizedFileSkipped PASS |
+| internal/claudedock/config.go | HotSyncMaxFileMB + EffectiveHotSyncMaxFileMB() | VERIFIED | 字段 + accessor 完整 |
+| internal/claudedock/last_session.go | OversizedFiles []OversizedFile omitempty | VERIFIED | 字段存在，schema_version=1 不变 |
+| internal/claudedock/last_session_test.go | 3 条序列化测试 | VERIFIED | Roundtrip/OmitemptyEmpty/OmitemptyNil PASS |
+| internal/claudedock/hot_sync.go | applyOversizedFilter + maxFileBytes | VERIFIED | initialSync/syncOnce 双路径调用 |
+| internal/claudedock/hot_sync_oversized_test.go | 3+ 场景测试 | VERIFIED | 4 条测试全 PASS |
+| internal/claudedock/mount_strategy.go | MaxFileBytes 注入 + D-08 stderr | VERIFIED | HotOnly/Full 双路径 + snapshot.OversizedFiles |
+| cmd/claudedock/git_check.go | requireGitRepo(cwd) | VERIFIED | 非 git / git 不可用统一处理 |
+| cmd/claudedock/git_check_test.go | 3 场景单测 | VERIFIED | InGitRepo/NotAGitRepo/GitUnavailable PASS |
+| cmd/claudedock/main.go | os.Getwd 前移 + requireGitRepo 调用 | VERIFIED | line 301/306 < 315 |
+| internal/claudedock/mount_sshfs.go | 4 个 cache 参数 | VERIFIED | cache=yes,kernel_cache,auto_cache,cache_timeout=300 |
+| internal/claudedock/mount_sshfs_test.go | fixture SFTP counting 测试 | VERIFIED | TestSSHFSCacheHitsKernelPageCache SKIP(Darwin)/PASS(Linux) |
+| internal/claudedock/doctor/mount.go | 5 个 checker 函数 | VERIFIED | 10 处 grep 命中(5定义+5引用) |
+| internal/claudedock/doctor/doctor.go | 5 项 check 注册 | VERIFIED | 5 行 append |
+| internal/claudedock/doctor/mount_test.go | 13 条矩阵测试 | VERIFIED | 全 PASS |
 
 ### Key Link Verification
 
@@ -64,7 +64,7 @@ score: 12/12 tests passed
 | mount_strategy.go:tryModeReal | hot_sync.go:StartHotSync | MaxFileBytes 注入 | WIRED | HotOnly + Full 双路径 |
 | hot_sync.go:applyOversizedFilter | mount_strategy.go:MountWorkspace | HotSyncStatus.OversizedFiles | WIRED | snapshot.OversizedFiles = hotStatus.OversizedFiles |
 | doctor/mount.go:checkRequireGitRepo | git_check.go | exec.Command("git", "rev-parse") | WIRED | 同语义，doctor 包独立实现 |
-| doctor/mount.go:checkOversizedFilesCount | last_session.go | LoadLastSession() | WIRED | 真实读取 ~/.cloud-claude/last-session.json |
+| doctor/mount.go:checkOversizedFilesCount | last_session.go | LoadLastSession() | WIRED | 真实读取 ~/.claudedock/last-session.json |
 | doctor/mount.go:checkSSHFSCacheArgs | mount_sshfs.go | sshfsCmd 字面量 grep | WIRED | runner.RunScript + strings.Contains |
 
 ### Data-Flow Trace (Level 4)
@@ -83,11 +83,11 @@ score: 12/12 tests passed
 |----------|---------|--------|--------|
 | Go build compiles | go build ./... | Clean, no errors | PASS |
 | Go vet passes | go vet ./... | Clean, no warnings | PASS |
-| Explain tests | go test ./cmd/cloud-claude/... -run TestExplain_Mount | 3/3 PASS | PASS |
-| Git check tests | go test ./cmd/cloud-claude/... -run TestRequireGitRepo | 3/3 PASS | PASS |
-| LastSession tests | go test ./internal/cloudclaude/... -run TestLastSession_OversizedFiles | 3/3 PASS | PASS |
-| HotSync oversized tests | go test ./internal/cloudclaude/... -run TestHotSyncOversized | 4/4 PASS | PASS |
-| Doctor mount tests | go test ./internal/cloudclaude/doctor/... -v | 67/67 PASS (4 SKIP) | PASS |
+| Explain tests | go test ./cmd/claudedock/... -run TestExplain_Mount | 3/3 PASS | PASS |
+| Git check tests | go test ./cmd/claudedock/... -run TestRequireGitRepo | 3/3 PASS | PASS |
+| LastSession tests | go test ./internal/claudedock/... -run TestLastSession_OversizedFiles | 3/3 PASS | PASS |
+| HotSync oversized tests | go test ./internal/claudedock/... -run TestHotSyncOversized | 4/4 PASS | PASS |
+| Doctor mount tests | go test ./internal/claudedock/doctor/... -v | 67/67 PASS (4 SKIP) | PASS |
 | Full test suite | go test ./... -count=1 -short | All PASS | PASS |
 | CI gate | make ci-gate | PASS (7 UAT PASS, 0 FAIL, 3 SKIP) | PASS |
 | sshfs cache args | grep mount_sshfs.go | 4 参数命中 | PASS |

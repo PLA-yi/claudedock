@@ -8,15 +8,15 @@
 
 | New/Modified File | Role | Data Flow | Closest Analog | Match Quality |
 |-------------------|------|-----------|----------------|---------------|
-| `internal/cloudclaude/ssh.go` (modify) | service | request-response | 自身（当前实现） | exact |
-| `internal/cloudclaude/mount.go` (new) | service | streaming / I/O pipe | `internal/sshproxy/proxy.go` + `internal/runtime/tasks/ssh_ready.go` | role-match |
-| `cmd/cloud-claude/main.go` (modify) | controller | request-response | 自身（当前实现） | exact |
-| `internal/cloudclaude/mount_test.go` (new) | test | — | `internal/runtime/tasks/ssh_ready_test.go` | exact |
+| `internal/claudedock/ssh.go` (modify) | service | request-response | 自身（当前实现） | exact |
+| `internal/claudedock/mount.go` (new) | service | streaming / I/O pipe | `internal/sshproxy/proxy.go` + `internal/runtime/tasks/ssh_ready.go` | role-match |
+| `cmd/claudedock/main.go` (modify) | controller | request-response | 自身（当前实现） | exact |
+| `internal/claudedock/mount_test.go` (new) | test | — | `internal/runtime/tasks/ssh_ready_test.go` | exact |
 | `go.mod` (modify) | config | — | 自身 | exact |
 
 ## Pattern Assignments
 
-### `internal/cloudclaude/ssh.go` (service, request-response) — MODIFY
+### `internal/claudedock/ssh.go` (service, request-response) — MODIFY
 
 **Analog:** 自身（当前实现 `ConnectAndRunClaude`）
 
@@ -24,7 +24,7 @@
 
 **Imports pattern** (lines 1-15):
 ```go
-package cloudclaude
+package claudedock
 
 import (
 	"fmt"
@@ -134,7 +134,7 @@ return 0, fmt.Errorf("创建 SSH 会话失败: %w", err)
 
 ---
 
-### `internal/cloudclaude/mount.go` (service, streaming / I/O pipe) — NEW
+### `internal/claudedock/mount.go` (service, streaming / I/O pipe) — NEW
 
 **Analog 1 (I/O 管道 + goroutine 生命周期):** `internal/sshproxy/proxy.go` — `handleChannel` 函数
 
@@ -221,7 +221,7 @@ func WaitForSSHReady(ctx context.Context, containerName string, cfg SSHReadyConf
 }
 ```
 
-**关键启发：** `waitForMount` 应复用完全相同的轮询结构（`time.NewTimer` + `time.NewTicker` + `select`），但使用 SSH session exec 代替 docker exec 进行检测。注意 `ssh_ready.go` 支持 `context.Context` 取消——`waitForMount` 不一定需要 context（cloud-claude CLI 进程），但保持风格一致性可以考虑加上。
+**关键启发：** `waitForMount` 应复用完全相同的轮询结构（`time.NewTimer` + `time.NewTicker` + `select`），但使用 SSH session exec 代替 docker exec 进行检测。注意 `ssh_ready.go` 支持 `context.Context` 取消——`waitForMount` 不一定需要 context（claudedock CLI 进程），但保持风格一致性可以考虑加上。
 
 **Config struct + 默认值 pattern** (ssh_ready.go lines 24-34):
 ```go
@@ -255,7 +255,7 @@ func (e *SSHNotReadyError) Unwrap() error {
 }
 ```
 
-**Analog 3 (cleanup 模式):** `internal/cloudclaude/ssh.go` 的 defer 链
+**Analog 3 (cleanup 模式):** `internal/claudedock/ssh.go` 的 defer 链
 
 **资源清理 pattern** (ssh.go lines 49-92):
 ```go
@@ -279,7 +279,7 @@ defer signal.Stop(sigCh)
 
 ---
 
-### `cmd/cloud-claude/main.go` (controller, request-response) — MODIFY
+### `cmd/claudedock/main.go` (controller, request-response) — MODIFY
 
 **Analog:** 自身
 
@@ -304,7 +304,7 @@ fmt.Println("\r正在进入 Claude Code 会话...")
 
 **错误退出 pattern** (main.go lines 167-174):
 ```go
-exitCode, err := cloudclaude.ConnectAndRunClaude(sshCfg, args)
+exitCode, err := claudedock.ConnectAndRunClaude(sshCfg, args)
 if err != nil {
 	fmt.Fprintln(os.Stderr, "错误: "+err.Error())
 	os.Exit(exitInternalError)
@@ -316,7 +316,7 @@ if exitCode != 0 {
 
 ---
 
-### `internal/cloudclaude/mount_test.go` (test) — NEW
+### `internal/claudedock/mount_test.go` (test) — NEW
 
 **Analog:** `internal/runtime/tasks/ssh_ready_test.go`
 
@@ -397,7 +397,7 @@ go get github.com/pkg/sftp@v1.13.10
 ## Shared Patterns
 
 ### 错误消息风格
-**Source:** `internal/cloudclaude/ssh.go` 全文
+**Source:** `internal/claudedock/ssh.go` 全文
 **Apply to:** `mount.go` 所有新函数
 
 项目约定所有面向用户的错误使用中文描述 + `%w` 包装：
@@ -407,7 +407,7 @@ return fmt.Errorf("挂载 %s 超时（%v）", mountPath, timeout)
 ```
 
 ### SSH Session 生命周期
-**Source:** `internal/cloudclaude/ssh.go` lines 51-55
+**Source:** `internal/claudedock/ssh.go` lines 51-55
 **Apply to:** `mount.go` 的 sshfs session 和 mountpoint 检测 session
 
 ```go
@@ -419,7 +419,7 @@ defer session.Close()
 ```
 
 ### defer 资源释放
-**Source:** `internal/cloudclaude/ssh.go` lines 49-92
+**Source:** `internal/claudedock/ssh.go` lines 49-92
 **Apply to:** `ssh.go` 重构后的三阶段函数和 `mount.go`
 
 按 LIFO 顺序声明 defer，确保正确的释放顺序：
@@ -435,7 +435,7 @@ exitCode, err := runClaude(conn, args)
 ```
 
 ### shellescape 命令构建
-**Source:** `internal/cloudclaude/ssh.go` line 98
+**Source:** `internal/claudedock/ssh.go` line 98
 **Apply to:** `mount.go` 或 `ssh.go` 中构建 `cd /workspace && claude <args>` 命令
 
 ```go
@@ -443,7 +443,7 @@ remoteCmd := shellescape.QuoteCommand(append([]string{"claude"}, claudeArgs...))
 ```
 
 ### 包结构
-**Source:** `internal/cloudclaude/` 目录
+**Source:** `internal/claudedock/` 目录
 **Apply to:** `mount.go` 新文件
 
 项目按职责拆分同一 package 的多个文件：
@@ -452,7 +452,7 @@ remoteCmd := shellescape.QuoteCommand(append([]string{"claude"}, claudeArgs...))
 - `ssh.go` — SSH 连接和会话管理
 - `mount.go` (new) — 目录映射和 SFTP server
 
-所有文件共享 `package cloudclaude`，不引入子 package。
+所有文件共享 `package claudedock`，不引入子 package。
 
 ---
 

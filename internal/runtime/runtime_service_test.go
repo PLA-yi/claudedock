@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // stubQueueRepo 实现 QueueHostActionRepo 最小子集，便于测试 ClaudeAccountID 注入路径。

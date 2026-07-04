@@ -100,11 +100,11 @@ human_verification:
 | Dockerfile L188 (setcap) | sing-box binary 持 cap_net_admin+eip 文件 cap | `setcap` + 紧跟 `getcap \| grep cap_net_admin \|\| exit 1` build-time verify | ✓ WIRED | failure → build fail (`exit 1`) |
 | entrypoint L186 (runuser) | sing-box 跑在 uid=9000 + binary file cap 提供 NET_ADMIN | `runuser -u singbox -- /usr/local/bin/sing-box run -c "$SING_BOX_CONFIG" &` | ✓ WIRED | runuser 来自 util-linux（Ubuntu 24.04 默认装）；singbox uid=9000 来自 Dockerfile L119-121；NET_ADMIN 来自 setcap 文件 cap |
 | entrypoint L191-202 (waitFor tun0) | sing-box ready 判定 = tun0 接口存在 + sing-box pid 还活 | `while < deadline; do ip link show tun0 + kill -0 $SING_BOX_PID; sleep 0.5` | ✓ WIRED | 30s timeout，超时 fail-closed `kill $SING_BOX_PID + exit 1` |
-| entrypoint L226-245 (apply_nft_or_die) | nft default-deny ruleset 应用到容器 netns | `nft -f $NFT_RULESET` + `nft list table inet cloud_proxy_v4` 二次 verify | ✓ WIRED | NFT_RULESET=`/etc/cloud-claude/default-deny.nft`，Dockerfile L220-221 COPY 进镜像 |
+| entrypoint L226-245 (apply_nft_or_die) | nft default-deny ruleset 应用到容器 netns | `nft -f $NFT_RULESET` + `nft list table inet cloud_proxy_v4` 二次 verify | ✓ WIRED | NFT_RULESET=`/etc/claudedock/default-deny.nft`，Dockerfile L220-221 COPY 进镜像 |
 | entrypoint L211-224 (lock_resolv_conf) | DNS 强制走 sing-box stub | `cat > /etc/resolv.conf` + `chattr +i 2>/dev/null \|\| WARN` | ✓ WIRED | overlay2 chattr 失败容错（兜底走 nft drop 53/853） |
 | entrypoint L247-256 (remove_singbox_config) | sing-box load 后 fs 删 config | `shred -u $SING_BOX_CONFIG 2>/dev/null \|\| rm -f`，rm 失败 → kill sing-box + exit 1 | ✓ WIRED | D-V4-2 凭据保护 |
 | entrypoint L258-274 (monitor) | sing-box 死 → kill PID 1 → tini 关停容器 | `while kill -0 $SING_BOX_PID; do sleep 1; done; kill -TERM 1; sleep 2; kill -KILL 1` | ✓ WIRED | 子 shell 已修复原 plan `wait` bug（53-02 Deviation #1）；2s 兜底 KILL；tini 是 PID 1（Dockerfile L231 ENTRYPOINT）|
-| Dockerfile L220-221 (COPY default-deny.nft) | nft ruleset 文件进容器 fs | `COPY ... default-deny.nft /etc/cloud-claude/default-deny.nft` + `chmod 0644` | ✓ WIRED | apply_nft_or_die L228-232 文件存在性 pre-check 兜底 |
+| Dockerfile L220-221 (COPY default-deny.nft) | nft ruleset 文件进容器 fs | `COPY ... default-deny.nft /etc/claudedock/default-deny.nft` + `chmod 0644` | ✓ WIRED | apply_nft_or_die L228-232 文件存在性 pre-check 兜底 |
 | smoke.sh L37-45 (docker run) | T-53-1..6 oracle 链路 | `--device /dev/net/tun --cap-drop ALL --cap-add NET_ADMIN -v $TMP_CONFIG:/etc/sing-box/config.json --restart=on-failure:3` | ✓ WIRED | 与 ROADMAP SC1 命令行一致 |
 
 ### Data-Flow Trace (Level 4)

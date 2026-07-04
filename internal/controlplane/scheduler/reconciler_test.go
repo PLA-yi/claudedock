@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type mockReconcileStore struct {
@@ -67,8 +67,8 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			results: map[string]agentapi.ContainerStatusResponse{
-				"cloudproxy-h1": {Exists: true, Running: true},
-				"cloudproxy-h2": {Exists: true, Running: true},
+				"claudedock-h1": {Exists: true, Running: true},
+				"claudedock-h2": {Exists: true, Running: true},
 			},
 		}
 		queuer := &mockQueuer{}
@@ -106,7 +106,7 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			results: map[string]agentapi.ContainerStatusResponse{
-				"cloudproxy-h1": {Exists: true, Running: false},
+				"claudedock-h1": {Exists: true, Running: false},
 			},
 		}
 		queuer := &mockQueuer{}
@@ -149,7 +149,7 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			results: map[string]agentapi.ContainerStatusResponse{
-				"cloudproxy-h1": {Exists: false, Running: false},
+				"claudedock-h1": {Exists: false, Running: false},
 			},
 		}
 		queuer := &mockQueuer{}
@@ -188,7 +188,7 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			results: map[string]agentapi.ContainerStatusResponse{
-				"cloudproxy-h1": {Exists: true, Running: false},
+				"claudedock-h1": {Exists: true, Running: false},
 			},
 		}
 		r := NewReconciler(slog.Default(), store, inspector, nil, 10*time.Minute)
@@ -225,7 +225,7 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			results: map[string]agentapi.ContainerStatusResponse{
-				"cloudproxy-h1": {Exists: true, Running: false},
+				"claudedock-h1": {Exists: true, Running: false},
 			},
 		}
 		queuer := &mockQueuer{err: errors.New("queue full")}
@@ -264,7 +264,7 @@ func TestReconciler(t *testing.T) {
 		}
 		inspector := &mockInspector{
 			errors: map[string]error{
-				"cloudproxy-h1": errors.New("agent unreachable"),
+				"claudedock-h1": errors.New("agent unreachable"),
 			},
 		}
 		queuer := &mockQueuer{}

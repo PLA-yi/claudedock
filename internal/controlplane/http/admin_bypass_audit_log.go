@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 // AdminBypassAuditLogStore 是 Plan 46-02 Task 4 的最小存储接口。

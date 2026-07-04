@@ -22,12 +22,12 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - internal/cloudclaude/errcodes/codes.go
-    - internal/cloudclaude/errcodes/ssh.go
-    - internal/cloudclaude/errcodes/explanations.go
-    - internal/cloudclaude/doctor/ssh.go
-    - internal/cloudclaude/doctor/ssh_test.go
-    - internal/cloudclaude/doctor/doctor.go
+    - internal/claudedock/errcodes/codes.go
+    - internal/claudedock/errcodes/ssh.go
+    - internal/claudedock/errcodes/explanations.go
+    - internal/claudedock/doctor/ssh.go
+    - internal/claudedock/doctor/ssh_test.go
+    - internal/claudedock/doctor/doctor.go
 
 key-decisions:
   - "runner 错误时默认报 SSH_SSHD_FORWARDING_DISABLED（第一个发现问题），保持与 checkSSHDKeepaliveDrift 一致的错误处理模式"
@@ -71,12 +71,12 @@ Each task was committed atomically:
 
 ## Files Created/Modified
 
-- `internal/cloudclaude/errcodes/codes.go` - 新增 3 个 SSH_SSHD_*_FORWARDING/GATEWAY 错误码常量
-- `internal/cloudclaude/errcodes/ssh.go` - 注册 3 个 MustRegister Entry
-- `internal/cloudclaude/errcodes/explanations.go` - 3 条 ≥200 字中文长说明
-- `internal/cloudclaude/doctor/ssh.go` - parseSSHDForwarding + checkSSHDForwarding 两个函数
-- `internal/cloudclaude/doctor/ssh_test.go` - 13 个新单元测试
-- `internal/cloudclaude/doctor/doctor.go` - ssh 维度注册 sshd_forwarding 检查项
+- `internal/claudedock/errcodes/codes.go` - 新增 3 个 SSH_SSHD_*_FORWARDING/GATEWAY 错误码常量
+- `internal/claudedock/errcodes/ssh.go` - 注册 3 个 MustRegister Entry
+- `internal/claudedock/errcodes/explanations.go` - 3 条 ≥200 字中文长说明
+- `internal/claudedock/doctor/ssh.go` - parseSSHDForwarding + checkSSHDForwarding 两个函数
+- `internal/claudedock/doctor/ssh_test.go` - 13 个新单元测试
+- `internal/claudedock/doctor/doctor.go` - ssh 维度注册 sshd_forwarding 检查项
 
 ## Decisions Made
 
@@ -98,7 +98,7 @@ None - no external service configuration required.
 ## Next Phase Readiness
 
 - doctor ssh 维度已包含 sshd 转发检查，可直接用于 Phase 44 后续 Plan 或集成验证
-- 三个错误码已注册，`cloud-claude explain` 自动支持
+- 三个错误码已注册，`claudedock explain` 自动支持
 
 ---
 *Phase: 44-doctor-sshd-config*

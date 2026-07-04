@@ -7,10 +7,10 @@ tags: [hyperfine, ripgrep, bash, performance-benchmark, base-01, base-02, fuse, 
 # Dependency graph
 requires:
   - phase: 31-cli
-    provides: cloud-claude CLI 入口（--mount-mode=auto）+ 三段式中文进度 stderr 输出
+    provides: claudedock CLI 入口（--mount-mode=auto）+ 三段式中文进度 stderr 输出
   - phase: 29-managed-image
     provides: managed-user 镜像 (FUSE caps + mergerfs + sshfs 预装) 与 image.lock 字段约定
-  - phase: 34-cloud-claude-doctor-v3
+  - phase: 34-claudedock-doctor-v3
     provides: 4 函数 pass/fail/warn/info skeleton + ci-doctor-grep.sh 双模式断言模板
 
 provides:

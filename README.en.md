@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="docs/public/logo.svg" width="88" height="88" alt="Cloud CLI Proxy" />
+<img src="docs/public/logo.svg" width="88" height="88" alt="ClaudeDock" />
 
-# Cloud CLI Proxy
+# ClaudeDock
 
 **A smarter Claude Code Wrapper. Containerize Claude Code so you look like a regular American developer — and Anthropic's risk system leaves you alone.**
 
-[![CI](https://github.com/ZaneL1u/cloud-cli-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/ZaneL1u/cloud-cli-proxy/actions/workflows/ci.yml)
-[![Images](https://github.com/ZaneL1u/cloud-cli-proxy/actions/workflows/build-images.yml/badge.svg)](https://github.com/ZaneL1u/cloud-cli-proxy/actions/workflows/build-images.yml)
-[![Release](https://img.shields.io/github/v/release/ZaneL1u/cloud-cli-proxy)](https://github.com/ZaneL1u/cloud-cli-proxy/releases)
+[![CI](https://github.com/claudedock/claudedock/actions/workflows/ci.yml/badge.svg)](https://github.com/claudedock/claudedock/actions/workflows/ci.yml)
+[![Images](https://github.com/claudedock/claudedock/actions/workflows/build-images.yml/badge.svg)](https://github.com/claudedock/claudedock/actions/workflows/build-images.yml)
+[![Release](https://img.shields.io/github/v/release/claudedock/claudedock)](https://github.com/claudedock/claudedock/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[中文](README.md) | [Docs](https://zanel1u.github.io/cloud-cli-proxy/en/)
+[中文](README.md) | [Docs](https://claudedock.github.io/claudedock/en/)
 
 </div>
 
@@ -21,7 +21,7 @@
 
 Claude Code is great. The risk system is not. Wrong IP, VPS-looking environment fingerprints, telemetry ratting you out — your account's on borrowed time.
 
-Cloud CLI Proxy does one thing: **it makes Claude Code think you're a regular person on a Windows laptop in Los Angeles.** Every layer is spoofed — IP, system fingerprint, TLS handshake. To Anthropic's servers, you're just another residential user in the US, not some cloud instance in a data center.
+ClaudeDock does one thing: **it makes Claude Code think you're a regular person on a Windows laptop in Los Angeles.** Every layer is spoofed — IP, system fingerprint, TLS handshake. To Anthropic's servers, you're just another residential user in the US, not some cloud instance in a data center.
 
 Deploy it on your own machine, SSH in, start coding. Your local project directory mounts into the container at the exact same path — using Claude Code feels identical to running it natively.
 
@@ -65,8 +65,8 @@ Admin creates the container from the dashboard. You get a `curl` command. Paste 
 ## Quick Start
 
 ```bash
-git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
-cd cloud-cli-proxy
+git clone https://github.com/claudedock/claudedock.git
+cd claudedock
 
 bash deploy/scripts/setup-env.sh
 
@@ -109,13 +109,13 @@ docker compose up -d              # Start
 sudo bash deploy/scripts/deploy.sh
 ```
 
-Creates a `cloudproxy` system user, builds binaries and images, installs systemd units, starts services.
+Creates a `claudedock` system user, builds binaries and images, installs systemd units, starts services.
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | SQLite database path | `file:/data/cloud-cli-proxy.db` |
+| `DATABASE_URL` | SQLite database path | `file:/data/claudedock.db` |
 | `ADMIN_USERNAME` | Admin username | `admin` |
 | `ADMIN_PASSWORD` | Admin password (bcrypt) | Required |
 | `ADMIN_JWT_SECRET` | JWT signing secret | Required |
@@ -167,7 +167,7 @@ User ──curl──> Control Plane (:8080) ──Docker──>    │ User Con
 
 ## Contributing
 
-Bug reports and feature requests: open an [Issue](https://github.com/ZaneL1u/cloud-cli-proxy/issues).
+Bug reports and feature requests: open an [Issue](https://github.com/claudedock/claudedock/issues).
 
 Pull request process:
 
@@ -189,7 +189,7 @@ See `make help` for all commands.
 
 ## Documentation
 
-Full docs on [GitHub Pages](https://zanel1u.github.io/cloud-cli-proxy/en/): quick start, deployment, configuration, architecture, API reference, troubleshooting.
+Full docs on [GitHub Pages](https://claudedock.github.io/claudedock/en/): quick start, deployment, configuration, architecture, API reference, troubleshooting.
 
 ---
 

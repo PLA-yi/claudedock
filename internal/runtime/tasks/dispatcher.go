@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/agentapi"
 )
 
 type Dispatcher struct {

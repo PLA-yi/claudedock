@@ -145,7 +145,7 @@ completed: 2026-04-23
 
 1. **macOS 真机签字**（M5 APFS + BASE-03 2min）：
    ```bash
-   cloud-claude --mount-mode=auto    # 终端 1
+   claudedock --mount-mode=auto    # 终端 1
    bash scripts/v3-acceptance-checklist.sh --track=all --env=macos \
      --target-container=<容器名> --confirm-destructive \
      --report-md=docs/runbooks/v3-acceptance-report-$(date +%Y%m%d).md

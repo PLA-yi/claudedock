@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type vncHostStore interface {
@@ -51,7 +51,7 @@ func (h *UserVNCProxyHandler) ServeHTTP(w nethttp.ResponseWriter, r *nethttp.Req
 		return
 	}
 
-	containerName := fmt.Sprintf("cloudproxy-%s", hostID)
+	containerName := fmt.Sprintf("claudedock-%s", hostID)
 	containerIP, err := getContainerIP(r.Context(), containerName)
 	if err != nil {
 		h.logger.Error("get container IP failed", "container", containerName, "error", err)

@@ -25,7 +25,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 // TestExpiry_AutoStop_GoldenPath 验证 MVS-06「到期容器自动停止 + 审计事件入库」。

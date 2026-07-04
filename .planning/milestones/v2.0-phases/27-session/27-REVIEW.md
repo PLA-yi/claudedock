@@ -26,16 +26,16 @@ severity_counts:
 
 ## Files Reviewed
 
-- `internal/cloudclaude/mount.go` (new)
-- `internal/cloudclaude/mount_test.go` (new)
-- `internal/cloudclaude/ssh.go` (modified)
-- `cmd/cloud-claude/main.go` (modified)
+- `internal/claudedock/mount.go` (new)
+- `internal/claudedock/mount_test.go` (new)
+- `internal/claudedock/ssh.go` (modified)
+- `cmd/claudedock/main.go` (modified)
 
 ## High
 
 ### HI-01: `ssh.InsecureIgnoreHostKey()` 禁用了主机密钥验证
 
-**File:** `internal/cloudclaude/ssh.go:49`
+**File:** `internal/claudedock/ssh.go:49`
 **Issue:** `HostKeyCallback: ssh.InsecureIgnoreHostKey()` 使 SSH 连接容易受到中间人攻击。攻击者可以拦截连接并窃取凭证或篡改流量。虽然容器是动态创建的、没有预置信任锚，但 gateway 的 `authResp` 已经包含了连接信息，可以同时下发容器主机指纹用于验证。
 
 **Fix:** 让 gateway 在 `authResp` 中返回容器的 SSH host key 指纹，客户端用 `ssh.FixedHostKey()` 验证：
@@ -57,7 +57,7 @@ clientCfg := &ssh.ClientConfig{
 
 ### ME-01: 嵌入式 SFTP server 未做文件系统沙箱限制
 
-**File:** `internal/cloudclaude/mount.go:70`
+**File:** `internal/claudedock/mount.go:70`
 **Issue:** `sftp.NewServer(rwc, sftp.WithServerWorkingDirectory(localDir))` 仅设置 SFTP server 的初始工作目录，但 `pkg/sftp` 库不限制客户端通过绝对路径或 `../` 访问工作目录以外的文件系统。如果容器内部被攻破，攻击者可以通过 SFTP 协议读写本地主机上当前用户权限下的任意文件（如 `~/.ssh/`、`~/.aws/`）。
 
 **Fix:** 使用 `sftp.Handlers` 接口自定义 `FileGet`/`FilePut`/`FileCmd`/`FileList`，在路径解析层拒绝逃逸出 `localDir` 的请求。或者在 SFTP server 启动前用 `os.Chroot` / Linux namespace 限制进程可见的文件系统范围：
@@ -75,7 +75,7 @@ server, err := sftp.NewServer(rwc,
 
 ### LO-01: SIGWINCH 监听 goroutine 泄漏
 
-**File:** `internal/cloudclaude/ssh.go:101-108`
+**File:** `internal/claudedock/ssh.go:101-108`
 **Issue:** `signal.Stop(sigCh)` 停止信号投递但不关闭 channel，`for range sigCh` 的 goroutine 将永远阻塞。虽然在本程序中 `runClaude` 返回后进程即退出，实际不造成影响，但如果该函数未来被复用或测试中多次调用，每次都会泄漏一个 goroutine。
 
 **Fix:**
@@ -91,7 +91,7 @@ defer func() {
 
 ### LO-02: `err == io.EOF` 应使用 `errors.Is`
 
-**File:** `internal/cloudclaude/ssh.go:128`
+**File:** `internal/claudedock/ssh.go:128`
 **Issue:** 直接比较 `err == io.EOF` 无法匹配被 `fmt.Errorf("%w", ...)` 包装过的 `io.EOF`。项目其余代码（controlplane、store 等）统一使用 `errors.Is` 进行错误类型判断。
 
 **Fix:**
@@ -106,7 +106,7 @@ if errors.Is(err, io.EOF) {
 
 ### LO-03: `os.Exit` 在 cobra `RunE` 中导致不可达代码
 
-**File:** `cmd/cloud-claude/main.go:119-123, 151-155`
+**File:** `cmd/claudedock/main.go:119-123, 151-155`
 **Issue:** `runRoot` 是 cobra 的 `RunE` 回调，但函数中多处使用 `os.Exit()` 后紧跟 `return nil`。`os.Exit` 之后的语句永远不会执行，且 `os.Exit` 会跳过所有 `defer` 清理。两处 `return nil`（第 123 行和第 155 行）是死代码。
 
 **Fix:** 将错误分类逻辑移到 `main()` 中，让 `runRoot` 返回带有分类信息的错误类型，由 `main()` 统一处理退出码：
@@ -124,7 +124,7 @@ if err := rootCmd.Execute(); err != nil {
 
 ### LO-04: 错误分类依赖中文字符串匹配
 
-**File:** `cmd/cloud-claude/main.go:117, 142-153`
+**File:** `cmd/claudedock/main.go:117, 142-153`
 **Issue:** 使用 `strings.Contains(errMsg, "认证失败")` 等中文子串匹配来分类错误并确定退出码。如果底层错误消息措辞变化（如"认证失败"改为"鉴权失败"），分类逻辑将静默失效，所有错误都落入 `exitInternalError`。
 
 **Fix:** 定义类型化错误或哨兵值，在产生错误的位置用自定义类型包装，在分类处用 `errors.As` / `errors.Is` 判断：

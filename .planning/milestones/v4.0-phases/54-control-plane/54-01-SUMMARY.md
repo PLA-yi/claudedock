@@ -14,7 +14,7 @@ provides:
   - PrepareHost 退化为「verifyWorkerNetwork 单步」
   - CleanupHost 退化为「os.RemoveAll(SingBoxConfigDir)」单一职责
   - worker.buildCreateArgs：--restart=on-failure + --device /dev/net/tun + sing-box config ro bind mount
-  - 删除 sidecar gateway 容器、cloudproxy-net-* 自定义 bridge、teardownGateway 链路
+  - 删除 sidecar gateway 容器、claudedock-net-* 自定义 bridge、teardownGateway 链路
 affects: [54-02, 54-03, 54-04, 55, 56]
 
 # Tech tracking
@@ -59,7 +59,7 @@ completed: 2026-05-16
 
 # Phase 54 Plan 01: container_proxy_provider 单容器路径重构 Summary
 
-**container_proxy_provider.go 从 519 行精简到 155 行（-364 行），删除 sidecar gateway 容器 / cloudproxy-net-* 自定义 bridge / teardownGateway / worker netns 注入路径，PrepareGateway 退化为「mkdir + writeContainerSingBoxConfig stub」，PrepareHost 退化为「verifyWorkerNetwork」**
+**container_proxy_provider.go 从 519 行精简到 155 行（-364 行），删除 sidecar gateway 容器 / claudedock-net-* 自定义 bridge / teardownGateway / worker netns 注入路径，PrepareGateway 退化为「mkdir + writeContainerSingBoxConfig stub」，PrepareHost 退化为「verifyWorkerNetwork」**
 
 ## Performance
 
@@ -179,7 +179,7 @@ completed: 2026-05-16
 无新增网络 / 认证 / 文件访问安全相关表面。本 plan 整体方向是收缩攻击面：
 
 - 删除 sidecar gateway 容器消除一个长存 sing-box 进程的攻击面
-- 删除 cloudproxy-net-* 自定义 bridge 消除一个跨容器的 docker network 表面
+- 删除 claudedock-net-* 自定义 bridge 消除一个跨容器的 docker network 表面
 - 删除 host-agent 进入 worker netns 的能力（applyWorkerFirewall / configureWorkerEgress）将 nft / 路由配置职责完全移到容器内部
 - worker.buildCreateArgs 保留 `--cap-drop NET_RAW` + apparmor=unconfined 兜底
 - 新增 `--device /dev/net/tun` 表面，但 Phase 53 已验证容器内 sing-box 用法
@@ -188,7 +188,7 @@ completed: 2026-05-16
 
 - ✅ Plan 54-02 (host-agent sing-box config 写盘 + 双源 SOCKS5 → VLESS/VMess/...): 单容器链路骨架已就位，`writeContainerSingBoxConfig` stub 等真正实现替换，bind mount 源 / 目的契约已锁
 - ✅ Plan 54-03 (双绑互斥契约单测加固): 51-09 错误码 / 状态机 / 双语 message 0 行 diff（grep 确认），可继续加固单测而无契约冲突
-- ✅ Plan 54-04 (清理 deploy/docker/sing-box-gateway/ + Makefile gateway-image target): 控制面侧已 0 引用 `cloud-cli-proxy-sing-gateway:local` 镜像，可安全清理
+- ✅ Plan 54-04 (清理 deploy/docker/sing-box-gateway/ + Makefile gateway-image target): 控制面侧已 0 引用 `claudedock-sing-gateway:local` 镜像，可安全清理
 - ⚠️ Phase 55 (e2e harness 迁移 WithSingBoxGateway → 单容器): 本 plan Out of Scope，但通过保留 `GatewayConfigDir` alias 提供了一个里程碑的兼容窗口
 
 ## Self-Check

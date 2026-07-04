@@ -28,7 +28,7 @@ When the workflow needs to spawn a subagent:
 </cursor_skill_adapter>
 
 <objective>
-Manage the runtime skill surface without reinstall. Reads/writes `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/skills/.gsd-surface.json`
+Manage the runtime skill surface without reinstall. Reads/writes `/Users/zaneliu/Projects/open-source/claudedock/.cursor/skills/.gsd-surface.json`
 (sibling to `.gsd-profile`) and re-stages the active commands/gsd directory in place.
 
 Sub-commands: list · status · profile · disable · enable · reset
@@ -122,11 +122,11 @@ Valid cluster names: `core_loop`, `audit_review`, `milestone`, `research_ideate`
 
 ```bash
 # Cursor
-RUNTIME_CONFIG_DIR=/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/skills
+RUNTIME_CONFIG_DIR=/Users/zaneliu/Projects/open-source/claudedock/.cursor/skills
 
 # Resolve commandsDir and agentsDir
-COMMANDS_DIR=/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/commands/gsd
-AGENTS_DIR=/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/agents
+COMMANDS_DIR=/Users/zaneliu/Projects/open-source/claudedock/.cursor/commands/gsd
+AGENTS_DIR=/Users/zaneliu/Projects/open-source/claudedock/.cursor/agents
 ```
 
 All paths can be overridden by reading the `CLAUDE_CONFIG_DIR` env var if set.
@@ -140,8 +140,8 @@ All paths can be overridden by reading the `CLAUDE_CONFIG_DIR` env var if set.
 - Missing `surface.cjs` → prompt: "Run `npm i -g get-shit-done` to reinstall GSD."
 
 <execution_context>
-Surface state file: `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/skills/.gsd-surface.json`
-Install profile marker: `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/skills/.gsd-profile`
-Engine module: `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/lib/surface.cjs`
-Cluster definitions: `/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/lib/clusters.cjs`
+Surface state file: `/Users/zaneliu/Projects/open-source/claudedock/.cursor/skills/.gsd-surface.json`
+Install profile marker: `/Users/zaneliu/Projects/open-source/claudedock/.cursor/skills/.gsd-profile`
+Engine module: `/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/lib/surface.cjs`
+Cluster definitions: `/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/lib/clusters.cjs`
 </execution_context>

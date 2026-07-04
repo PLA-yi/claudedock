@@ -7,7 +7,7 @@ tags:
   - ssh-proxy
   - private-key
   - entry-api
-  - cloud-claude-cli
+  - claudedock-cli
 dependency_graph:
   requires: []
   provides:
@@ -18,8 +18,8 @@ dependency_graph:
     - internal/store/repository
     - internal/controlplane/http
     - internal/sshproxy
-    - internal/cloudclaude
-    - cmd/cloud-claude
+    - internal/claudedock
+    - cmd/claudedock
 tech_stack:
   added: []
   patterns:
@@ -37,23 +37,23 @@ key_files:
     - internal/controlplane/http/router.go
     - internal/sshproxy/resolver.go
     - internal/sshproxy/proxy.go
-    - internal/cloudclaude/entry.go
-    - internal/cloudclaude/config.go
-    - internal/cloudclaude/session.go
-    - internal/cloudclaude/ssh.go
-    - internal/cloudclaude/doctor/auth.go
-    - internal/cloudclaude/doctor/fix.go
-    - internal/cloudclaude/doctor/auth_test.go
-    - internal/cloudclaude/doctor/fix_test.go
-    - internal/cloudclaude/doctor/mount_test.go
-    - cmd/cloud-claude/main.go
-    - cmd/cloud-claude/sessions.go
+    - internal/claudedock/entry.go
+    - internal/claudedock/config.go
+    - internal/claudedock/session.go
+    - internal/claudedock/ssh.go
+    - internal/claudedock/doctor/auth.go
+    - internal/claudedock/doctor/fix.go
+    - internal/claudedock/doctor/auth_test.go
+    - internal/claudedock/doctor/fix_test.go
+    - internal/claudedock/doctor/mount_test.go
+    - cmd/claudedock/main.go
+    - cmd/claudedock/sessions.go
 decisions:
   - "HostSSHAuth 移除 HostShortID，新增 SSHPrivateKey 字段，控制面用数据库私钥连接容器"
   - "Entry API 路由从 /v1/entry/{shortId} 改为 /v1/entry/{username}，返回 ssh_user = username"
   - "SSH proxy resolver 按 username 查 host，resolveTarget 返回 User + PrivateKey"
   - "proxy.go handleChannel 识别 PEM 私钥并优先用 ssh.PublicKeys 认证，密码始终 fallback"
-  - "cloud-claude CLI Config.ShortID 改为 Username，--short-id flag 改为 --username"
+  - "claudedock CLI Config.ShortID 改为 Username，--short-id flag 改为 --username"
   - "SessionConfig.ShortID 改为 SessionID，与用户 short_id 彻底解耦"
   - "保留 GetHostByShortID / GetUserByShortID 做一期兼容 fallback，二期移除"
 metrics:
@@ -71,7 +71,7 @@ metrics:
 |------|------|------|------|
 | 1 | 数据层 + Entry API 改造 | 1c25127 | 完成 |
 | 2 | SSH proxy 改造 | c1832bc | 完成 |
-| 3 | cloud-claude CLI 改造 | 8bfc486 | 完成 |
+| 3 | claudedock CLI 改造 | 8bfc486 | 完成 |
 
 ## 变更摘要
 
@@ -90,7 +90,7 @@ metrics:
 - **proxy.go**: `ContainerResolver` 接口同步改；`PasswordCallback` / `PublicKeyCallback` 扩展字段增加 `target_private_key`；`handleChannel` 识别 PEM 私钥并优先用 `ssh.PublicKeys(signer)` 认证，密码始终作为 fallback 保留。
 - **resolver_test.go**（新建）: 覆盖密码错误、公钥匹配/不匹配、无 inbound keys、username 参数传递等路径。
 
-### Task 3: cloud-claude CLI + runtime
+### Task 3: claudedock CLI + runtime
 
 - **config.go**: `Config.ShortID` 改为 `Config.Username`，`Validate()` 检查 `Username`。
 - **entry.go**: `Authenticate` / `AuthenticateAndWait` 参数名改为 `username`，URL 路径同步改。

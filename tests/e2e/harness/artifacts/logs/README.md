@@ -6,8 +6,8 @@
 
 命名规则：`<container-name>.log`，常见的几个：
 
-- `cloudproxy-gw-<host_id>.log` — sing-box gateway 容器
-- `cloudproxy-<host_id>.log` — worker 容器（用户 shell 环境）
+- `claudedock-gw-<host_id>.log` — sing-box gateway 容器
+- `claudedock-<host_id>.log` — worker 容器（用户 shell 环境）
 - 控制面 / host-agent 进程在 Phase 52 时仍是宿主机子进程，**不**会出现在本目录；它们的 stderr 由 `system/` 内的 `wait-timeout.txt` 与 Go test stdout 捕获。
 
 如果 `docker ps -a` 在采集时返回空（daemon 未起 / 无容器），本目录只会有一个 `_empty.txt` 占位。
@@ -22,8 +22,8 @@ done
 
 ## 典型排障场景
 
-1. **sing-box gateway 启不来** → 看 `cloudproxy-gw-*.log` 末尾，常见错误：`outbound config invalid`、`tun device create failed`、`bind 1080 already in use`。
-2. **worker 容器内 SSH 拒绝连接** → 看 `cloudproxy-<host_id>.log` 头部，确认 sshd 是否成功 `Server listening on 0.0.0.0 port 22`。
+1. **sing-box gateway 启不来** → 看 `claudedock-gw-*.log` 末尾，常见错误：`outbound config invalid`、`tun device create failed`、`bind 1080 already in use`。
+2. **worker 容器内 SSH 拒绝连接** → 看 `claudedock-<host_id>.log` 头部，确认 sshd 是否成功 `Server listening on 0.0.0.0 port 22`。
 3. **gateway 健康检查抖动** → grep `level=error` / `WARN` 时间戳，比对 e2e 用例 `system/wait-timeout.txt` 的时间窗。
 4. **host-agent 上报失败** → host-agent 不在容器里，看 `system/` 与 control-plane 进程 stderr；本目录无关。
 

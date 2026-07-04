@@ -14,7 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type stubUserStore struct {
@@ -119,7 +119,7 @@ func validAdminToken(t *testing.T) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, AuthClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "admin",
-			Issuer:    "cloud-cli-proxy",
+			Issuer:    "claudedock",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
 		UserID: "admin",

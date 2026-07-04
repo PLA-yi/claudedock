@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 func TestRenderBypassConfig(t *testing.T) {

@@ -40,7 +40,7 @@ export function Topbar({ onHelpClick }: TopbarProps = {}) {
   const roleLabel = currentSession?.role === "admin" ? "管理员" : "用户";
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background/80 backdrop-blur-sm px-6">
+    <header className="topbar-glass flex h-14 items-center justify-between px-6">
       <h2 className="text-sm font-semibold">{title}</h2>
       <div className="flex items-center gap-2">
         {onHelpClick && (

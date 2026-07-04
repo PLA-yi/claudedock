@@ -18,7 +18,7 @@ completed_at: 2026-05-14
 ## 验证
 
 - `go test $(go list ./... | grep -v '/tests/e2e$') -race -shuffle=on -count=1`
-  全绿（19 个包，最长 internal/cloudclaude 47.7s，其它 < 6s）。
+  全绿（19 个包，最长 internal/claudedock 47.7s，其它 < 6s）。
 - darwin 上未发现新 race / shuffle 相关 fail。
 
 ## 偏差

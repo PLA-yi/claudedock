@@ -32,8 +32,8 @@ Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with W
 ## 2. Start
 
 ```bash
-git clone https://github.com/ZaneL1u/cloud-cli-proxy.git
-cd cloud-cli-proxy
+git clone https://github.com/claudedock/claudedock.git
+cd claudedock
 
 bash deploy/scripts/setup-env.sh
 docker compose pull
@@ -68,7 +68,7 @@ CONTAINER_REGISTRY=ghcr.1ms.run
 
 This variable controls both compose image pulls and runtime `docker pull` operations (`managed-user` updates, `sing-box` probes). Every `ghcr.io` reference is replaced.
 
-For bare-metal systemd deployments, add the same line to `/etc/cloud-cli-proxy/env` and restart the control plane.
+For bare-metal systemd deployments, add the same line to `/etc/claudedock/env` and restart the control plane.
 
 ## Environment Variables
 

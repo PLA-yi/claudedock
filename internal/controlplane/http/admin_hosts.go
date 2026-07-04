@@ -18,10 +18,10 @@ import (
 
 	"database/sql"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/controlplane/credgen"
-	"github.com/zanel1u/cloud-cli-proxy/internal/runtime"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/controlplane/credgen"
+	"github.com/claudedock/claudedock/internal/runtime"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 func expandHostMountSources(mounts repository.HostMounts) repository.HostMounts {
@@ -72,7 +72,7 @@ func (h *AdminHostsHandler) List() nethttp.Handler {
 // name → status string (e.g. "running", "exited", "created").
 func getDockerStatuses() map[string]string {
 	cmd := exec.CommandContext(context.Background(), "docker", "ps", "-a",
-		"--filter", "label=cloud-cli-proxy.managed=true",
+		"--filter", "label=claudedock.managed=true",
 		"--format", "{{.Names}}\t{{.State}}")
 	out, err := cmd.Output()
 	if err != nil {
@@ -371,7 +371,7 @@ func (h *AdminHostsHandler) Delete() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 
 		_ = dockerRm(containerName)
 
@@ -419,7 +419,7 @@ func (h *AdminHostsHandler) RestartVNC() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		if err := restartContainerVNC(containerName); err != nil {
 			h.logger.Error("restart vnc failed", "host_id", hostID, "container", containerName, "error", err)
 			writeJSON(w, nethttp.StatusBadGateway, map[string]string{"error": "restart vnc failed"})
@@ -469,7 +469,7 @@ func (h *AdminHostsHandler) ChangeRootPassword() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		if err := syncContainerPassword(containerName, "root", body.Password); err != nil {
 			h.logger.Error("change root password failed", "host_id", hostID, "error", err)
 			writeJSON(w, nethttp.StatusBadGateway, map[string]string{"error": "change root password failed"})
@@ -495,7 +495,7 @@ func (h *AdminHostsHandler) ChangeRootPassword() nethttp.Handler {
 func (h *AdminHostsHandler) GetImageInfo() nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		hostID := r.PathValue("hostID")
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
@@ -595,7 +595,7 @@ func (h *AdminHostsHandler) ExportConfig() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
@@ -687,7 +687,7 @@ func (h *AdminHostsHandler) ImportConfig() nethttp.Handler {
 		}
 		defer file.Close()
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
@@ -736,7 +736,7 @@ func (h *AdminHostsHandler) GetClaudeSettings() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
@@ -785,7 +785,7 @@ func (h *AdminHostsHandler) UpdateClaudeSettings() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
@@ -842,7 +842,7 @@ func (h *AdminHostsHandler) GetClaudeInfo() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
@@ -930,7 +930,7 @@ func (h *AdminHostsHandler) GetClaudeStatus() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 
@@ -997,7 +997,7 @@ func (h *AdminHostsHandler) UpdateClaude() nethttp.Handler {
 			return
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 		defer cancel()
 
@@ -1133,7 +1133,7 @@ func (h *AdminHostsHandler) PatchResources() nethttp.Handler {
 		}
 
 		if host.Status == "running" || host.Status == "stopped" {
-			if err := dockerUpdateHostResources(r.Context(), "cloudproxy-"+hostID, body.MemoryLimitMB, body.CPULimit, body.PidsLimit); err != nil {
+			if err := dockerUpdateHostResources(r.Context(), "claudedock-"+hostID, body.MemoryLimitMB, body.CPULimit, body.PidsLimit); err != nil {
 				h.logger.Error("docker update resources failed", "host_id", hostID, "error", err)
 				writeJSON(w, nethttp.StatusBadGateway, map[string]string{"error": "docker update resources failed"})
 				return
@@ -1268,7 +1268,7 @@ func (h *AdminHostsHandler) GetLogs() nethttp.Handler {
 			tailN = 500
 		}
 
-		containerName := "cloudproxy-" + hostID
+		containerName := "claudedock-" + hostID
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 

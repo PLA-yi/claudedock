@@ -4,17 +4,17 @@
 
 ### 控制面无法启动
 
-`systemctl status cloud-cli-proxy-control-plane` 显示 `failed`。
+`systemctl status claudedock-control-plane` 显示 `failed`。
 
 **排查：**
 
-1. `journalctl -u cloud-cli-proxy-control-plane --no-pager -n 50`
-2. `grep DATABASE_URL /etc/cloud-cli-proxy/env`
-3. `file /data/cloud-cli-proxy.db` — 检查数据库文件是否存在
-4. `sqlite3 /data/cloud-cli-proxy.db "PRAGMA integrity_check"` — 检查数据库完整性
+1. `journalctl -u claudedock-control-plane --no-pager -n 50`
+2. `grep DATABASE_URL /etc/claudedock/env`
+3. `file /data/claudedock.db` — 检查数据库文件是否存在
+4. `sqlite3 /data/claudedock.db "PRAGMA integrity_check"` — 检查数据库完整性
 4. `ss -tlnp | grep 8080`
 
-**原因与修复：** 数据库连不上则检查 SQLite 文件和路径；端口被占用则停掉冲突进程或改 `CONTROL_PLANE_ADDR`；权限问题则确认 `cloudproxy` 用户有数据库权限。
+**原因与修复：** 数据库连不上则检查 SQLite 文件和路径；端口被占用则停掉冲突进程或改 `CONTROL_PLANE_ADDR`；权限问题则确认 `claudedock` 用户有数据库权限。
 
 ### 用户无法登录
 
@@ -28,7 +28,7 @@ bootstrap 脚本提示"认证失败"。
 
 任务状态为 `failed`。
 
-**排查：** 查任务详情（Admin API）→ `docker info` → `docker images | grep managed-user` → `df -h /var/lib/docker` → `journalctl -u cloud-cli-proxy-host-agent`。
+**排查：** 查任务详情（Admin API）→ `docker info` → `docker images | grep managed-user` → `df -h /var/lib/docker` → `journalctl -u claudedock-host-agent`。
 
 **修复：** Docker 没跑就启动它，镜像丢了就重新构建，磁盘满了就 `docker system prune`。
 
@@ -36,7 +36,7 @@ bootstrap 脚本提示"认证失败"。
 
 主机无法上网或出口 IP 不匹配。
 
-**排查：** `docker exec {container} ps aux | grep sing-box` → 查看 sing-box 日志 → `nsenter --net=/var/run/netns/cloudproxy-{hostID} ip link show` → 确认代理服务器从宿主机可达。
+**排查：** `docker exec {container} ps aux | grep sing-box` → 查看 sing-box 日志 → `nsenter --net=/var/run/netns/claudedock-{hostID} ip link show` → 确认代理服务器从宿主机可达。
 
 **修复：** sing-box 未运行则重建主机，代理服务器不可达则检查代理状态和防火墙，配置错误则更新 `proxy_config` 后重建。
 
@@ -59,7 +59,7 @@ bootstrap 脚本提示"认证失败"。
 
 ### Host Agent 无法启动
 
-`journalctl -u cloud-cli-proxy-host-agent --no-pager -n 50` → `sudo bash deploy/scripts/host-preflight.sh` → `docker info` → `which sing-box` → `ls -la /run/cloud-cli-proxy/`。
+`journalctl -u claudedock-host-agent --no-pager -n 50` → `sudo bash deploy/scripts/host-preflight.sh` → `docker info` → `which sing-box` → `ls -la /run/claudedock/`。
 
 ### SSH 代理连接失败
 
@@ -84,15 +84,15 @@ bootstrap 脚本提示"认证失败"。
 1. 准备新宿主机，满足前置条件
 2. 部署服务：
    ```bash
-   git clone https://github.com/ZaneL1u/cloud-cli-proxy.git /opt/cloud-cli-proxy
-   cd /opt/cloud-cli-proxy
+   git clone https://github.com/claudedock/claudedock.git /opt/claudedock
+   cd /opt/claudedock
    sudo bash deploy/scripts/deploy.sh
    ```
 3. 恢复数据库：
    ```bash
-   systemctl stop cloud-cli-proxy-control-plane
-   pg_restore --clean -d cloudproxy /path/to/backup.dump
-   systemctl start cloud-cli-proxy-control-plane
+   systemctl stop claudedock-control-plane
+   pg_restore --clean -d claudedock /path/to/backup.dump
+   systemctl start claudedock-control-plane
    ```
 4. 重建受管镜像：`bash deploy/docker/managed-user/build-managed-image.sh`
 5. 验证：`curl -s http://127.0.0.1:8080/healthz`
@@ -104,22 +104,22 @@ bootstrap 脚本提示"认证失败"。
 ### 仅恢复数据库
 
 ```bash
-systemctl stop cloud-cli-proxy-control-plane
-cp /var/backups/cloud-cli-proxy/cloud-cli-proxy.db /data/cloud-cli-proxy.db
-systemctl start cloud-cli-proxy-control-plane
+systemctl stop claudedock-control-plane
+cp /var/backups/claudedock/claudedock.db /data/claudedock.db
+systemctl start claudedock-control-plane
 ```
 
 ## 查看日志
 
 ```bash
 # 控制面
-journalctl -u cloud-cli-proxy-control-plane -f
+journalctl -u claudedock-control-plane -f
 
 # Host Agent
-journalctl -u cloud-cli-proxy-host-agent -f
+journalctl -u claudedock-host-agent -f
 
 # 最近 100 行
-journalctl -u cloud-cli-proxy-control-plane --no-pager -n 100
+journalctl -u claudedock-control-plane --no-pager -n 100
 
 # Docker Compose
 docker compose logs -f control-plane

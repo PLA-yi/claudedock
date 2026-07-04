@@ -10,7 +10,7 @@ requires:
     provides: managed-user 镜像 v4.0 基线 Dockerfile（sing-box 1.13.3 binary + file cap cap_net_admin+eip + singbox uid=9000 + nftables/libcap2-bin 装好）
 provides:
   - managed-user 容器 v4.0 fail-closed 启动序列：sing-box 子进程 + tun0 waitFor + nft default-deny + DNS lock + config shred + 死亡 PID 1 fail-closed
-  - 容器内 nft ruleset 文件 `/etc/cloud-claude/default-deny.nft`（output policy drop + 仅放行 lo/tun0/已建立连接 + 显式 drop extdns/link-local；input policy drop + 放行 22/6080/lo）
+  - 容器内 nft ruleset 文件 `/etc/claudedock/default-deny.nft`（output policy drop + 仅放行 lo/tun0/已建立连接 + 显式 drop extdns/link-local；input policy drop + 放行 22/6080/lo）
   - 5 个新 entrypoint 函数：start_singbox_or_die / lock_resolv_conf / apply_nft_or_die / remove_singbox_config / monitor_singbox_fail_closed
   - 用户态彻底无 sudo / NOPASSWD 路径（v3.x sudoers 写入与 sed 全部删除 + 兜底 rm）
 affects: [53-03, 54, 55, 56]
@@ -72,8 +72,8 @@ completed: 2026-05-16
 
 - **T2 — Dockerfile COPY**：在 `COPY entrypoint.sh` / `launch-chromium.sh` / `restart-vnc` 段之后追加：
   ```dockerfile
-  COPY deploy/docker/managed-user/default-deny.nft /etc/cloud-claude/default-deny.nft
-  RUN chmod 0644 /etc/cloud-claude/default-deny.nft
+  COPY deploy/docker/managed-user/default-deny.nft /etc/claudedock/default-deny.nft
+  RUN chmod 0644 /etc/claudedock/default-deny.nft
   ```
   仅 1 个新 COPY + 1 个 chmod，不改其他段。
 
@@ -222,7 +222,7 @@ completed: 2026-05-16
   2. 解锁 Plan 53-01 V1 镜像完整构建（要么修复 Claude Code 安装段 pre-existing 远端 404/403，要么走 CI 干净环境）。
   3. 跑 V3 (启动日志) / V4 (sing-box uid=9000) / V5 (config 已 rm) / V6 (workspace 空 cap) / V7 (sing-box 死容器死 ≤3s)。
 - **chattr +i overlay2 兼容性 spike**：T5 已加运行时容错（WARN + nft 兜底），但 53-CONTEXT.md Open Question #4 仍未回答 "overlay2 上 chattr 是否 always 失败"。Plan 53-03 顺手验证一次，结果回填 CONTEXT。
-- **`/etc/cloud-claude/sing-box-outbound.json` 文件路径残留**：旧 MODE=local 分支引用了这个文件，但没有任何上游 Plan 显式说明它在哪里被写入。删除分支后 v4.0 不再依赖此文件，但 53-CONTEXT.md / Phase 54 spec 应明确 sing-box config 注入路径（应是 `/etc/sing-box/config.json` 由控制面注入）。归类为 Phase 54 的 spec 收口项，不在 53-02 修复责任范围。
+- **`/etc/claudedock/sing-box-outbound.json` 文件路径残留**：旧 MODE=local 分支引用了这个文件，但没有任何上游 Plan 显式说明它在哪里被写入。删除分支后 v4.0 不再依赖此文件，但 53-CONTEXT.md / Phase 54 spec 应明确 sing-box config 注入路径（应是 `/etc/sing-box/config.json` 由控制面注入）。归类为 Phase 54 的 spec 收口项，不在 53-02 修复责任范围。
 
 ## Issues Encountered
 

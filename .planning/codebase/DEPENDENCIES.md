@@ -11,7 +11,7 @@
 | `modernc.org/sqlite` | latest | SQLite 驱动（纯 Go，WAL 模式） |
 | `github.com/google/uuid` | latest | UUID 生成 |
 | `github.com/golang-jwt/jwt/v5` | v5.3.1 | JWT 认证（HS256） |
-| `github.com/spf13/cobra` | v1.10.2 | cloud-claude CLI 命令框架 |
+| `github.com/spf13/cobra` | v1.10.2 | claudedock CLI 命令框架 |
 | `golang.org/x/crypto` | v0.41.0 | SSH 客户端/服务器实现 |
 | `golang.org/x/net` | v0.42.0 | 网络工具 |
 | `golang.org/x/term` | v0.42.0 | 终端密码输入（隐藏回显） |

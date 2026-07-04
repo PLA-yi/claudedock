@@ -13,7 +13,7 @@ for candidate in chromium chromium-browser google-chrome; do
 done
 
 if [[ -z "${browser_cmd}" ]]; then
-  exec xterm -fa Monospace -fs 12 -geometry 120x30+60+60 -title "cloud-cli-proxy desktop" \
+  exec xterm -fa Monospace -fs 12 -geometry 120x30+60+60 -title "claudedock desktop" \
     -e bash -lc "echo Chromium is not installed.; exec bash"
 fi
 

@@ -10,7 +10,7 @@ commit: c41735a
 
 ## What Was Built
 
-创建了 `internal/local/` Go 包，实现本地容器生命周期管理；注册了 `cloud-claude local` cobra 子命令组；改造了 entrypoint.sh 支持 `MODE=local` 分支。
+创建了 `internal/local/` Go 包，实现本地容器生命周期管理；注册了 `claudedock local` cobra 子命令组；改造了 entrypoint.sh 支持 `MODE=local` 分支。
 
 ## Key Files
 
@@ -19,10 +19,10 @@ commit: c41735a
 - `internal/local/container.go` — Docker 操作封装（DockerRunner 接口，containerExists，inspectSSHPort，inspectContainerStatus）
 - `internal/local/password.go` — crypto/rand 安全密码生成
 - `internal/local/local_test.go` — 完整单元测试（GeneratePassword, LocalContainerName, BuildCreateArgs, InspectSSHPort, ContainerExists, InspectContainerStatus）
-- `cmd/cloud-claude/local.go` — cobra local 子命令组（up/down/status），runLocalUp/runLocalDown/runLocalStatus 实现
+- `cmd/claudedock/local.go` — cobra local 子命令组（up/down/status），runLocalUp/runLocalDown/runLocalStatus 实现
 
 ### Modified
-- `cmd/cloud-claude/main.go` — 注册 newLocalCmd()，DisableFlagParsing 添加 "local" case
+- `cmd/claudedock/main.go` — 注册 newLocalCmd()，DisableFlagParsing 添加 "local" case
 - `deploy/docker/managed-user/entrypoint.sh` — 添加 MODE 变量检测，KasmVNC + 桌面栈 + v3 stages 用 `if [ "$MODE" != "local" ]` 包裹，添加 sing-box 占位段
 
 ## Decisions

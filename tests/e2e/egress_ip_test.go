@@ -15,7 +15,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 type EgressIPSuite struct {

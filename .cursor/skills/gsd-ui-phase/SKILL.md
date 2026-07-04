@@ -34,8 +34,8 @@ Flow: Validate → Research UI → Verify UI-SPEC → Done
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/ui-phase.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/references/ui-brand.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/ui-phase.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <context>

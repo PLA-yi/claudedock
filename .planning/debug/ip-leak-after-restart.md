@@ -24,8 +24,8 @@ actual:
   2) 详情页主机名称右侧显示"失败"，下方还出现"启动"按钮
   3) 进入用户容器执行 curl ip.me 返回宿主机真实 IP 222.128.27.131（IP 泄漏）
 - 实际上两个 docker 容器都已启动:
-  - cloudproxy-gw-90ac81fb-15bc-47d1-b110-08d79ddadc86 (gateway 容器，跑 sing-box)
-  - cloudproxy-90ac81fb-15bc-47d1-b110-08d79ddadc86 (用户容器)
+  - claudedock-gw-90ac81fb-15bc-47d1-b110-08d79ddadc86 (gateway 容器，跑 sing-box)
+  - claudedock-90ac81fb-15bc-47d1-b110-08d79ddadc86 (用户容器)
 
 errors: 无显式错误消息，但状态显示不一致 + 网络路由不正确
 
@@ -44,18 +44,18 @@ started: 用户刚刚遇到，疑似最近的某次重构引入
   timestamp: 2026-05-06 (用户纠正后)
 
 - hypothesis: stop 流程没有同时清理 user 容器和 gw 容器
-  evidence: 重读 stopHost (worker.go:437-454) + teardownGateway (container_proxy_provider.go:141-153) — stop 路径会先 `docker stop user`，再 disconnect cp/worker 出 cloudproxy-net、`docker rm -f gw`、`docker network rm cloudproxy-net`、清 config dir。清理路径完整。
+  evidence: 重读 stopHost (worker.go:437-454) + teardownGateway (container_proxy_provider.go:141-153) — stop 路径会先 `docker stop user`，再 disconnect cp/worker 出 claudedock-net、`docker rm -f gw`、`docker network rm claudedock-net`、清 config dir。清理路径完整。
   timestamp: 2026-05-06
 
 - hypothesis: start 流程只 docker start 旧 user 容器，但没有重建网络配置
-  evidence: 重读 startHost (worker.go:388-435)。顺序为 (1) validateAndPrepare (2) docker start userContainer (3) buildEgressConfig (4) provider.PrepareHost (5) waitForSSH。**第 (4) 步会调用 PrepareHost**，PrepareHost 内部会调用 `dockerNetworkConnect cloudproxy-net workerName workerIP` (line 97) → sleep 1s (line 110) → `configureWorkerEgress` (line 112)。**重启路径上 configureWorkerEgress 确实被调用**。
+  evidence: 重读 startHost (worker.go:388-435)。顺序为 (1) validateAndPrepare (2) docker start userContainer (3) buildEgressConfig (4) provider.PrepareHost (5) waitForSSH。**第 (4) 步会调用 PrepareHost**，PrepareHost 内部会调用 `dockerNetworkConnect claudedock-net workerName workerIP` (line 97) → sleep 1s (line 110) → `configureWorkerEgress` (line 112)。**重启路径上 configureWorkerEgress 确实被调用**。
   timestamp: 2026-05-06
 
 ## Evidence
 
 - timestamp: 2026-05-06
   checked: web/admin/src/routes/_dashboard/hosts/index.tsx + admin_hosts.go List handler (`internal/controlplane/http/admin_hosts.go:57-78`)
-  found: 列表页使用 `getDockerStatuses()` 通过 `docker ps -a --filter label=cloud-cli-proxy.managed=true` 取得 DockerStatus，UI 在 index.tsx:92 优先用 `docker===running` 显示「运行中」。详情页 GetHostDetail 从 DB 读 host.status，UI（$hostId.tsx:61）把 `failed` 渲染成「失败」+「启动」按钮。两路数据源不同。
+  found: 列表页使用 `getDockerStatuses()` 通过 `docker ps -a --filter label=claudedock.managed=true` 取得 DockerStatus，UI 在 index.tsx:92 优先用 `docker===running` 显示「运行中」。详情页 GetHostDetail 从 DB 读 host.status，UI（$hostId.tsx:61）把 `failed` 渲染成「失败」+「启动」按钮。两路数据源不同。
   implication: list/detail 显示不一致是「DB 状态 != 实时 docker 状态」；只要 worker.Execute 返回 error，repo.UpdateHostStatus(hostID, "failed") 把 DB 设 failed，docker 容器其实仍在运行 → list=运行中、detail=失败。
 
 - timestamp: 2026-05-06
@@ -66,8 +66,8 @@ started: 用户刚刚遇到，疑似最近的某次重构引入
 - timestamp: 2026-05-06 (用户现场证据，已纠正出口 IP 含义)
   checked: docker inspect / ip route / sing-box 日志 / 容器内 curl
   found:
-    1. 重启后 user 容器同时挂了 bridge (192.168.215.2) 和 cloudproxy-net (10.99.114.3)，**default route = `192.168.215.1 dev eth1`**（bridge gw）。
-    2. gw 容器同时挂了 bridge (192.168.215.3) + cloudproxy-net (10.99.114.2) + tun0 (172.19.0.1/30)；`ip route show` 看到 default = `192.168.215.1 dev eth1`，但这是 main 路由表的视图，sing-box 的策略路由放在 `ip rule` + 独立 table 里（用户纠正：`ip route show` 默认不显示）。
+    1. 重启后 user 容器同时挂了 bridge (192.168.215.2) 和 claudedock-net (10.99.114.3)，**default route = `192.168.215.1 dev eth1`**（bridge gw）。
+    2. gw 容器同时挂了 bridge (192.168.215.3) + claudedock-net (10.99.114.2) + tun0 (172.19.0.1/30)；`ip route show` 看到 default = `192.168.215.1 dev eth1`，但这是 main 路由表的视图，sing-box 的策略路由放在 `ip rule` + 独立 table 里（用户纠正：`ip route show` 默认不显示）。
     3. sing-box 进程在跑，日志「started at tun0」「sing-box started」无错。
     4. **gw 自己 `curl https://ip.me` 返回 99.173.22.83，这是上游代理伪装 IP，不是宿主真实 IP**（宿主真实 IP = 222.128.27.131）。**sing-box auto_route 正常工作**——gw 自身出网通过策略路由进了 tun。
     5. **user 容器内 `curl https://ip.me` 返回 222.128.27.131（宿主真实 IP），这是泄漏点**。
@@ -79,7 +79,7 @@ started: 用户刚刚遇到，疑似最近的某次重构引入
 - timestamp: 2026-05-06
   checked: internal/network/container_proxy_provider.go PrepareHost 全流程 + configureWorkerEgress 脚本
   found:
-    1. PrepareHost 重建顺序: writeFile config -> network create -> docker run gw (`--restart unless-stopped`) -> network connect bridge gw -> waitGatewayHealthy(只看进程 Running + 日志没 FATAL) -> network connect cloudproxy-net worker workerIP -> Linux: `disconnect -f bridge worker`（错误被 `_=` 吞掉）-> sleep 1s -> configureWorkerEgress -> 最后 connect cp 进 cloudproxy-net。
+    1. PrepareHost 重建顺序: writeFile config -> network create -> docker run gw (`--restart unless-stopped`) -> network connect bridge gw -> waitGatewayHealthy(只看进程 Running + 日志没 FATAL) -> network connect claudedock-net worker workerIP -> Linux: `disconnect -f bridge worker`（错误被 `_=` 吞掉）-> sleep 1s -> configureWorkerEgress -> 最后 connect cp 进 claudedock-net。
     2. configureWorkerEgress 脚本（line 261-276）:
        ```sh
        set -e
@@ -106,8 +106,8 @@ started: 用户刚刚遇到，疑似最近的某次重构引入
     - 该机是 macOS Docker Desktop（设计上 v1 只支持 Linux 单宿主机，但开发者在 macOS 上做开发/复测）。
     - macOS 路径下 PrepareHost 跳过 `docker network disconnect bridge worker`（设计为保留 bridge 给 SSH 端口映射）。
     - stop→start 时序:
-      - stopHost: `docker stop user`；`disconnect -f cloudproxy-net worker`（force，对 stopped 容器有效）；`rm -f gw`；`network rm cloudproxy-net`。结果：user 容器持久网络配置 = 仅 bridge。
-      - startHost: `docker start user` → docker daemon 按持久配置重建 netns，**重新写 default route 指向 bridge gw 192.168.215.1**；buildEgressConfig；PrepareHost: 新建 cloudproxy-net + gw → `network connect cloudproxy-net user`（worker 加 eth0，docker daemon 不动 default）→ macOS 跳过 disconnect bridge → sleep 1s → configureWorkerEgress 改 default 到 gwIP；最后 connect cp（macOS 上 fail-warn 不影响 worker）。
+      - stopHost: `docker stop user`；`disconnect -f claudedock-net worker`（force，对 stopped 容器有效）；`rm -f gw`；`network rm claudedock-net`。结果：user 容器持久网络配置 = 仅 bridge。
+      - startHost: `docker start user` → docker daemon 按持久配置重建 netns，**重新写 default route 指向 bridge gw 192.168.215.1**；buildEgressConfig；PrepareHost: 新建 claudedock-net + gw → `network connect claudedock-net user`（worker 加 eth0，docker daemon 不动 default）→ macOS 跳过 disconnect bridge → sleep 1s → configureWorkerEgress 改 default 到 gwIP；最后 connect cp（macOS 上 fail-warn 不影响 worker）。
     - 矛盾：configureWorkerEgress 跑过且退 0（gw 没被 teardown 证明 PrepareHost 整体成功），但现场 default 不是 gwIP。
   implication:
     - 唯一合理的覆盖来源 = `--restart=unless-stopped` 自动重启 user 容器。worker 容器有 `--restart=unless-stopped`（worker.go:190）。如果 user 容器在 PrepareHost 之后某时刻发生过崩溃 / 自动重启（macOS Docker Desktop 在某些情况下会触发），docker daemon 会重建 netns 并写 default = bridge gw（按容器持久配置 NetworkMode=bridge）。configureWorkerEgress **不会**被再次调用——worker 的 startHost 流程已经结束，整个系统不知道 docker daemon 内部又重启了一次。
@@ -143,9 +143,9 @@ fix: |
 
   推荐方案 A.1（最彻底，强烈建议）：让 user 容器**不再保留 bridge 接口**。
   - `internal/network/container_proxy_provider.go:105`：把 macOS/Windows 的早返回去掉，让所有平台都跑 `docker network disconnect -f bridge worker`。
-  - macOS SSH 端口映射的替代方案：在 user 容器创建时（`worker.go:204-206` 的 `-p 0:22`）继续保留宿主端口映射——**docker port mapping 跟 NetworkMode 无关**，只要容器有任何 docker network 即可。bridge 不存在了，cloudproxy-net 上的端口映射照样能从宿主访问到（Docker Desktop 用 vpnkit 透出端口，跟具体 docker network 无关）。
-  - 或者：保留 bridge 但让 user 容器在 cloudproxy-net 上的接口拥有 `metric=0` 的 default route + bridge 接口的 default route 的 metric 设为很大（永远不会被选）。
-  - 验收口径：`docker exec userContainer ip -o link show` 只看到 lo + cloudproxy-net 接口，没有 bridge eth1。
+  - macOS SSH 端口映射的替代方案：在 user 容器创建时（`worker.go:204-206` 的 `-p 0:22`）继续保留宿主端口映射——**docker port mapping 跟 NetworkMode 无关**，只要容器有任何 docker network 即可。bridge 不存在了，claudedock-net 上的端口映射照样能从宿主访问到（Docker Desktop 用 vpnkit 透出端口，跟具体 docker network 无关）。
+  - 或者：保留 bridge 但让 user 容器在 claudedock-net 上的接口拥有 `metric=0` 的 default route + bridge 接口的 default route 的 metric 设为很大（永远不会被选）。
+  - 验收口径：`docker exec userContainer ip -o link show` 只看到 lo + claudedock-net 接口，没有 bridge eth1。
 
   推荐方案 A.2（如果 A.1 不可行，作为短期最小修复）：把 user 容器 default 路由的写入做成**幂等 + 自校验 + 持久化**。
   - 重写 `configureWorkerEgress`（`container_proxy_provider.go:259-284`）脚本：
@@ -154,7 +154,7 @@ fix: |
     3. **add 后立即 verify**：`ip route show default | head -1 | grep -q "via <gwIP>"`，不通过就 retry 3 次，3 次都不行就抛错。
     4. 把 `nameserver 8.8.8.8` 改成 sing-box gateway 的 DNS（gwIP）— 这条独立小问题，避免 user 容器走宿主 DNS 解析（8.8.8.8 经过 user 容器路由表，理论上还是从 gw 出去，但更明确点）。
   - 把 user 容器的路由修复**搬到 user 容器自己的 entrypoint** 里，做成「容器启动时第一件事」：
-    - `deploy/docker/managed-user/entrypoint.sh` 启动早期：等 `eth0`（cloudproxy-net 接口）出现、然后 `ip route replace default via <gwIP>`。
+    - `deploy/docker/managed-user/entrypoint.sh` 启动早期：等 `eth0`（claudedock-net 接口）出现、然后 `ip route replace default via <gwIP>`。
     - gwIP 通过环境变量传入（`worker.go` buildCreateArgs 加 `-e CCP_GATEWAY_IP=<gwIP>`，或者用约定网段算出来）。
     - 这样无论 docker daemon 何时重建 netns（包括 `--restart=unless-stopped` 自动重启），user 容器一启动就会自我修复路由，不依赖 worker 流程。
   - 防御加固：把 user 容器的 `--restart=unless-stopped` 暂时改回 `--restart=no`，避免 docker daemon 在 worker 流程之外自动重启容器、绕过 PrepareHost。或者保留 unless-stopped 但确保 entrypoint 自我修复路由（推荐）。

@@ -19,7 +19,7 @@
 | `ccp_claude_<id>_home` + 独立 cache volume（双 volume） | 拆分粒度更细 | （Phase 30 D-01 已 deferred） |
 
 **User's choice (auto):** `claude-state-{uuid_with_hyphens}` + 双 label
-**Notes:** Phase 30 D-01 已锁定 "单 volume" 但留了 "格式由实现选定但全仓库一致" 的开口。本阶段补齐 hyphen 保留 + 第二条 `managed=true` label 用于运维 `docker volume ls --filter label=com.cloud-cli-proxy.managed` 一键审计。**不**写 `created_at` label（与 Docker 自带元数据重复 + label-filter 不能精确匹配字符串）。
+**Notes:** Phase 30 D-01 已锁定 "单 volume" 但留了 "格式由实现选定但全仓库一致" 的开口。本阶段补齐 hyphen 保留 + 第二条 `managed=true` label 用于运维 `docker volume ls --filter label=com.claudedock.managed` 一键审计。**不**写 `created_at` label（与 Docker 自带元数据重复 + label-filter 不能精确匹配字符串）。
 
 ---
 

@@ -66,8 +66,8 @@
 - `deploy/scripts/host-preflight.sh` — 现有宿主机依赖检查脚本，Phase 6 需扩展或文档化。
 - `deploy/bootstrap/cloud-bootstrap.sh` — 终端启动脚本，是体验打磨的关键对象。
 - `deploy/compose/control-plane.dev.yml` — 开发环境 Docker Compose 配置，生产部署文档需独立于此。
-- `deploy/systemd/cloud-cli-proxy-control-plane.service` — 控制面 systemd 服务单元文件。
-- `deploy/systemd/cloud-cli-proxy-host-agent.service` — host-agent systemd 服务单元文件。
+- `deploy/systemd/claudedock-control-plane.service` — 控制面 systemd 服务单元文件。
+- `deploy/systemd/claudedock-host-agent.service` — host-agent systemd 服务单元文件。
 - `deploy/docker/managed-user/build-managed-image.sh` — 受管用户镜像构建脚本。
 
 ### 核心代码锚点

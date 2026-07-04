@@ -44,8 +44,8 @@ Clarify phase requirements through structured Socratic questioning with quantita
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/spec-phase.md
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/templates/spec.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/spec-phase.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/templates/spec.md
 </execution_context>
 
 <runtime_note>

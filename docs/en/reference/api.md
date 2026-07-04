@@ -591,7 +591,7 @@ curl -s http://YOUR_HOST:8080/v1/admin/dashboard/stats \
 sudo bash deploy/scripts/backup.sh
 ```
 
-Defaults: directory `/var/backups/cloud-cli-proxy`, retention 7 days.
+Defaults: directory `/var/backups/claudedock`, retention 7 days.
 
 Customize:
 
@@ -604,6 +604,6 @@ BACKUP_DIR=/data/backups RETENTION_DAYS=30 bash deploy/scripts/backup.sh
 **JWT Secret:**
 1. Generate: `NEW_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '=+/' | head -c 48)`
 2. Update `ADMIN_JWT_SECRET` in env file
-3. Restart: `systemctl restart cloud-cli-proxy-control-plane`
+3. Restart: `systemctl restart claudedock-control-plane`
 
 All issued JWT tokens are immediately invalidated after rotation.

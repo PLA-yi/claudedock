@@ -15,9 +15,9 @@ created: 2026-05-14
 
 ## 关键决策
 
-- **真相校准**：grep 源码 `internal/network/container_proxy_provider.go:323` 确认 gateway 实际接的是专属自定义 bridge `cloudproxy-net-<HostID>`，**不是** docker 默认 `bridge`；KILL-04 disconnect 的就是这个网络。worker 同时挂着 default bridge + cloudproxy-net-* 两网（`internal/runtime/tasks/worker.go:215 --network bridge` + 之后 `dockerNetworkConnect`）。
-- **PickGatewayBridgeNetwork 纯函数**：从 `docker inspect` 输出 `<name>=<ip>;` 字面量中按 `cloudproxy-net-` 前缀优先挑出；兜底取首个非 default `bridge` 的网络；都没有 → 返回空（backend GAP）。
-- **backend GAP 流转 Phase 51 模式**：DisconnectGatewayFromBridge 返回 `has no cloudproxy-net / custom bridge network` → t.Skipf + reason 说明 backend 当前未实现专属 bridge（与 Phase 49 LEAK-06/07/08 流转 QUAL-06/07 模式一致）。
+- **真相校准**：grep 源码 `internal/network/container_proxy_provider.go:323` 确认 gateway 实际接的是专属自定义 bridge `claudedock-net-<HostID>`，**不是** docker 默认 `bridge`；KILL-04 disconnect 的就是这个网络。worker 同时挂着 default bridge + claudedock-net-* 两网（`internal/runtime/tasks/worker.go:215 --network bridge` + 之后 `dockerNetworkConnect`）。
+- **PickGatewayBridgeNetwork 纯函数**：从 `docker inspect` 输出 `<name>=<ip>;` 字面量中按 `claudedock-net-` 前缀优先挑出；兜底取首个非 default `bridge` 的网络；都没有 → 返回空（backend GAP）。
+- **backend GAP 流转 Phase 51 模式**：DisconnectGatewayFromBridge 返回 `has no claudedock-net / custom bridge network` → t.Skipf + reason 说明 backend 当前未实现专属 bridge（与 Phase 49 LEAK-06/07/08 流转 QUAL-06/07 模式一致）。
 - **cleanup ReconnectGatewayToBridge**：best-effort + 保存原 IP；失败仅 t.Logf。
 - **timing 同 KILL-01/02**：3000ms 断网阈值 + 5s 抓包窗口。
 

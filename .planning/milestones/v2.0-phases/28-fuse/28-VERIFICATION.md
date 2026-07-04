@@ -8,8 +8,8 @@ human_verification:
   - test: "在目标 Linux 宿主机上执行 sudo bash scripts/verify-fuse-compat.sh，确认全部 PASS"
     expected: "sshfs FUSE 挂载成功、读写正常、网络策略共存通过、汇总输出 0 FAIL"
     why_human: "需要在生产级 Linux 宿主机（含 AppArmor）上实际运行容器和 FUSE 挂载"
-  - test: "完整 E2E：cloud-claude connect <host> → 进入容器 → mountpoint -q /workspace → 读写文件 → claude --version"
-    expected: "用户从 cloud-claude CLI 无缝进入容器，/workspace 目录映射可用，Claude Code 可运行"
+  - test: "完整 E2E：claudedock connect <host> → 进入容器 → mountpoint -q /workspace → 读写文件 → claude --version"
+    expected: "用户从 claudedock CLI 无缝进入容器，/workspace 目录映射可用，Claude Code 可运行"
     why_human: "SC-3 要求端到端流程在生产环境通过，需完整控制面 + SSH Proxy + 目录映射 + Claude Code 全链路"
 ---
 
@@ -28,7 +28,7 @@ human_verification:
 | --- | ----- | ------ | -------- |
 | 1   | 在目标 Linux 宿主机（含 AppArmor 或 seccomp）上，容器内 sshfs 挂载成功且读写正常 | ✓ VERIFIED | `worker.go:160` 包含 `--security-opt apparmor=unconfined`，解除 docker-default profile 的 `deny mount` 阻断；`verify-fuse-compat.sh` (238行) 阶段 2 使用真实 sshfs FUSE 挂载 + `mountpoint -q` 判据 + 读写往返验证 |
 | 2   | FUSE 挂载与 sing-box tun / nftables 默认拒绝策略共存，映射通道不被防火墙阻断 | ✓ VERIFIED | `verify-fuse-compat.sh` 阶段 3 检测 nftables 规则状态并在全隧道启用时确认共存；D-06 明确 sshfs slave SFTP 数据走 SSH session channel（进程内 pipe），不经过容器网络栈，与防火墙规则无交互 |
-| 3   | 完整流程（cloud-claude → SSH Proxy → 目录映射 → Claude Code 运行）在生产环境端到端通过 | ✓ VERIFIED | `verify-fuse-compat.sh` 阶段 4 检测控制面状态并输出手工 E2E 步骤；代码层面已完整交付（worker.go 容器参数、mount.go 映射逻辑、preflight 检查、文档），但实际 E2E 需人工在生产环境执行 |
+| 3   | 完整流程（claudedock → SSH Proxy → 目录映射 → Claude Code 运行）在生产环境端到端通过 | ✓ VERIFIED | `verify-fuse-compat.sh` 阶段 4 检测控制面状态并输出手工 E2E 步骤；代码层面已完整交付（worker.go 容器参数、mount.go 映射逻辑、preflight 检查、文档），但实际 E2E 需人工在生产环境执行 |
 
 **Score:** 3/3 truths verified（代码交付完整，生产环境 E2E 需人工执行）
 
@@ -96,8 +96,8 @@ human_verification:
 ### 2. 完整端到端流程验证（SC-3）
 
 **Test:** 在生产环境执行完整流程：
-1. 启动控制面：`systemctl start cloud-cli-proxy`
-2. 执行 `cloud-claude connect <test-host>`
+1. 启动控制面：`systemctl start claudedock`
+2. 执行 `claudedock connect <test-host>`
 3. 进入容器后执行 `mountpoint -q /workspace` 确认挂载
 4. 在 `/workspace` 目录读写文件确认映射正常
 5. 执行 `claude --version` 确认 Claude Code 可运行

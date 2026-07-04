@@ -24,7 +24,7 @@ package killswitch_stress
 import (
 	"testing"
 
-	e2e "github.com/zanel1u/cloud-cli-proxy/tests/e2e"
+	e2e "github.com/claudedock/claudedock/tests/e2e"
 )
 
 // StartStressGolden 是 KILL 套件用例的统一入口。

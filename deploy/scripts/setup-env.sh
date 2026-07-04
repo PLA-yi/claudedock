@@ -31,7 +31,7 @@ log "正在生成生产环境配置..."
 echo ""
 
 # SQLite 单文件数据库，无需交互
-DATABASE_URL="${DATABASE_URL:-file:/data/cloud-cli-proxy.db}"
+DATABASE_URL="${DATABASE_URL:-file:/data/claudedock.db}"
 log "使用 SQLite 数据库: ${DATABASE_URL}"
 
 # ── 镜像源检测 ──────────────────────────────────────────────
@@ -72,7 +72,7 @@ ADMIN_JWT_SECRET="$(rand_password 48)"
 {
   cat <<EOF
 # ============================================================
-# Cloud CLI Proxy — 生产环境配置
+# ClaudeDock — 生产环境配置
 # 由 setup-env.sh 自动生成于 $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 # ============================================================
 

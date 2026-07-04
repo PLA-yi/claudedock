@@ -2,7 +2,7 @@
 
 **验证日期:** 2026-05-08
 **测试环境:** macOS (Docker Desktop)
-**容器名:** cloud-claude-local-b594e6e9
+**容器名:** claudedock-local-b594e6e9
 **egress 配置:** 无（纯本地模式，无 sing-box 隧道）
 
 ---
@@ -30,7 +30,7 @@
 ## 发现的问题
 
 ### 问题 1：Docker inspect 错误信息不匹配
-- **现象：** `cloud-claude local up` 报错 `no such object`
+- **现象：** `claudedock local up` 报错 `no such object`
 - **原因：** Docker 新版本返回 `no such object`，代码只匹配 `No such container`
 - **修复：** `internal/local/container.go` 增加 `no such object` 匹配
 

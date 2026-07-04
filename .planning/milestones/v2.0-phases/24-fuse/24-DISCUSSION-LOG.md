@@ -15,7 +15,7 @@
 | Option | Description | Selected |
 |--------|-------------|----------|
 | 直接修改现有 Dockerfile | 在 deploy/docker/managed-user/Dockerfile 中添加 sshfs/fuse3 | ✓ |
-| 创建新的变体 Dockerfile | 为 cloud-claude 场景创建独立的镜像变体 | |
+| 创建新的变体 Dockerfile | 为 claudedock 场景创建独立的镜像变体 | |
 
 **User's choice:** [auto] 直接修改现有 Dockerfile (recommended default)
 **Notes:** 所有容器统一具备 FUSE 能力，维护一份镜像更简单。当前受管镜像已包含完整工具链，追加 sshfs/fuse3 不增加显著体积。
@@ -31,7 +31,7 @@
 | 通过配置项控制 | 在管理后台为每个主机单独配置是否启用 FUSE | |
 
 **User's choice:** [auto] 所有容器默认附加 (recommended default)
-**Notes:** cloud-claude 的设计意图是所有用户容器都可被 cloud-claude 连接，无需区分容器类型。条件性添加会增加配置复杂度但无实际收益。
+**Notes:** claudedock 的设计意图是所有用户容器都可被 claudedock 连接，无需区分容器类型。条件性添加会增加配置复杂度但无实际收益。
 
 ---
 

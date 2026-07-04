@@ -34,7 +34,7 @@ Output: Dockerfile 中 install.sh 路径改为用 `cp -fL` 跟随符号链接复
 </objective>
 
 <execution_context>
-@/workspace/Desktop/cloud-cli-proxy/.claude/get-shit-done/workflows/execute-plan.md
+@/workspace/Desktop/claudedock/.claude/get-shit-done/workflows/execute-plan.md
 </execution_context>
 
 <context>

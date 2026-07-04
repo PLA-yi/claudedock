@@ -100,7 +100,7 @@ jobs:
 
       - name: Run e2e suite
         env:
-          CLOUD_CLI_PROXY_E2E_ARTIFACT_DIR: ./out/e2e-artifacts
+          CLAUDEDOCK_E2E_ARTIFACT_DIR: ./out/e2e-artifacts
         run: go test -tags=e2e ./tests/e2e/... -count=1 -v -timeout=15m
 
       # Phase 52 OBS-03：失败时跑一次脚本级全局快照（CI runner 视角，与

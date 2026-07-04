@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClaudeDock 使用教程</title>
+<style>
+  :root{
+    --bg:#f6f4ff; --ink:#241f38; --muted:#6b6785; --dim:#9a95b4;
+    --line:rgba(120,90,220,.14); --card:rgba(255,255,255,.72);
+    --v:#8b5cf6; --c:#22d3ee; --p:#f472b6;
+    --grad:linear-gradient(120deg,#8b5cf6,#22d3ee 52%,#fb7bd0);
+    --grad-soft:linear-gradient(120deg,#a78bfa,#67e8f9,#f9a8d4);
+    --glow:0 12px 36px -16px rgba(124,92,246,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif;line-height:1.7;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:-20%;z-index:-2;background:
+    radial-gradient(40vmax 40vmax at 10% -6%,rgba(167,139,250,.4),transparent 60%),
+    radial-gradient(38vmax 38vmax at 100% 6%,rgba(103,232,249,.36),transparent 60%),
+    radial-gradient(42vmax 42vmax at 84% 104%,rgba(249,168,212,.38),transparent 62%);
+    filter:saturate(120%);animation:drift 26s ease-in-out infinite alternate}
+  @keyframes drift{50%{transform:translate(2%,-1.5%) scale(1.07)}}
+  a{color:var(--v);text-decoration:none}
+  .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .shell{max-width:1160px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:230px 1fr;gap:36px}
+  header.hero{text-align:center;padding:68px 24px 34px}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--v);border:1px solid var(--line);background:var(--card);backdrop-filter:blur(8px);padding:6px 14px;border-radius:999px;margin-bottom:20px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
+  header.hero h1{font-size:clamp(30px,5vw,50px);font-weight:850;letter-spacing:-.02em;line-height:1.08}
+  header.hero p{margin:16px auto 0;max-width:600px;color:var(--muted);font-size:16px}
+  .switch{margin-top:20px;display:inline-flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px}
+  .switch a{padding:7px 16px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}
+  .switch a.on{background:var(--grad);color:#fff;box-shadow:var(--glow)}
+
+  nav.toc{position:sticky;top:22px;align-self:start;font-size:14px}
+  nav.toc .t{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:0 0 12px 12px}
+  nav.toc a{display:block;color:var(--muted);padding:8px 12px;border-radius:10px;border-left:2px solid transparent;transition:.15s}
+  nav.toc a:hover{background:var(--card);color:var(--ink)}
+  nav.toc a.on{color:var(--v);border-left-color:var(--v);background:var(--card);font-weight:600}
+
+  main{min-width:0;padding-bottom:80px}
+  section{margin-bottom:30px;scroll-margin-top:22px}
+  .card{background:var(--card);backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--line);border-radius:20px;padding:28px 30px;box-shadow:var(--glow)}
+  .card + .card{margin-top:18px}
+  h2{font-size:23px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:12px}
+  h2 .n{flex:none;width:34px;height:34px;border-radius:11px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:800;box-shadow:var(--glow)}
+  h3{font-size:16px;font-weight:700;margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  h3 .s{flex:none;width:22px;height:22px;border-radius:7px;background:var(--grad-soft);color:#3b2a6b;display:grid;place-items:center;font-size:12px;font-weight:800}
+  p.lead{color:var(--muted);margin-top:6px}
+  ul,ol{margin:10px 0 4px;padding-left:22px}
+  li{margin:6px 0}
+  strong{font-weight:700}
+  code.inl{font-family:"SF Mono",ui-monospace,monospace;font-size:.88em;background:rgba(124,92,246,.1);color:#6d28d9;padding:2px 7px;border-radius:6px}
+
+  pre{background:#1a1530;color:#e7e2ff;border-radius:12px;padding:16px 18px;overflow-x:auto;font-family:"SF Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.7;margin:12px 0;border:1px solid rgba(255,255,255,.08)}
+  pre .c{color:#8b83b8}
+  pre .g{color:#7ee8c8}
+  pre .k{color:#c4a6ff}
+
+  .note{border-radius:12px;padding:14px 16px 14px 44px;position:relative;margin:14px 0;font-size:14px;border:1px solid}
+  .note::before{position:absolute;left:14px;top:13px;font-size:16px}
+  .note.tip{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3)}
+  .note.tip::before{content:"💡"}
+  .note.warn{background:rgba(251,146,60,.09);border-color:rgba(251,146,60,.32)}
+  .note.warn::before{content:"⚠️"}
+  .note.info{background:rgba(96,165,250,.09);border-color:rgba(96,165,250,.3)}
+  .note.info::before{content:"ℹ️"}
+
+  .kv{display:grid;grid-template-columns:130px 1fr;gap:8px 14px;font-size:14px;margin-top:8px}
+  .kv .k{color:var(--muted)}
+  .kv .v{font-family:"SF Mono",ui-monospace,monospace}
+  .arch{background:#1a1530;color:#c9c2ee;border-radius:14px;padding:20px;font-family:"SF Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+  .pill{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.5);margin:3px 4px 3px 0}
+  footer{text-align:center;color:var(--dim);font-size:13px;padding:30px 24px 60px}
+  @media(max-width:840px){.shell{grid-template-columns:1fr}nav.toc{display:none}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <span class="badge"><span class="dot"></span>ClaudeDock 使用教程</span>
+  <h1>把 Claude Code 装进<span class="grad">一台会伪装的云端开发机</span></h1>
+  <p>从启动软件、管理员开通主机，到用户接入写代码——每一步都给出可直接复制的完整命令。</p>
+  <div class="switch">
+    <a href="使用教程-界面版.html">界面版</a>
+    <a href="使用教程-命令版.html" class="on">命令版</a>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc">
+    <p class="t">目录</p>
+    <a href="#intro">0 · 它是什么</a>
+    <a href="#start">1 · 启动软件</a>
+    <a href="#admin">2 · 管理员开通主机</a>
+    <a href="#user">3 · 用户接入用 Claude</a>
+    <a href="#advanced">4 · 进阶功能</a>
+    <a href="#ops">5 · 日常运维</a>
+    <a href="#faq">6 · 常见问题</a>
+  </nav>
+
+  <main>
+    <!-- 0 -->
+    <section id="intro">
+      <div class="card">
+        <h2><span class="n">0</span>它是什么</h2>
+        <p class="lead">ClaudeDock 把你的 Claude Code 包装成「一个坐在美国家里、用普通电脑的开发者」，对抗 Anthropic 的风控封号；同时把每台容器绑定一个独立的住宅出口 IP，全流量走隧道出去。你 SSH 进容器就能写代码，本地项目目录会以<strong>完全相同的路径</strong>挂载进去，体验和本地无异。</p>
+        <h3>三大核心</h3>
+        <ul>
+          <li><strong>身份伪装</strong>：CPU/MAC/machine-id 重写、Windows 主机名、容器痕迹擦除、太平洋时区、出口 TLS 指纹伪装成 Chrome、屏蔽遥测上报。</li>
+          <li><strong>IP 严格隔离</strong>：每容器独立出口 IP，全流量走 sing-box tun 隧道，nftables 拒绝直连。支持 SOCKS5 / VMess / VLESS / Shadowsocks / Trojan / HTTP。</li>
+          <li><strong>代码同名映射</strong>：sshfs 把本地目录挂进容器，路径一致；断线自动重连、tmux 会话不丢。</li>
+        </ul>
+        <h3>架构一览</h3>
+        <div class="arch">用户 ──curl──▶ 控制面 Control Plane (:8080) ──Docker──▶ ┌─ 用户容器 ─────────────┐
+                     │                              │ SSH + Claude Code + VNC │
+                   SQLite（用户/主机/IP/审计）        │ sshfs ← 本地同名路径映射 │
+                     │                              │ sing-box tun 隧道        │
+              管理后台 (内嵌 SPA)                     │      ↓ 指定住宅出口 IP    │
+              SSH 代理 (:2222)                       └────────────────────────┘</div>
+        <div class="note info">下文所有命令里，把 <code class="inl">YOUR_HOST</code> 换成控制面地址（本机就是 <code class="inl">127.0.0.1</code>，服务器就是它的 IP/域名），<code class="inl">$TOKEN</code> 是第 2 节第 1 步取到的管理员令牌。</div>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section id="start">
+      <div class="card">
+        <h2><span class="n">1</span>启动软件</h2>
+        <p class="lead">软件本体 = 一个控制面容器。启动后浏览器访问管理后台即可。</p>
+
+        <h3><span class="s">A</span>安装 Docker</h3>
+        <pre><span class="c"># macOS / Windows：下载安装 Docker Desktop 并打开（等鲸鱼图标不再闪动）</span>
+<span class="c"># https://www.docker.com/products/docker-desktop/</span>
+
+<span class="c"># Linux：一行安装 Docker</span>
+curl -fsSL https://get.docker.com | sh</pre>
+
+        <h3><span class="s">B</span>生成配置（管理员密码 / 密钥）</h3>
+        <pre>cd ~/ClaudeProjects/Coding/claudedock-dev
+
+<span class="c"># 交互式生成 .env（已有 .env 可跳过）。会打印 20 位管理员密码，请立刻记下</span>
+bash deploy/scripts/setup-env.sh</pre>
+        <div class="note info">已有 <code class="inl">.env</code> 的话，账号是 <code class="inl">admin</code>，密码在文件里：<code class="inl">grep ADMIN_PASSWORD .env</code></div>
+
+        <h3><span class="s">C</span>启动控制面</h3>
+        <p class="lead">Mac 最省事：双击项目根目录的 <code class="inl">启动ClaudeDock.command</code>（会自动本地构建 + 起服务 + 打开后台）。等价的手动命令如下（Mac / Linux 通用）：</p>
+        <pre><span class="c"># 1) 指定构建用的 compose 文件组合（避免拉取私有镜像）</span>
+export COMPOSE_FILE=docker-compose.yml:docker-compose.build.yaml:docker-compose.macbuild.yml
+
+<span class="c"># 2) 本地从源码构建控制面镜像（首次较慢：容器内编译前端 + Go）</span>
+docker compose build control-plane
+
+<span class="c"># 3) 启动</span>
+docker compose up -d control-plane
+
+<span class="c"># 4) 验证健康</span>
+curl http://127.0.0.1:8080/healthz
+<span class="g"># {"status":"ok","checks":{"database":"ok","agent":"ok"}}</span></pre>
+        <div class="note warn">别用 <code class="inl">docker compose pull</code> / 官方镜像——它是私有的，会报 <code class="inl">error from registry: denied</code>。一律走上面的<strong>本地构建</strong>。</div>
+
+        <h3><span class="s">D</span>打开后台并登录</h3>
+        <div class="kv">
+          <div class="k">后台地址</div><div class="v">http://localhost:8080（端口被占会自动换，见启动窗口）</div>
+          <div class="k">用户名</div><div class="v">admin</div>
+          <div class="k">密码</div><div class="v">.env 里的 ADMIN_PASSWORD</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="admin">
+      <div class="card">
+        <h2><span class="n">2</span>管理员：开通一台可用主机</h2>
+        <p class="lead">完整流程：<strong>登录 → 添加出口 IP → 创建用户 → 创建主机并绑定 → 分发接入命令</strong>。既可以在<strong>后台点按</strong>完成，也可以用下面的 <strong>API 命令</strong>（更精确、可脚本化）。</p>
+
+        <h3><span class="s">1</span>获取管理员 Token</h3>
+        <pre>TOKEN=$(curl -s -X POST http://YOUR_HOST:8080/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"你的管理员密码"}' \
+  | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+echo "$TOKEN"   <span class="c"># 打印出来确认拿到了令牌</span></pre>
+
+        <h3><span class="s">2</span>添加出口 IP（住宅代理）</h3>
+        <p class="lead">对应后台「出口 IP」页 → 新增。下面是 SOCKS5 示例（你买的 ISP 住宅代理就是这种）：</p>
+        <pre><span class="c"># SOCKS5（把 server/port/username/password 换成你的住宅代理）</span>
+curl -s -X POST http://YOUR_HOST:8080/v1/admin/egress-ips \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "us-home-01",
+    "ip_address": "149.119.153.132",
+    "tunnel_type": "proxy",
+    "provider": "manual",
+    "proxy_config": {
+      "type": "socks",
+      "server": "149.119.153.132",
+      "server_port": 443,
+      "username": "gJGSQfYyRxXZ",
+      "password": "jN4KpFpefR"
+    }
+  }'</pre>
+        <pre><span class="c"># Shadowsocks 示例（换成对应字段即可）</span>
+curl -s -X POST http://YOUR_HOST:8080/v1/admin/egress-ips \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "label": "jp-ss-01", "ip_address": "198.51.100.5",
+    "tunnel_type": "proxy", "provider": "manual",
+    "proxy_config": { "type": "shadowsocks", "server": "198.51.100.5",
+      "server_port": 8388, "method": "aes-256-gcm", "password": "ss-password" }
+  }'</pre>
+        <p class="lead">测试这个出口能不能用（连通性 + 出口 IP 匹配 + DNS 泄漏三项）：</p>
+        <pre><span class="c"># 把 {ipID} 换成上一步返回的出口 IP 的 id</span>
+curl -s -X POST http://YOUR_HOST:8080/v1/admin/egress-ips/{ipID}/test \
+  -H "Authorization: Bearer $TOKEN"</pre>
+
+        <h3><span class="s">3</span>创建用户</h3>
+        <pre>curl -s -X POST http://YOUR_HOST:8080/v1/admin/users \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "username": "zhangsan",
+    "password": "给用户的初始密码",
+    "expires_at": "2026-12-31T23:59:59Z"
+  }'</pre>
+
+        <h3><span class="s">4</span>创建主机并绑定出口 IP</h3>
+        <pre><span class="c"># 创建主机（user_id 用上一步返回的用户 UUID）</span>
+curl -s -X POST http://YOUR_HOST:8080/v1/admin/hosts \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"user_id": "用户UUID"}'
+
+<span class="c"># 绑定出口 IP（host_id、egress_ip_id 用前面返回的 UUID）</span>
+curl -s -X POST http://YOUR_HOST:8080/v1/admin/bindings \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"host_id": "主机UUID", "egress_ip_id": "出口IP的UUID"}'</pre>
+        <div class="note tip">主机<strong>至少绑定一个出口 IP</strong> 才能正常启动。后台「主机管理」页做这些是点按操作，效果一样。</div>
+
+        <h3><span class="s">5</span>分发接入命令给用户</h3>
+        <p class="lead">主机就绪后，在后台「主机详情」页复制接入命令，或直接把下面命令发给用户（替换 <code class="inl">YOUR_HOST</code> 和主机的 <code class="inl">SHORT_ID</code>）：</p>
+        <pre>curl -sSf http://YOUR_HOST/entry/SHORT_ID | bash</pre>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="user">
+      <div class="card">
+        <h2><span class="n">3</span>用户：接入并用 Claude Code</h2>
+        <p class="lead">用户拿到管理员给的信息后，有两种接入方式。</p>
+
+        <h3><span class="s">A</span>方式一：一条 curl 直接进（最快）</h3>
+        <pre><span class="c"># 在自己电脑终端执行（YOUR_HOST 和 SHORT_ID 用管理员给的）</span>
+curl -sSf http://YOUR_HOST/entry/SHORT_ID | bash
+<span class="c"># 按提示输入密码 → 等待容器就绪 → 自动 SSH 进入云主机</span></pre>
+        <div class="note info">当前所在的本地目录会通过 sshfs 挂到容器内<strong>同名路径</strong>。断线后重新执行同一条命令即可恢复，容器不会因断开而停止。</div>
+
+        <h3><span class="s">B</span>方式二：claudedock CLI（推荐，功能更全）</h3>
+        <pre><span class="c"># 1) 安装（macOS / Linux，任选一种）</span>
+brew tap claudedock/tap &amp;&amp; brew install claudedock
+<span class="c"># 或一行脚本：</span>
+curl -fsSL https://raw.githubusercontent.com/claudedock/claudedock/main/scripts/install.sh | bash
+
+<span class="c"># 2) 首次配置：填 网关地址 / Short ID / 密码（管理员给的三项）</span>
+claudedock init --gateway https://gw.example.com --short-id abc123 --password 你的密码
+
+<span class="c"># 3) 进项目目录，直接用（当前目录自动挂载到容器同名路径）</span>
+cd ~/your-project
+claudedock                      <span class="c"># 启动并连接</span>
+claudedock -p "帮我重构这个函数"   <span class="c"># 直接带任务</span></pre>
+        <h3><span class="s">C</span>会话 / 映射 / 自检</h3>
+        <pre><span class="c"># 会话</span>
+claudedock --new-session        <span class="c"># 新建独立会话</span>
+claudedock --take-over          <span class="c"># 接管主会话，踢掉其他客户端</span>
+claudedock sessions             <span class="c"># 列出当前会话</span>
+
+<span class="c"># 映射模式</span>
+claudedock --mount-mode=auto        <span class="c"># 默认：HotSync 优先，失败降级 SSHFS</span>
+claudedock --mount-mode=sshfs-only  <span class="c"># 纯 SSHFS</span>
+
+<span class="c"># 排障自检</span>
+claudedock doctor               <span class="c"># 五维度全面自检</span>
+claudedock doctor mount --fix   <span class="c"># 检查挂载并自动修复</span>
+claudedock env check            <span class="c"># 检查远端时区 / 出口 IP / FUSE</span></pre>
+
+        <h3><span class="s">D</span>进容器后用 Claude</h3>
+        <pre><span class="c"># 容器内已预装 Claude Code，直接：</span>
+claude
+<span class="g"># 所有 Claude API 请求自动走你绑定的住宅出口 IP，无需额外配代理</span></pre>
+        <div class="note tip">容器内还预装了 Git / tmux / zsh / Node.js；KasmVNC + Chromium 远程桌面可在管理后台一键打开。</div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="advanced">
+      <div class="card">
+        <h2><span class="n">4</span>进阶功能</h2>
+        <h3><span class="s">1</span>Bypass 防火墙（白名单直连）</h3>
+        <p class="lead">默认全流量走隧道。若某些域名/网段要直连，在后台按<strong>域名、CIDR、端口</strong>加白名单，支持快照版本管理：<span class="pill">预览</span><span class="pill">应用</span><span class="pill">回滚</span>。</p>
+        <h3><span class="s">2</span>远程桌面</h3>
+        <p class="lead">容器内置 KasmVNC + Chromium，管理后台「主机详情」一键打开浏览器桌面。</p>
+        <h3><span class="s">3</span>主机生命周期</h3>
+        <p class="lead">后台可对主机：启动 / 停止 / 重建（保留或清空 <code class="inl">/workspace</code>）/ 删除。对应 API：</p>
+        <pre>curl -s -X POST http://YOUR_HOST:8080/v1/hosts/{hostID}/start   -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://YOUR_HOST:8080/v1/hosts/{hostID}/stop    -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://YOUR_HOST:8080/v1/hosts/{hostID}/rebuild -H "Authorization: Bearer $TOKEN"</pre>
+        <div class="note info">「重建」重置环境但保留 home 目录数据。</div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="ops">
+      <div class="card">
+        <h2><span class="n">5</span>日常运维命令</h2>
+        <p class="lead">在项目根目录执行（务必先设 <code class="inl">COMPOSE_FILE</code>，否则会用错 compose）：</p>
+        <pre>export COMPOSE_FILE=docker-compose.yml:docker-compose.build.yaml:docker-compose.macbuild.yml
+
+docker compose ps                 <span class="c"># 查看状态</span>
+docker compose logs -f            <span class="c"># 实时日志</span>
+docker compose down               <span class="c"># 停止并移除</span>
+
+<span class="c"># 改了后台界面(React)或后端(Go)后，重新构建并更新：</span>
+docker compose build control-plane
+docker compose up -d control-plane</pre>
+        <h3><span class="s">·</span>本地开发模式（不打包，热重载，需 Go + pnpm）</h3>
+        <pre>make setup    <span class="c"># 装前端依赖 + 生成 .env</span>
+make dev      <span class="c"># 起后端(内嵌) + 前端，前端 http://localhost:2568，API :8080</span>
+make dev-web  <span class="c"># 只起前端    </span>
+make dev-api  <span class="c"># 只起后端</span>
+make help     <span class="c"># 全部命令</span></pre>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="faq">
+      <div class="card">
+        <h2><span class="n">6</span>常见问题</h2>
+        <h3><span class="s">Q</span>启动报 <code class="inl">error from registry: denied</code></h3>
+        <p class="lead">在拉私有镜像。改用<strong>本地构建</strong>：</p>
+        <pre>export COMPOSE_FILE=docker-compose.yml:docker-compose.build.yaml:docker-compose.macbuild.yml
+docker compose build control-plane &amp;&amp; docker compose up -d control-plane</pre>
+        <h3><span class="s">Q</span>Mac 上创建主机失败 / 容器网络异常</h3>
+        <p class="lead">容器隔离依赖 Linux 宿主特性（<code class="inl">pid:host</code>、<code class="inl">NET_ADMIN</code>、tun）。Mac 上适合浏览后台、改界面；要真正开通用户容器，请部署到一台 <strong>Linux 服务器</strong>。</p>
+        <h3><span class="s">Q</span>端口 8080 / 2222 被占用</h3>
+        <p class="lead">启动器会自动改用相邻空闲端口（如 8082 / 2224），以启动窗口输出为准。手动指定：<code class="inl">ADMIN_HOST_PORT=8090 SSH_PROXY_PORT=2230 docker compose up -d control-plane</code></p>
+        <h3><span class="s">Q</span>忘记后台密码</h3>
+        <pre>grep ADMIN_PASSWORD .env</pre>
+        <h3><span class="s">Q</span>确认服务是否健康</h3>
+        <pre>curl http://127.0.0.1:8080/healthz</pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>ClaudeDock 使用教程 · 与后台同款糖果霓虹风格 · 双击打开 <code>使用教程.html</code> 阅读</footer>
+
+<script>
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=Object.fromEntries(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ links.forEach(l=>l.classList.remove('on')); map[e.target.id]?.classList.add('on'); } });
+  },{rootMargin:'-20% 0px -70% 0px',threshold:0});
+  document.querySelectorAll('section').forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

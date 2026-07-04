@@ -20,10 +20,10 @@
 - 手动测试 checklist 写在计划文档中，记录每一步的操作和预期结果
 
 ### 测试环境
-- 使用 `cloud-claude local` 启动本地 managed-user 容器（Phase 39 已完成）
+- 使用 `claudedock local` 启动本地 managed-user 容器（Phase 39 已完成）
 - 容器必须启用 egress 配置（sing-box tun 模式），以验证流量约束
 - 宿主机上安装 VS Code + Remote-SSH 扩展作为测试客户端
-- SSH 连接信息从 `cloud-claude local` 输出获取（host, port, user, password）
+- SSH 连接信息从 `claudedock local` 输出获取（host, port, user, password）
 
 ### 出口 IP 验证策略
 - 容器内执行 `curl ifconfig.me` 或等效命令，返回 IP 必须等于 egress 配置的 ExpectedIP
@@ -58,12 +58,12 @@
 ## Existing Code Insights
 
 ### Reusable Assets
-- `cloud-claude local` 子命令（Phase 39）：一键启动本地容器，输出 SSH 连接信息，可直接用于 E2E 测试
+- `claudedock local` 子命令（Phase 39）：一键启动本地容器，输出 SSH 连接信息，可直接用于 E2E 测试
 - `deploy/docker/managed-user/entrypoint.sh`：MODE=local 分支已支持 sing-box tun/proxy 启动
 - `internal/network/container_proxy_provider.go`：端口映射 DNAT + MASQUERADE + 隧道转发逻辑（远程模式）
 - `internal/network/gateway_singbox_config.go`：sing-box 配置生成，包含 DNS hijack 和路由规则
 - `tests/scripts/uat-v31-promotion.sh`：现有 UAT 脚本模式可参考
-- `cmd/cloud-claude/doctor.go`：现有诊断框架可扩展
+- `cmd/claudedock/doctor.go`：现有诊断框架可扩展
 
 ### Established Patterns
 - UAT 脚本模式：shell 脚本 + 断言函数 + 彩色输出 + 结果汇总
@@ -72,7 +72,7 @@
 
 ### Integration Points
 - SSH Proxy 2222 端口：控制面的 SSH 入口，转发到容器 sshd
-- `cloud-claude local`：测试入口点
+- `claudedock local`：测试入口点
 - VS Code Remote-SSH 扩展：测试客户端
 - sing-box gateway：流量验证目标
 

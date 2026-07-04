@@ -56,7 +56,7 @@ completed: 2026-04-14
 - 受管镜像 Dockerfile 预装 sshfs + fuse3，fuse.conf 启用 user_allow_other
 - entrypoint.sh 在容器启动时自动修复 /dev/fuse 权限为 666（兼容无 FUSE 的旧容器）
 - Worker createHost() 对所有新建容器统一附加 --device /dev/fuse 和 --cap-add SYS_ADMIN
-- SSH Proxy 代码审查确认：handleConnection() 循环接受所有 session channel，handleChannel() 双向转发所有请求类型，零改造即可支持 cloud-claude 多 session 连接模式
+- SSH Proxy 代码审查确认：handleConnection() 循环接受所有 session channel，handleChannel() 双向转发所有请求类型，零改造即可支持 claudedock 多 session 连接模式
 
 ## Task Commits
 
@@ -82,9 +82,9 @@ Each task was committed atomically:
 `handleChannel()` 第 260-271 行（client→target）和第 273-284 行（target→client）双向转发所有请求类型，包括 pty-req、shell、exec、env、window-change（客户端→目标）和 exit-status、exit-signal（目标→客户端）。转发逻辑不过滤任何请求类型。
 
 ### 3. sshfs slave/passive 模式兼容性
-cloud-claude 将通过现有 SSH 连接开启第二个 session channel，在其中执行 sftp-server 子系统。`handleChannel()` 第 252 行 `targetClient.OpenChannel("session", nil)` 为每个新 channel 建立独立的到目标容器的 session，第 260-271 行完整转发 exec 请求（包括 subsystem 请求）。
+claudedock 将通过现有 SSH 连接开启第二个 session channel，在其中执行 sftp-server 子系统。`handleChannel()` 第 252 行 `targetClient.OpenChannel("session", nil)` 为每个新 channel 建立独立的到目标容器的 session，第 260-271 行完整转发 exec 请求（包括 subsystem 请求）。
 
-**结论：SSH Proxy 无需任何代码改动即可支持 cloud-claude 的多 session 连接模式。**
+**结论：SSH Proxy 无需任何代码改动即可支持 claudedock 的多 session 连接模式。**
 
 ## Decisions Made
 - sshfs + fuse3 通过 apt-get 安装，与现有包管理块合并，保持单次 apt-get install 减少镜像层数
@@ -104,7 +104,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 - 容器侧 FUSE/sshfs 前置条件已就绪，Phase 25（CLI 连接）和 Phase 27（目录映射）可直接使用
-- SSH Proxy 零改造已确认，cloud-claude 可通过现有多 session channel 机制执行 sshfs slave 模式
+- SSH Proxy 零改造已确认，claudedock 可通过现有多 session channel 机制执行 sshfs slave 模式
 - FUSE + AppArmor/seccomp 兼容性仍需在目标 Linux 宿主上验证（Phase 28 专项）
 
 ---

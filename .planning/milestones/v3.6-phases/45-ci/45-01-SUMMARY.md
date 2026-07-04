@@ -103,7 +103,7 @@ requirements_satisfied:
 
 ### 给 Plan 03（waitFor helper）
 - helper 文件落 `tests/e2e/harness/waitfor.go`，包名同 `harness`
-- 导入路径：`github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness`（注意 module path 是 `zanel1u`，不是 `zaneliu`）
+- 导入路径：`github.com/claudedock/claudedock/tests/e2e/harness`（注意 module path 是 `claudedock`，不是 `zaneliu`）
 - 默认 `Logger` 已在 BaseSuite 提供，waitFor 可接受 `*slog.Logger` 参数复用
 
 ### 给 Plan 04（artifact dump hook）

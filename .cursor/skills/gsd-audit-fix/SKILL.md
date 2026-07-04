@@ -39,7 +39,7 @@ Flags:
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/audit-fix.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/audit-fix.md
 </execution_context>
 
 <process>

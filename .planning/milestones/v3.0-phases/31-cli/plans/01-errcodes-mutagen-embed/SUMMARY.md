@@ -1,15 +1,15 @@
 ---
 phase: 31-cli
 plan: 01-errcodes-mutagen-embed
-subsystem: internal/cloudclaude
+subsystem: internal/claudedock
 tags: [errcodes, mutagen-embed, envcheck-fs, wave-1]
 requires:
   - "Go 1.25.7（仓库 go.mod 锁定版本，//go:embed 需要 ≥ 1.16）"
 provides:
-  - "internal/cloudclaude/errcodes 包：Code/Severity/Entry/MustRegister/Lookup/Registry/Format 七类对外 API + 15 条 MOUNT_*/NET_OAUTH_* 预注册错误码"
-  - "cloudclaude.ExtractMutagenBinary(dst string) error：go:embed 4 平台 v0.18.1 mutagen + 幂等抽取"
-  - "cloudclaude.MutagenBinaryVersion 常量（Plan 02 版本握手用）"
-  - "cloudclaude.IsCaseInsensitiveFS(dir string) bool：跨平台大小写敏感探测，不依赖 macOS diskutil"
+  - "internal/claudedock/errcodes 包：Code/Severity/Entry/MustRegister/Lookup/Registry/Format 七类对外 API + 15 条 MOUNT_*/NET_OAUTH_* 预注册错误码"
+  - "claudedock.ExtractMutagenBinary(dst string) error：go:embed 4 平台 v0.18.1 mutagen + 幂等抽取"
+  - "claudedock.MutagenBinaryVersion 常量（Plan 02 版本握手用）"
+  - "claudedock.IsCaseInsensitiveFS(dir string) bool：跨平台大小写敏感探测，不依赖 macOS diskutil"
   - "scripts/fetch-mutagen-bins.sh：CI/本地拉取脚本，支持 --check-only sha256 复核"
 affects:
   - "Wave 2 Plan 02 mount_mutagen.go 直接 import errcodes + 调 ExtractMutagenBinary"
@@ -25,17 +25,17 @@ tech-stack:
     - "os.CreateTemp + 大写变体 Stat 的 case-insensitive probe"
 key-files:
   created:
-    - "internal/cloudclaude/errcodes/codes.go"
-    - "internal/cloudclaude/errcodes/mount.go"
-    - "internal/cloudclaude/errcodes/net.go"
-    - "internal/cloudclaude/errcodes/codes_test.go"
-    - "internal/cloudclaude/mutagen_bin.go"
-    - "internal/cloudclaude/mutagen_bin_test.go"
-    - "internal/cloudclaude/envcheck_fs.go"
-    - "internal/cloudclaude/envcheck_fs_test.go"
-    - "internal/cloudclaude/mutagen_bin/.gitattributes"
-    - "internal/cloudclaude/mutagen_bin/SHA256SUMS"
-    - "internal/cloudclaude/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen（占位 stub）"
+    - "internal/claudedock/errcodes/codes.go"
+    - "internal/claudedock/errcodes/mount.go"
+    - "internal/claudedock/errcodes/net.go"
+    - "internal/claudedock/errcodes/codes_test.go"
+    - "internal/claudedock/mutagen_bin.go"
+    - "internal/claudedock/mutagen_bin_test.go"
+    - "internal/claudedock/envcheck_fs.go"
+    - "internal/claudedock/envcheck_fs_test.go"
+    - "internal/claudedock/mutagen_bin/.gitattributes"
+    - "internal/claudedock/mutagen_bin/SHA256SUMS"
+    - "internal/claudedock/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen（占位 stub）"
     - "scripts/fetch-mutagen-bins.sh"
   modified: []
 decisions:
@@ -57,7 +57,7 @@ metrics:
 
 ## One-Liner
 
-为 Phase 31 Wave 2/3 搭好底座：落地 `internal/cloudclaude/errcodes` 错误码注册表（15 条 MOUNT_*/NET_*）、嵌入 4 平台 Mutagen v0.18.1 二进制（`go:embed` + 幂等抽取）、跨平台 case-insensitive 文件系统 probe。
+为 Phase 31 Wave 2/3 搭好底座：落地 `internal/claudedock/errcodes` 错误码注册表（15 条 MOUNT_*/NET_*）、嵌入 4 平台 Mutagen v0.18.1 二进制（`go:embed` + 幂等抽取）、跨平台 case-insensitive 文件系统 probe。
 
 ## Goal Achievement
 
@@ -73,7 +73,7 @@ metrics:
 
 ## Public Interfaces 兑现清单
 
-### `internal/cloudclaude/errcodes` 导出 API
+### `internal/claudedock/errcodes` 导出 API
 
 ```go
 type Code string
@@ -90,7 +90,7 @@ func Format(c Code, args ...any) string     // [<CODE>] <Message>\n  建议: <Ne
 
 `MOUNT_MUTAGEN_VERSION_SKEW` / `MOUNT_MUTAGEN_WHITELIST_REJECT` / `MOUNT_MUTAGEN_SAFETY_GUARD` / `MOUNT_MUTAGEN_DAEMON_UNAVAILABLE` / `MOUNT_MUTAGEN_SYNC_FAILED` / `MOUNT_MUTAGEN_TRANSPORT_FAILED` / `MOUNT_SSHFS_FAILED` / `MOUNT_SSHFS_DISCONNECTED` / `MOUNT_MERGERFS_FAILED` / `MOUNT_AUTO_DOWNGRADED` / `MOUNT_FORCE_MODE_FAILED` / `MOUNT_APFS_CASE_INSENSITIVE` / `NET_OAUTH_EXPIRED` / `NET_OAUTH_EXPIRING_SOON` / `NET_OAUTH_NOT_FOUND`
 
-### `internal/cloudclaude` 新增导出
+### `internal/claudedock` 新增导出
 
 ```go
 const MutagenBinaryVersion = "v0.18.1"
@@ -103,16 +103,16 @@ func IsCaseInsensitiveFS(dir string) bool
 Plan 02 `mount_mutagen.go` 落地时按以下方式 import 与调用：
 
 ```go
-import "github.com/zanel1u/cloud-cli-proxy/internal/cloudclaude/errcodes"
+import "github.com/claudedock/claudedock/internal/claudedock/errcodes"
 
 home, _ := os.UserHomeDir()
-binPath := filepath.Join(home, ".cloud-claude", "bin", "mutagen")
-if err := cloudclaude.ExtractMutagenBinary(binPath); err != nil {
+binPath := filepath.Join(home, ".claudedock", "bin", "mutagen")
+if err := claudedock.ExtractMutagenBinary(binPath); err != nil {
     return fmt.Errorf("%s", errcodes.Format(errcodes.MOUNT_MUTAGEN_DAEMON_UNAVAILABLE, err.Error()))
 }
 
 // macOS APFS 检测
-if runtime.GOOS == "darwin" && cloudclaude.IsCaseInsensitiveFS(localCwd) {
+if runtime.GOOS == "darwin" && claudedock.IsCaseInsensitiveFS(localCwd) {
     fmt.Fprintln(os.Stderr, errcodes.Format(errcodes.MOUNT_APFS_CASE_INSENSITIVE))
     syncMode = "two-way-resolved"  // 强制
 }
@@ -122,10 +122,10 @@ if runtime.GOOS == "darwin" && cloudclaude.IsCaseInsensitiveFS(localCwd) {
 
 | Task | Name | Commit | Files |
 |------|------|--------|-------|
-| 1.1 | errcodes 包核心 + 15 条注册 + 5 项单测 | 4c8b3f0 | `internal/cloudclaude/errcodes/{codes,mount,net,codes_test}.go` |
-| 1.2 | fetch 脚本 + 4 平台占位 + .gitattributes + SHA256SUMS | c10cd53 | `scripts/fetch-mutagen-bins.sh`, `internal/cloudclaude/mutagen_bin/*` |
-| 1.3-RED | 失败测试（ExtractMutagenBinary × 4 + IsCaseInsensitiveFS × 2） | 91c8fc2 | `internal/cloudclaude/{mutagen_bin,envcheck_fs}_test.go` |
-| 1.3-GREEN | 实现 ExtractMutagenBinary + IsCaseInsensitiveFS | 715483a | `internal/cloudclaude/{mutagen_bin,envcheck_fs}.go` |
+| 1.1 | errcodes 包核心 + 15 条注册 + 5 项单测 | 4c8b3f0 | `internal/claudedock/errcodes/{codes,mount,net,codes_test}.go` |
+| 1.2 | fetch 脚本 + 4 平台占位 + .gitattributes + SHA256SUMS | c10cd53 | `scripts/fetch-mutagen-bins.sh`, `internal/claudedock/mutagen_bin/*` |
+| 1.3-RED | 失败测试（ExtractMutagenBinary × 4 + IsCaseInsensitiveFS × 2） | 91c8fc2 | `internal/claudedock/{mutagen_bin,envcheck_fs}_test.go` |
+| 1.3-GREEN | 实现 ExtractMutagenBinary + IsCaseInsensitiveFS | 715483a | `internal/claudedock/{mutagen_bin,envcheck_fs}.go` |
 
 ## Test Coverage
 
@@ -137,7 +137,7 @@ errcodes 包：
   TestLookup_Hit              PASS  (NET_OAUTH_EXPIRED Severity + Message)
   TestLookup_Miss             PASS  (未注册 code 返回 false)
 
-cloudclaude 包：
+claudedock 包：
   Test_IsCaseInsensitiveFS_TempDir              PASS
   Test_IsCaseInsensitiveFS_NoWrite              PASS
   Test_ExtractMutagenBinary_UnsupportedPlatform PASS
@@ -157,7 +157,7 @@ cloudclaude 包：
 - **Found during:** Task 1.1 撰写 codes_test.go 时
 - **Issue:** PLAN action 5 与 acceptance 写明 `var codeRe = regexp.MustCompile(`^[A-Z]+_[A-Z]+_[A-Z0-9]+$`)`，仅允许 3 段（如 `MOUNT_MUTAGEN_FOO`）。但 `<errcode_registry>` 实际全部 4 段（如 `MOUNT_MUTAGEN_VERSION_SKEW`）。如严格按 PLAN 实现，所有 init() 注册都会 panic。
 - **Fix:** 把正则放宽为 `^[A-Z]+_[A-Z]+_[A-Z0-9]+(_[A-Z0-9]+)*$`（≥ 3 段）。codes.go 与 codes_test.go 均同步修订。
-- **Files modified:** `internal/cloudclaude/errcodes/codes.go`、`internal/cloudclaude/errcodes/codes_test.go`
+- **Files modified:** `internal/claudedock/errcodes/codes.go`、`internal/claudedock/errcodes/codes_test.go`
 - **Commit:** 4c8b3f0
 - **Phase 34 影响:** Phase 34 doctor `--explain` 验证表达式应同步使用本仓库 codeRe；记入 D-32 接口契约。
 
@@ -177,7 +177,7 @@ cloudclaude 包：
 
 ### Deferred Issues (Out of Scope)
 
-- `internal/cloudclaude/envcheck.go` 与 `internal/cloudclaude/ssh_doctor_test.go` 存在 pre-existing gofmt 不规范（来自 quick-task 7836821），与本 plan 无关，按 SCOPE BOUNDARY 不修。建议下一次触碰这些文件的 plan 顺手 `gofmt -w`。
+- `internal/claudedock/envcheck.go` 与 `internal/claudedock/ssh_doctor_test.go` 存在 pre-existing gofmt 不规范（来自 quick-task 7836821），与本 plan 无关，按 SCOPE BOUNDARY 不修。建议下一次触碰这些文件的 plan 顺手 `gofmt -w`。
 
 ### No Architectural Changes
 
@@ -191,8 +191,8 @@ cloudclaude 包：
 
 | 文件 | 行 | Stub 类型 | 由谁补齐 |
 |------|----|----|----|
-| `internal/cloudclaude/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` | 整文件 | 占位 shell stub（`exit 1` + 中文提示） | CI build-images workflow 运行 `scripts/fetch-mutagen-bins.sh` 替换 |
-| `internal/cloudclaude/mutagen_bin/SHA256SUMS` | 4 行 | `PENDING-FETCH` 占位 | 同上（fetch 脚本写真实 sha256） |
+| `internal/claudedock/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` | 整文件 | 占位 shell stub（`exit 1` + 中文提示） | CI build-images workflow 运行 `scripts/fetch-mutagen-bins.sh` 替换 |
+| `internal/claudedock/mutagen_bin/SHA256SUMS` | 4 行 | `PENDING-FETCH` 占位 | 同上（fetch 脚本写真实 sha256） |
 
 **Stub 是否阻塞 plan goal？** 不阻塞。本 plan goal 是「Wave 2/3 起步所需的接口、Code、函数签名、占位资源」全部就位，二进制内容由 CI 注入是 PLAN 明确允许的延后分工。Plan 02/03 任务计划本就在 CI 环境跑（带真二进制）。`Test_ExtractMutagenBinary_FreshDir/Idempotent/OverwriteWrongVersion` 用例自动 SKIP 占位场景，CI 替换后会自动 PASS。
 
@@ -202,23 +202,23 @@ cloudclaude 包：
 
 ## Limitations / Trade-offs
 
-1. **二进制体积**：cloud-claude 二进制尺寸将从 ~30MB 涨到 ~80MB（`go:embed` 将 4 平台 mutagen 全打入；与 RESEARCH §1.1 已知一致）。v3.1 可考虑按 build tag 拆平台二进制。
+1. **二进制体积**：claudedock 二进制尺寸将从 ~30MB 涨到 ~80MB（`go:embed` 将 4 平台 mutagen 全打入；与 RESEARCH §1.1 已知一致）。v3.1 可考虑按 build tag 拆平台二进制。
 2. **gofmt 整仓警告**：v2.0 既有的 `envcheck.go` / `ssh_doctor_test.go` pre-existing gofmt 不规范本 plan 未修，避免触发 SCOPE BOUNDARY。
 3. **Mutagen 真二进制依赖 CI**：本地开发者首次跑 Plan 02/03 测试前需手动 `bash scripts/fetch-mutagen-bins.sh`（README/onboarding 文档可由 Phase 35 补充）。
 
 ## Self-Check: PASSED
 
-- [x] `internal/cloudclaude/errcodes/codes.go` 存在
-- [x] `internal/cloudclaude/errcodes/mount.go` 存在
-- [x] `internal/cloudclaude/errcodes/net.go` 存在
-- [x] `internal/cloudclaude/errcodes/codes_test.go` 存在
-- [x] `internal/cloudclaude/mutagen_bin.go` 存在
-- [x] `internal/cloudclaude/mutagen_bin_test.go` 存在
-- [x] `internal/cloudclaude/envcheck_fs.go` 存在
-- [x] `internal/cloudclaude/envcheck_fs_test.go` 存在
+- [x] `internal/claudedock/errcodes/codes.go` 存在
+- [x] `internal/claudedock/errcodes/mount.go` 存在
+- [x] `internal/claudedock/errcodes/net.go` 存在
+- [x] `internal/claudedock/errcodes/codes_test.go` 存在
+- [x] `internal/claudedock/mutagen_bin.go` 存在
+- [x] `internal/claudedock/mutagen_bin_test.go` 存在
+- [x] `internal/claudedock/envcheck_fs.go` 存在
+- [x] `internal/claudedock/envcheck_fs_test.go` 存在
 - [x] `scripts/fetch-mutagen-bins.sh` 存在且可执行
-- [x] `internal/cloudclaude/mutagen_bin/SHA256SUMS` 存在
-- [x] `internal/cloudclaude/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` 4 个占位存在
+- [x] `internal/claudedock/mutagen_bin/SHA256SUMS` 存在
+- [x] `internal/claudedock/mutagen_bin/{darwin,linux}_{amd64,arm64}/mutagen` 4 个占位存在
 - [x] commit 4c8b3f0 / c10cd53 / 91c8fc2 / 715483a 全部存在于 `git log --oneline`
 - [x] `go test ./... -count=1` 全 PASS
 - [x] `go vet ./...` exit 0

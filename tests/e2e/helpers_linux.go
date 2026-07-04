@@ -34,7 +34,7 @@ import (
 	_ "modernc.org/sqlite"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/zanel1u/cloud-cli-proxy/tests/e2e/harness"
+	"github.com/claudedock/claudedock/tests/e2e/harness"
 )
 
 // GoldenPath 封装 Phase 46 MVS 所需的完整 e2e 拓扑：
@@ -509,7 +509,7 @@ func (p *GoldenPath) workerDockerName() (string, error) {
 		return name, nil
 	}
 	if p.Host.ID != "" {
-		return "cloudproxy-" + p.Host.ID, nil
+		return "claudedock-" + p.Host.ID, nil
 	}
 	return "", errWorkerContainerHandleUnavailable
 }
@@ -1193,16 +1193,16 @@ func (p *GoldenPath) SetTunDevUp(ctx context.Context) error {
 }
 
 // DisconnectGatewayFromBridge 把 gateway 从其专属自定义 bridge
-// (`cloudproxy-net-<HostID>`) 摘走（KILL-04）。
+// (`claudedock-net-<HostID>`) 摘走（KILL-04）。
 //
 // 行为：
 //  1. `docker inspect` 拿当前 gateway 接入的所有网络名 + IP。
-//  2. 用 PickGatewayBridgeNetwork 纯函数挑出 `cloudproxy-net-*` 前缀的网络
+//  2. 用 PickGatewayBridgeNetwork 纯函数挑出 `claudedock-net-*` 前缀的网络
 //     （兜底首个非 default `bridge` 的网络）。
 //  3. `docker network disconnect <netName> <gateway>`。
 //
 // 返回 (savedNet, savedIP, nil) 供 ReconnectGatewayToBridge 在 cleanup 时使用。
-// savedNet == "" → gateway 未接 cloudproxy-net 类网络，调用方 t.Skipf 并把
+// savedNet == "" → gateway 未接 claudedock-net 类网络，调用方 t.Skipf 并把
 // backend gap 流转 Phase 51（同 Phase 49 LEAK-06/07/08 流程）。
 func (p *GoldenPath) DisconnectGatewayFromBridge(ctx context.Context) (string, string, error) {
 	name, err := p.singBoxContainerName()
@@ -1219,7 +1219,7 @@ func (p *GoldenPath) DisconnectGatewayFromBridge(ctx context.Context) (string, s
 	}
 	savedNet, savedIP := PickGatewayBridgeNetwork(inspectOut.String())
 	if savedNet == "" {
-		return "", "", fmt.Errorf("disconnect gateway: %s has no cloudproxy-net / custom bridge network", name)
+		return "", "", fmt.Errorf("disconnect gateway: %s has no claudedock-net / custom bridge network", name)
 	}
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, "docker", "network", "disconnect", savedNet, name)

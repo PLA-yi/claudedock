@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-通过 sshfs slave 模式将用户当前工作目录实时映射到容器 /workspace，实现双向读写。cloud-claude 在同一 SSH 连接上开启第二个 session channel，容器内运行 `sshfs -o slave /workspace`，cloud-claude 侧嵌入 SFTP server 服务本地目录，SFTP 协议经 SSH session channel 透传。
+通过 sshfs slave 模式将用户当前工作目录实时映射到容器 /workspace，实现双向读写。claudedock 在同一 SSH 连接上开启第二个 session channel，容器内运行 `sshfs -o slave /workspace`，claudedock 侧嵌入 SFTP server 服务本地目录，SFTP 协议经 SSH session channel 透传。
 
 本阶段**不包含**：SSH Proxy 服务端改动（延续 Phase 24 零改造结论）、FUSE + AppArmor/seccomp 兼容性验证（Phase 28）、Mutagen 备选路径（v2.x ENH-01）。
 
@@ -16,7 +16,7 @@
 ## Implementation Decisions
 
 ### SFTP 服务端实现
-- **D-01:** 使用 `github.com/pkg/sftp` 在 cloud-claude 进程内嵌入 SFTP server。该库是 Go 生态中最成熟的 SFTP 实现，支持 `sftp.NewServer()` 接受 io.ReadWriter 作为传输层，可直接对接 SSH session channel。
+- **D-01:** 使用 `github.com/pkg/sftp` 在 claudedock 进程内嵌入 SFTP server。该库是 Go 生态中最成熟的 SFTP 实现，支持 `sftp.NewServer()` 接受 io.ReadWriter 作为传输层，可直接对接 SSH session channel。
 - **D-02:** SFTP server 的根目录为用户当前工作目录（`os.Getwd()`），与 MAP-01 需求定义一致。不做 chroot 或虚拟文件系统层，直接服务真实文件。
 
 ### Session 生命周期与时序
@@ -51,14 +51,14 @@
 
 ### 前序阶段产出
 - `.planning/phases/24-fuse/24-CONTEXT.md` — D-01~D-06：sshfs/fuse3 预装、FUSE 设备权限、SSH Proxy 多 session 确认
-- `.planning/phases/25-cloud-claude-cli/25-CONTEXT.md` — D-01~D-12：cobra 结构、Entry API 契约、SSH 连接建立
+- `.planning/phases/25-claudedock-cli/25-CONTEXT.md` — D-01~D-12：cobra 结构、Entry API 契约、SSH 连接建立
 - `.planning/phases/26-arg-passthrough-tty/26-CONTEXT.md` — D-01~D-08：shellescape、退出码修复、非 TTY 模式
 
 ### 现有代码
-- `cmd/cloud-claude/main.go` — cobra 入口、退出码常量、runRoot 主流程
-- `internal/cloudclaude/ssh.go` — ConnectAndRunClaude 当前实现（单 session），本阶段需重构为三阶段
-- `internal/cloudclaude/entry.go` — Entry API 客户端（不改动）
-- `internal/cloudclaude/config.go` — 配置读写（不改动）
+- `cmd/claudedock/main.go` — cobra 入口、退出码常量、runRoot 主流程
+- `internal/claudedock/ssh.go` — ConnectAndRunClaude 当前实现（单 session），本阶段需重构为三阶段
+- `internal/claudedock/entry.go` — Entry API 客户端（不改动）
+- `internal/claudedock/config.go` — 配置读写（不改动）
 
 ### SSH Proxy
 - `internal/sshproxy/proxy.go` — handleConnection 多 session 支持（`for newChan := range chans`），handleChannel 全类型请求转发
@@ -72,8 +72,8 @@
 ## Existing Code Insights
 
 ### Reusable Assets
-- `internal/cloudclaude/ssh.go`：`ConnectAndRunClaude` 已有 SSH 连接建立、PTY 申请、SIGWINCH 监听、raw mode 管理——本阶段需拆分重构但逻辑可复用。
-- `cmd/cloud-claude/main.go`：退出码常量和 runRoot 流程已定义，扩展为双 session 模式。
+- `internal/claudedock/ssh.go`：`ConnectAndRunClaude` 已有 SSH 连接建立、PTY 申请、SIGWINCH 监听、raw mode 管理——本阶段需拆分重构但逻辑可复用。
+- `cmd/claudedock/main.go`：退出码常量和 runRoot 流程已定义，扩展为双 session 模式。
 - SSH Proxy `handleConnection`：`for newChan := range chans` 循环天然支持同一连接上的多个 session channel，无需服务端改动。
 
 ### Established Patterns

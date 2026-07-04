@@ -34,7 +34,7 @@
 
 ### Area 1: 用例编排与生产路径忠实度 (MVS-01)
 
-- **bootstrap 认证路径**：真实 `cloud-claude` binary（`exec.CommandContext` 子进程）+ 真实控制面 HTTP，跟生产路径一条路，禁止任何 mock 认证旁路。
+- **bootstrap 认证路径**：真实 `claudedock` binary（`exec.CommandContext` 子进程）+ 真实控制面 HTTP，跟生产路径一条路，禁止任何 mock 认证旁路。
 - **bootstrap 等待信号**：通过控制面 `events` 表查询 `host.ready` 事件 + SSH banner pump 双重确认（任一失败即用例 fail）。
 - **macOS 本地行为**：整个 `tests/e2e/` 套件统一 `//go:build e2e && linux` build tag，darwin 上 `go test ./...` 不会触达；CI Linux runner 才真正跑断言。
 - **bootstrap 用例命名**：`tests/e2e/bootstrap_test.go` + `TestBootstrap_GoldenPath`。
@@ -48,7 +48,7 @@
 
 ### Area 3: CLI 错误码契约 (MVS-05)
 
-- **错误码表来源**：在写 plan 前 grep `cloud-claude` 现有源码取当前 exit-code 常量定义，作为锁定表（避免再造）；若发现源码与 ROADMAP 描述不一致，以源码为准并在 SUMMARY 中记录差异。
+- **错误码表来源**：在写 plan 前 grep `claudedock` 现有源码取当前 exit-code 常量定义，作为锁定表（避免再造）；若发现源码与 ROADMAP 描述不一致，以源码为准并在 SUMMARY 中记录差异。
 - **各错误触发方式**：
   - `auth_invalid=10`：错密码触发，用真 binary + 真控制面。
   - `account_disabled=11`：DB 预置 `users.disabled=true` 的 fixture user。
@@ -84,7 +84,7 @@
 
 - **Phase 45 已交付**：`tests/e2e/harness/{suite.go, waitfor.go, scenario/, artifacts.go, dump.go}` —— 直接复用 Scenario builder 与 waitFor 4 个变体。
 - **`internal/runtime/ContainerProxyProvider`**：v3.5 已拆 `PrepareGateway` + `PrepareHost`，e2e 中的 sing-box gateway + worker 启动直接复用真实 provider。
-- **`cmd/cloud-claude/`**：CLI 主入口，错误码常量定义所在；需 grep 取当前值。
+- **`cmd/claudedock/`**：CLI 主入口，错误码常量定义所在；需 grep 取当前值。
 - **`internal/agentapi`**：host-agent ↔ 控制面 SDK，e2e 可 import 复用。
 - **`internal/eventlog`**（如存在）：`events` 表读写 SDK，bootstrap 等待 `host.ready` 时用。
 - **`scripts/uat-bypass-fixture-up.sh`**（v3.5）：fixture 起停脚本范式，Phase 46 helpers.go 内部启动序列参考其拓扑。

@@ -13,7 +13,7 @@
 # 退出码：
 #   0  PASS（全部场景通过 或 dry-run 完成）
 #   1  FAIL（任一断言失败）
-#   2  SKIP（环境不具备：无 docker / 无 cloud-claude 二进制等）
+#   2  SKIP（环境不具备：无 docker / 无 claudedock 二进制等）
 
 set -euo pipefail
 
@@ -85,7 +85,7 @@ if [[ "$CONFIRM_DESTRUCTIVE" == "true" ]]; then
   info "============================================"
   info "  --confirm-destructive 已启用"
   info "  将创建 fixture 临时目录、启动 mount、执行断言、清理"
-  info "  需要 Docker daemon + cloud-claude 二进制可用"
+  info "  需要 Docker daemon + claudedock 二进制可用"
   info "============================================"
   echo ""
 fi
@@ -108,19 +108,19 @@ trap cleanup_fixtures EXIT INT TERM
 has_docker()          { command -v docker >/dev/null 2>&1; }
 has_git()             { command -v git >/dev/null 2>&1; }
 has_dd()              { command -v dd >/dev/null 2>&1; }
-has_cloud_claude()    { command -v cloud-claude >/dev/null 2>&1 || [[ -x "${PROJECT_ROOT}/bin/cloud-claude" ]] || [[ -x "${PROJECT_ROOT}/cloud-claude" ]]; }
+has_claudedock()    { command -v claudedock >/dev/null 2>&1 || [[ -x "${PROJECT_ROOT}/bin/claudedock" ]] || [[ -x "${PROJECT_ROOT}/claudedock" ]]; }
 has_jq()              { command -v jq >/dev/null 2>&1; }
 has_sshfs()           { command -v sshfs >/dev/null 2>&1; }
 has_fusermount()      { command -v fusermount >/dev/null 2>&1 || command -v fusermount3 >/dev/null 2>&1; }
 
 # 查找可用二进制（优先 PATH → bin/ → repo root）
-find_cloud_claude() {
-  if command -v cloud-claude >/dev/null 2>&1; then
-    echo "cloud-claude"
-  elif [[ -x "${PROJECT_ROOT}/bin/cloud-claude" ]]; then
-    echo "${PROJECT_ROOT}/bin/cloud-claude"
-  elif [[ -x "${PROJECT_ROOT}/cloud-claude" ]]; then
-    echo "${PROJECT_ROOT}/cloud-claude"
+find_claudedock() {
+  if command -v claudedock >/dev/null 2>&1; then
+    echo "claudedock"
+  elif [[ -x "${PROJECT_ROOT}/bin/claudedock" ]]; then
+    echo "${PROJECT_ROOT}/bin/claudedock"
+  elif [[ -x "${PROJECT_ROOT}/claudedock" ]]; then
+    echo "${PROJECT_ROOT}/claudedock"
   else
     echo ""
   fi
@@ -252,7 +252,7 @@ scenario_git_reject() {
 
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "  [DRY-RUN] 将使用 mktemp -d 创建非 git 临时目录"
-    echo "  [DRY-RUN] 尝试 cloud-claude --mount-mode=full 对该目录执行 mount"
+    echo "  [DRY-RUN] 尝试 claudedock --mount-mode=full 对该目录执行 mount"
     echo "  [DRY-RUN] 预期：stderr 含 \"MOUNT_REQUIRE_GIT_REPO\" 或退出码为配置错误"
     echo "  [DRY-RUN] 清理：rm -rf 临时目录"
     pass "非 git 目录拒绝挂载（dry-run 描述通过）"
@@ -260,9 +260,9 @@ scenario_git_reject() {
     return 0
   fi
 
-  CLOUD_CLAUDE="$(find_cloud_claude)"
+  CLOUD_CLAUDE="$(find_claudedock)"
   if [[ -z "$CLOUD_CLAUDE" ]]; then
-    skip "git_reject" "未找到 cloud-claude 二进制"
+    skip "git_reject" "未找到 claudedock 二进制"
     write_json_report "git_reject" "skip"
     return 0
   fi
@@ -308,7 +308,7 @@ scenario_oversized_skip() {
 
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "  [DRY-RUN] 将创建 fixture git 仓库（git init + dd if=/dev/zero of=big.bin bs=1M count=60）"
-    echo "  [DRY-RUN] 执行 cloud-claude mount"
+    echo "  [DRY-RUN] 执行 claudedock mount"
     echo "  [DRY-RUN] 预期：stderr 含 \"跳过大文件\""
     echo "  [DRY-RUN] 预期：last-session.json 的 oversized_files 数组非空"
     echo "  [DRY-RUN] 预期：hot 分支不含 big.bin"
@@ -329,9 +329,9 @@ scenario_oversized_skip() {
     return 0
   fi
 
-  CLOUD_CLAUDE="$(find_cloud_claude)"
+  CLOUD_CLAUDE="$(find_claudedock)"
   if [[ -z "$CLOUD_CLAUDE" ]]; then
-    skip "oversized_skip" "未找到 cloud-claude 二进制"
+    skip "oversized_skip" "未找到 claudedock 二进制"
     write_json_report "oversized_skip" "skip"
     return 0
   fi
@@ -393,9 +393,9 @@ scenario_fuse_cache_hit() {
     return 0
   fi
 
-  CLOUD_CLAUDE="$(find_cloud_claude)"
+  CLOUD_CLAUDE="$(find_claudedock)"
   if [[ -z "$CLOUD_CLAUDE" ]]; then
-    skip "fuse_cache_hit" "未找到 cloud-claude 二进制"
+    skip "fuse_cache_hit" "未找到 claudedock 二进制"
     write_json_report "fuse_cache_hit" "skip"
     return 0
   fi
@@ -421,7 +421,7 @@ scenario_cold_promotion() {
     echo "  [DRY-RUN] 预期：晋升成功 + mergerfs 热命中（REQ-MOUNT-V31-11）"
     echo "  [DRY-RUN] 首次 cat → SFTP read N 次；二次 cat → SFTP read 不变"
     if [[ "$(uname -s)" != "Linux" ]]; then
-      skip "cold_promotion" "需要 Docker + cloud-claude + SSH server + mergerfs 完整链路（当前平台: $(uname -s)）"
+      skip "cold_promotion" "需要 Docker + claudedock + SSH server + mergerfs 完整链路（当前平台: $(uname -s)）"
       write_json_report "cold_promotion" "skip"
       return 0
     fi
@@ -430,9 +430,9 @@ scenario_cold_promotion() {
     return 0
   fi
 
-  CLOUD_CLAUDE="$(find_cloud_claude)"
+  CLOUD_CLAUDE="$(find_claudedock)"
   if [[ -z "$CLOUD_CLAUDE" ]]; then
-    skip "cold_promotion" "未找到 cloud-claude 二进制"
+    skip "cold_promotion" "未找到 claudedock 二进制"
     write_json_report "cold_promotion" "skip"
     return 0
   fi
@@ -442,9 +442,9 @@ scenario_cold_promotion() {
     return 0
   fi
 
-  info "冷文件晋升需要完整 mount 链路（Docker + cloud-claude + SSH server + mergerfs）"
+  info "冷文件晋升需要完整 mount 链路（Docker + claudedock + SSH server + mergerfs）"
   info "在 macOS / CI 环境通常 SKIP"
-  skip "cold_promotion" "需要 Docker + cloud-claude + SSH server + mergerfs 完整链路（验证逻辑就位，实际执行需 Linux 宿主机）"
+  skip "cold_promotion" "需要 Docker + claudedock + SSH server + mergerfs 完整链路（验证逻辑就位，实际执行需 Linux 宿主机）"
   write_json_report "cold_promotion" "skip"
 }
 
@@ -463,7 +463,7 @@ scenario_no_promotion() {
     echo "  [DRY-RUN] 预期：last-session.json 的 promotion_count 为 0 或 null"
     echo "  [DRY-RUN] 预期：watcher 未启动"
     if [[ "$(uname -s)" != "Linux" ]]; then
-      skip "no_promotion" "需要 Docker + cloud-claude 完整链路（当前平台: $(uname -s)）"
+      skip "no_promotion" "需要 Docker + claudedock 完整链路（当前平台: $(uname -s)）"
       write_json_report "no_promotion" "skip"
       return 0
     fi
@@ -472,9 +472,9 @@ scenario_no_promotion() {
     return 0
   fi
 
-  CLOUD_CLAUDE="$(find_cloud_claude)"
+  CLOUD_CLAUDE="$(find_claudedock)"
   if [[ -z "$CLOUD_CLAUDE" ]]; then
-    skip "no_promotion" "未找到 cloud-claude 二进制"
+    skip "no_promotion" "未找到 claudedock 二进制"
     write_json_report "no_promotion" "skip"
     return 0
   fi
@@ -485,7 +485,7 @@ scenario_no_promotion() {
   fi
 
   info "NO_PROMOTION 场景需要完整 mount 链路"
-  skip "no_promotion" "需要 Docker + cloud-claude 完整链路（验证逻辑就位，实际执行需 Linux 宿主机）"
+  skip "no_promotion" "需要 Docker + claudedock 完整链路（验证逻辑就位，实际执行需 Linux 宿主机）"
   write_json_report "no_promotion" "skip"
 }
 

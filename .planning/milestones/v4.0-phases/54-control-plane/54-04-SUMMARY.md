@@ -8,12 +8,12 @@ tags: [cleanup, sing-box-gateway, build, ci, docker-compose, single-container, v
 # Dependency graph
 requires:
   - plan: 54-01
-    provides: 删除 GatewayImage() 调用路径 + dockerRunGateway 路径 + cloudproxy-net-* bridge
+    provides: 删除 GatewayImage() 调用路径 + dockerRunGateway 路径 + claudedock-net-* bridge
 provides:
   - deploy/docker/sing-box-gateway/ 目录整目录删除
   - Makefile gateway-image target / GATEWAY_IMAGE 变量 / dev target 非 Linux 检查清理
   - CI build-images.yml matrix sing-box-gateway 条目删除
-  - docker-compose 文件 sing-box-gateway service + CLOUD_CLI_PROXY_GATEWAY_IMAGE env 删除
+  - docker-compose 文件 sing-box-gateway service + CLAUDEDOCK_GATEWAY_IMAGE env 删除
   - uat-bypass-fixture-up.sh GATEWAY_IMAGE/GATEWAY_CONTAINER 引用清理
 affects: [55, 56]
 
@@ -39,7 +39,7 @@ files_changed:
   - source: docker-compose.yml
     state: modified
     changes:
-      - control-plane 删除 CLOUD_CLI_PROXY_GATEWAY_IMAGE 环境变量
+      - control-plane 删除 CLAUDEDOCK_GATEWAY_IMAGE 环境变量
       - 删除 sing-box-gateway service（5 行）
   - source: docker-compose.build.yaml
     state: modified

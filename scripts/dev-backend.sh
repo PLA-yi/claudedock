@@ -3,7 +3,7 @@
 # 编译 control-plane 并在 .go 文件变更时自动重建重启。
 set -uo pipefail
 
-BIN="/tmp/cloud-cli-proxy-dev"
+BIN="/tmp/claudedock-dev"
 PID=""
 DATA_DIR="${DATA_DIR:-$(pwd)/.data}"
 
@@ -29,7 +29,7 @@ build() {
 }
 
 start() {
-    HOST_AGENT_MODE=embedded DATA_DIR="$DATA_DIR" DATABASE_URL="file:${DATA_DIR}/cloud-cli-proxy.db?_texttotime=true" "$BIN" &
+    HOST_AGENT_MODE=embedded DATA_DIR="$DATA_DIR" DATABASE_URL="file:${DATA_DIR}/claudedock.db?_texttotime=true" "$BIN" &
     PID=$!
     echo "[dev-backend] started (PID $PID)"
 }

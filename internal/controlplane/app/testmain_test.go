@@ -16,6 +16,6 @@ import (
 // 后续若 SQLite 连接或 sing-box 等被触达再追加。
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
-		goleak.IgnoreTopFunction("github.com/zanel1u/cloud-cli-proxy/internal/broadcast.(*Hub).cleanupLoop"),
+		goleak.IgnoreTopFunction("github.com/claudedock/claudedock/internal/broadcast.(*Hub).cleanupLoop"),
 	)
 }

@@ -40,7 +40,7 @@ func (h *AdminVNCProxyHandler) ServeHTTP(w nethttp.ResponseWriter, r *nethttp.Re
 		return
 	}
 
-	containerName := fmt.Sprintf("cloudproxy-%s", hostID)
+	containerName := fmt.Sprintf("claudedock-%s", hostID)
 	containerIP, err := getContainerIP(r.Context(), containerName)
 	if err != nil {
 		h.logger.Error("get container IP failed", "container", containerName, "error", err)

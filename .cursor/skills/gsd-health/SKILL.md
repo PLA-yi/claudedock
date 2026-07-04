@@ -40,7 +40,7 @@ Validate `.planning/` directory integrity and report actionable issues. Checks f
 </objective>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/health.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/health.md
 </execution_context>
 
 <process>

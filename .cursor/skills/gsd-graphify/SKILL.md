@@ -29,7 +29,7 @@ When the workflow needs to spawn a subagent:
 
 **STOP -- DO NOT READ THIS FILE. You are already reading it. This prompt was injected into your context by Cursor's command system. Using the Read tool on this file wastes tokens. Begin executing Step 0 immediately.**
 
-**CJS-only (graphify):** `graphify` subcommands are not registered on `gsd-sdk query`. Use `node /Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs graphify …` as documented in this command and in `docs/CLI-TOOLS.md`. Other tooling may still use `gsd-sdk query` where a handler exists.
+**CJS-only (graphify):** `graphify` subcommands are not registered on `gsd-sdk query`. Use `node /Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs graphify …` as documented in this command and in `docs/CLI-TOOLS.md`. Other tooling may still use `gsd-sdk query` where a handler exists.
 
 ## Step 0 -- Banner
 
@@ -60,7 +60,7 @@ GSD > GRAPHIFY
 
 Knowledge graph is disabled. To activate:
 
-  node /Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs config-set graphify.enabled true
+  node /Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs config-set graphify.enabled true
 
 Then run /gsd-graphify build to create the initial graph.
 ```
@@ -98,7 +98,7 @@ Modes:
 Run:
 
 ```bash
-node /Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs graphify query <term>
+node /Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs graphify query <term>
 ```
 
 Parse the JSON output and display results:
@@ -114,7 +114,7 @@ Parse the JSON output and display results:
 Run:
 
 ```bash
-node /Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs graphify status
+node /Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs graphify status
 ```
 
 Parse the JSON output and display:
@@ -138,7 +138,7 @@ Surface both so the agent can choose.
 Run:
 
 ```bash
-node /Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs graphify diff
+node /Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs graphify diff
 ```
 
 Parse the JSON output and display:
@@ -156,7 +156,7 @@ If no snapshot exists, suggest running `build` twice (first to create, second to
 Run the pre-flight check first:
 
 ```bash
-node "/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify build
+node "/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify build
 ```
 
 Parse the JSON output:
@@ -179,8 +179,8 @@ graphify update . \
   && cp graphify-out/graph.json .planning/graphs/graph.json \
   && cp graphify-out/graph.html .planning/graphs/graph.html \
   && cp graphify-out/GRAPH_REPORT.md .planning/graphs/GRAPH_REPORT.md \
-  && node "/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify build snapshot \
-  && node "/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify status
+  && node "/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify build snapshot \
+  && node "/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/bin/gsd-tools.cjs" graphify status
 ```
 
 Do NOT pass `run_in_background: true`. Typical builds complete in 15-60 seconds and the entire chain must run foreground.

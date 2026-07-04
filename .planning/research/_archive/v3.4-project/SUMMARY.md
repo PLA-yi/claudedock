@@ -1,6 +1,6 @@
 # v3.4 多形态容器接入 · 研究综述（SUMMARY）
 
-**Project:** Cloud CLI Proxy
+**Project:** ClaudeDock
 **Milestone:** v3.4 多形态容器接入
 **Domain:** 扩展容器接入方式 — Cloud 版 VS Code Remote SSH + 本地版 VS Code Dev Containers
 **Researched:** 2026-05-08
@@ -13,11 +13,11 @@
 
 ## 1. Executive Summary
 
-v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，**扩展容器接入方式**，让同一套受管镜像同时支持两种新形态：**Cloud 版 VS Code Remote SSH**（通过 SSH Proxy 直接连接）和**本地版 VS Code Dev Containers**（通过 `.devcontainer.json` 配置本地 Docker 启动）。核心目标不是替换现有 `cloud-claude` CLI 体验，而是让同一容器平台兼容开发者已有的 IDE 工作流。
+v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，**扩展容器接入方式**，让同一套受管镜像同时支持两种新形态：**Cloud 版 VS Code Remote SSH**（通过 SSH Proxy 直接连接）和**本地版 VS Code Dev Containers**（通过 `.devcontainer.json` 配置本地 Docker 启动）。核心目标不是替换现有 `claudedock` CLI 体验，而是让同一容器平台兼容开发者已有的 IDE 工作流。
 
 **唯一关键的技术决策：SSH Proxy 必须扩展 `direct-tcpip` 通道支持。** 当前 `internal/sshproxy/proxy.go:206-210` 硬编码拒绝所有非 `session` 通道，这导致 VS Code Remote SSH 完全无法工作（其架构依赖 `direct-tcpip` 做端口转发）。扩展方案推荐在现有 proxy 上直接增加 handler（约 100-150 行），而非引入新组件。扩展时必须配套**严格的目的地校验**（只放行容器自身管理 veth IP 和 127.0.0.1，阻断管理子网、Docker 网桥、云元数据端点），否则等同于打开内网穿透后门。
 
-**Cloud 版与本地版共享同一受管镜像**，通过 `MODE=cloud|local` 环境变量在 entrypoint.sh 分支。本地版独立入口 `cloud-claude local`（或新子命令）不连接 control-plane/PostgreSQL，直接通过本地 Docker 启动容器。这种设计让 bug 修复和特性更新只需改一处镜像，同时保持本地版的零外部依赖。
+**Cloud 版与本地版共享同一受管镜像**，通过 `MODE=cloud|local` 环境变量在 entrypoint.sh 分支。本地版独立入口 `claudedock local`（或新子命令）不连接 control-plane/PostgreSQL，直接通过本地 Docker 启动容器。这种设计让 bug 修复和特性更新只需改一处镜像，同时保持本地版的零外部依赖。
 
 **v3.4 不引入任何新运行时依赖。** 不需要新数据库、新网络组件、新前端框架。改动集中在：Go SSH Proxy 扩展、Docker 镜像 entrypoint 分支、Shell 本地启动器、`.devcontainer.json` 模板。
 
@@ -34,7 +34,7 @@ v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，*
 | SSH Proxy | **扩展 `direct-tcpip` + `tcpip-forward` + `forwarded-tcpip` handler** | `internal/sshproxy/proxy.go` 新增 ~100-150 行 | 向后兼容：原有 `session` 通道行为不变 |
 | 目的地校验器 | **强制 allowlist：仅容器自身 veth IP + 127.0.0.1** | 同文件内嵌 `validateForwardDestination` | 无性能影响，每连接一次校验 |
 | 受管镜像 entrypoint | **增加 `MODE=cloud\|local` 分支** | `deploy/docker/managed-user/entrypoint.sh` | Cloud 模式行为与 v3.1 完全一致 |
-| 本地启动器 | **新增 `cloud-claude local` 子命令** | `cmd/cloud-claude/main.go` 新增 subcommand | 不干扰现有命令 |
+| 本地启动器 | **新增 `claudedock local` 子命令** | `cmd/claudedock/main.go` 新增 subcommand | 不干扰现有命令 |
 | `.devcontainer.json` | **提供模板配置** | `deploy/devcontainer/devcontainer.json` | 纯模板文件，无运行时影响 |
 
 ### 2.2 明确不引入
@@ -61,7 +61,7 @@ v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，*
 | PostgreSQL | 使用 | **不使用** | 本地版零依赖 |
 | Admin Dashboard | 使用 | **不使用** | 本地版无管理后台 |
 | JWT 认证 | 使用 | **不使用** | 本地版用本地配置文件或 env var |
-| 容器生命周期调度 | control-plane 管理 | `cloud-claude local` 管理 | **独立** |
+| 容器生命周期调度 | control-plane 管理 | `claudedock local` 管理 | **独立** |
 | `.devcontainer.json` | N/A | 使用 | 本地版独有 |
 
 **架构边界原则：**
@@ -89,8 +89,8 @@ v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，*
 
 ### F3 · 本地版独立启动入口
 
-- **REQ-F3-A：** `cloud-claude local`（或等效子命令）必须能在**不连接 control-plane、不依赖 PostgreSQL** 的情况下启动本地容器。
-- **REQ-F3-B：** 本地版使用本地配置文件（`~/.cloud-claude/local.yaml`）或环境变量获取必要参数（镜像名、出口 IP 配置、用户凭证）。
+- **REQ-F3-A：** `claudedock local`（或等效子命令）必须能在**不连接 control-plane、不依赖 PostgreSQL** 的情况下启动本地容器。
+- **REQ-F3-B：** 本地版使用本地配置文件（`~/.claudedock/local.yaml`）或环境变量获取必要参数（镜像名、出口 IP 配置、用户凭证）。
 - **REQ-F3-C：** 本地版启动的容器同样使用 sing-box tun 全隧道，保证出口 IP 强约束不变。
 - **REQ-F3-D：** 本地版二进制不得引入 control-plane 的 Go package 依赖。
 
@@ -131,7 +131,7 @@ v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，*
 | **P0** | **架构边界分析** | 文档化 Cloud/Local 组件复用矩阵；抽取共享 package；定义 interface 边界 | F5 | **S** | — |
 | **P1** | **SSH Proxy 转发支持** | 实现 `direct-tcpip` handler + 目的地校验；可选 `tcpip-forward`/`forwarded-tcpip`；审计日志 | F1 | **M** | P0 |
 | **P2** | **Cloud 版 VS Code Remote SSH 验证** | sing-box TUN 排除 127.0.0.0/8；容器内 lo 验证；VS Code 完整功能 UAT | F2 | **M** | P1 |
-| **P3** | **本地版 Dev Containers 支持** | `cloud-claude local` 子命令；`.devcontainer.json` 模板；生命周期脚本；SSH agent 集成 | F3, F4 | **L** | P0 |
+| **P3** | **本地版 Dev Containers 支持** | `claudedock local` 子命令；`.devcontainer.json` 模板；生命周期脚本；SSH agent 集成 | F3, F4 | **L** | P0 |
 | **P4** | **E2E 验证 + 文档** | Cloud/Local 双路径完整 UAT；架构边界文档；运维手册更新 | 验收 | **S-M** | P1-P3 |
 
 **合并选项：** P0+P1 可合并为"Proxy 扩展 + 架构边界"。P2+P3 可部分并行（P2 验证 Cloud，P3 开发 Local，两者接触不同代码路径）。
@@ -164,7 +164,7 @@ v3.4 在 v3.0/v3.1 已交付的三层文件系统 + 会话可靠性基础上，*
 
 | # | 不做的功能 | 理由 |
 |---|-----------|------|
-| 1 | 替换现有 `cloud-claude` CLI 主路径 | v3.4 是扩展，不是替换 |
+| 1 | 替换现有 `claudedock` CLI 主路径 | v3.4 是扩展，不是替换 |
 | 2 | 多宿主机编排 | 沿用 v1 单宿主机约束 |
 | 3 | Web Terminal / 浏览器 IDE | v1 范围明确不做 |
 | 4 | 本地版连接 Cloud 版容器 | 本地版是独立形态，不混合 |

@@ -44,7 +44,7 @@
   options ndots:0 single-request-reopen
   ```
 - `/etc/nsswitch.conf` bind mount 为 `hosts: files dns`（禁用 mdns/myhostname/wins）。
-- 现有 `container_proxy_provider.go:323` 写文件逻辑改造为只读挂载；考虑挂载源文件位置（建议 `/var/lib/cloud-cli-proxy/host/<host_id>/`）。
+- 现有 `container_proxy_provider.go:323` 写文件逻辑改造为只读挂载；考虑挂载源文件位置（建议 `/var/lib/claudedock/host/<host_id>/`）。
 
 ### 数据模型
 - 五张表全部 UUID 主键（`gen_random_uuid()`）+ `TIMESTAMPTZ DEFAULT NOW()`，命名对齐现有 `host_egress_bindings` 风格（snake_case + `host_` 前缀）。

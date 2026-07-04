@@ -8,9 +8,9 @@ import (
 	nethttp "net/http"
 	"time"
 
-	"github.com/zanel1u/cloud-cli-proxy/internal/agentapi"
-	"github.com/zanel1u/cloud-cli-proxy/internal/broadcast"
-	"github.com/zanel1u/cloud-cli-proxy/internal/store/repository"
+	"github.com/claudedock/claudedock/internal/agentapi"
+	"github.com/claudedock/claudedock/internal/broadcast"
+	"github.com/claudedock/claudedock/internal/store/repository"
 )
 
 type EventRecorder interface {

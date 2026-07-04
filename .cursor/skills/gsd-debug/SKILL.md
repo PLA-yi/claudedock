@@ -45,7 +45,7 @@ Valid GSD subagent types (use exact names — do not fall back to 'general-purpo
 </available_agent_types>
 
 <execution_context>
-@/Users/zaneliu/Projects/open-source/cloud-cli-proxy/.cursor/get-shit-done/workflows/debug.md
+@/Users/zaneliu/Projects/open-source/claudedock/.cursor/get-shit-done/workflows/debug.md
 </execution_context>
 
 <context>

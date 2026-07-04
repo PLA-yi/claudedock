@@ -346,7 +346,7 @@ func mustParseUint(b []byte) uint64 {
 
 **File:** `internal/network/container_proxy_provider.go:28-38`
 **Issue:**
-锁定的 `hosts:          files dns` 只允许 NSS 走 `/etc/hosts` 与 `/etc/resolv.conf` 的标准解析。但如果 base 镜像 `cloud-cli-proxy-sing-gateway`（或将来的 worker image）安装了 `libnss-resolve` 包，且 systemd-resolved 监听 127.0.0.53，那 musl/glibc 是按 `hosts` 行的**模块名**找 `.so`，本配置已经显式排除了 `resolve`、`mdns`、`myhostname`，所以这条 OK。
+锁定的 `hosts:          files dns` 只允许 NSS 走 `/etc/hosts` 与 `/etc/resolv.conf` 的标准解析。但如果 base 镜像 `claudedock-sing-gateway`（或将来的 worker image）安装了 `libnss-resolve` 包，且 systemd-resolved 监听 127.0.0.53，那 musl/glibc 是按 `hosts` 行的**模块名**找 `.so`，本配置已经显式排除了 `resolve`、`mdns`、`myhostname`，所以这条 OK。
 
 但 `wins`/`mdns4_minimal`/`mdns6`/`mdns4` 等扩展也都没列入 forbidden 集合，测试 `container_proxy_dns_test.go:54` 的 forbidden 列表只检查 `mdns`/`myhostname`/`wins`/`nis_plus` 四个串。`mdns4_minimal` 包含 `mdns` 子串能被该测试捕到；`mdns6` 也包含；但 `dns_sd` / `resolve` 等 NSS 模块名**不在测试列表里**，如果镜像维护者将来在 nsswitch 里加进去也不会被这层守护测试发现。
 
@@ -363,7 +363,7 @@ for _, forbidden := range []string{
 }
 ```
 
-同时也可考虑在 `nsswitchConfContent` 顶部加一行注释："# managed by cloud-cli-proxy; do not edit (overridden via ro bind mount)" 作为现场调试 hint。
+同时也可考虑在 `nsswitchConfContent` 顶部加一行注释："# managed by claudedock; do not edit (overridden via ro bind mount)" 作为现场调试 hint。
 
 ---
 
@@ -500,7 +500,7 @@ migration 重复 apply 时：
 
 **File:** `internal/network/container_proxy_provider_test.go:135-157`
 **Issue:**
-测试只是验证 `GatewayConfigDir("host/with/slash")` 返回 `/var/lib/cloud-cli-proxy/gateway/host/with/slash`——但**没有**验证后续 `WriteContainerDNSConfig` / `PrepareGateway` 拒绝这种危险 hostID。实际 hostID 来源是 DB hosts 表的 UUID，pgx UUID 类型校验阻止恶意值，所以风险在 v1 是低的。但测试名 `PathSanitization` 暗示"已经做了 sanitization"——实际并没有，命名误导。
+测试只是验证 `GatewayConfigDir("host/with/slash")` 返回 `/var/lib/claudedock/gateway/host/with/slash`——但**没有**验证后续 `WriteContainerDNSConfig` / `PrepareGateway` 拒绝这种危险 hostID。实际 hostID 来源是 DB hosts 表的 UUID，pgx UUID 类型校验阻止恶意值，所以风险在 v1 是低的。但测试名 `PathSanitization` 暗示"已经做了 sanitization"——实际并没有，命名误导。
 
 **Fix:**
 - 改名为 `TestGatewayConfigDir_PathTraversalSemantics`，并加注释明确"hostID 上游必须是 UUID；本测试只验证拼接行为，不验证拒绝危险输入"。
