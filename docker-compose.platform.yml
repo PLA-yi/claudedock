@@ -1,0 +1,7 @@
+# 仅覆盖控制面的运行架构为本机架构（供「拉取模式」用）。
+# 与 docker-compose.yml 叠加：优先从 registry 拉取预构建镜像，不强制本地构建。
+# 用法（脚本会自动设好）：
+#   CD_PLATFORM=linux/arm64 COMPOSE_FILE=docker-compose.yml:docker-compose.platform.yml docker compose pull control-plane
+services:
+  control-plane:
+    platform: ${CD_PLATFORM:-linux/arm64}
