@@ -11,7 +11,8 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR" || { echo "找不到项目目录"; exit 1; }
 
 # ★ 公司镜像仓库地址：改成你们自己的 ghcr 组织即可（成员无需改，跟着走）
-REGISTRY_DEFAULT="ghcr.io/PLA-yi"
+# 注意：Docker 镜像名必须全小写，这里务必用小写（GitHub 组织 PLA-yi → 写成 pla-yi）
+REGISTRY_DEFAULT="ghcr.io/pla-yi"
 
 c(){ printf "\033[%sm" "$1"; }
 info(){ echo "$(c 36)[ClaudeDock]$(c 0) $*"; }
@@ -44,6 +45,8 @@ else err "未找到 docker compose，请升级 Docker Desktop。"; pause_exit 1;
 
 # 3.2 registry + 本机架构 + compose 文件组合
 export CONTAINER_REGISTRY="${CONTAINER_REGISTRY:-$REGISTRY_DEFAULT}"
+# Docker 镜像名必须全小写，自动转小写兜底（防止大写导致 "repository name must be lowercase"）
+export CONTAINER_REGISTRY="$(printf '%s' "$CONTAINER_REGISTRY" | tr '[:upper:]' '[:lower:]')"
 case "$(uname -m)" in arm64|aarch64) export CD_PLATFORM="linux/arm64";; *) export CD_PLATFORM="linux/amd64";; esac
 PULL_FILES="docker-compose.yml:docker-compose.platform.yml"
 BUILD_FILES="docker-compose.yml:docker-compose.build.yaml:docker-compose.platform.yml"

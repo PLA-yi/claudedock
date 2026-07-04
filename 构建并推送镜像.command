@@ -34,10 +34,12 @@ elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose";
 else err "未找到 docker compose。"; pause_exit 1; fi
 
 # 3. registry 地址（默认 ghcr.io/PLA-yi，可改）
-DEFAULT_REG="ghcr.io/PLA-yi"
+DEFAULT_REG="ghcr.io/pla-yi"   # Docker 镜像名必须全小写（GitHub 组织 PLA-yi → pla-yi）
 printf "推送到哪个 registry？[回车用默认 %s]: " "$DEFAULT_REG"
 read -r REG_INPUT
 export CONTAINER_REGISTRY="${REG_INPUT:-$DEFAULT_REG}"
+# 自动转小写兜底，避免 "repository name must be lowercase"
+export CONTAINER_REGISTRY="$(printf '%s' "$CONTAINER_REGISTRY" | tr '[:upper:]' '[:lower:]')"
 REG_HOST="${CONTAINER_REGISTRY%%/*}"   # 取第一个 / 之前，如 ghcr.io
 info "目标 registry: $CONTAINER_REGISTRY  (登录服务器: $REG_HOST)"
 
