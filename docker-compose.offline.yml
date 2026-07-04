@@ -1,0 +1,7 @@
+# 离线/本地构建模式覆盖：让控制面不去 registry 拉取 managed-user 镜像，
+# 改用本地已构建的同名镜像（配合启动脚本本地构建 managed-user 使用）。
+# 这样「镜像版本」卡不会再报 registry denied，创建主机也用本地镜像。
+services:
+  control-plane:
+    environment:
+      IMAGE_CACHE_SKIP_PULL: "1"

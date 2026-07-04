@@ -4,6 +4,9 @@
 set -uo pipefail
 
 export PATH="/usr/local/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
+# 双击运行时 launchd 不给 UTF-8 locale，会导致 bash 误解析「$变量紧跟中文」→ 强制设好
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR" || { echo "找不到项目目录"; exit 1; }
 
@@ -45,7 +48,7 @@ info "目标 registry: $CONTAINER_REGISTRY  (登录服务器: $REG_HOST)"
 
 # 4. 确认已登录 registry（未登录则引导登录）
 if ! grep -q "\"$REG_HOST\"" "$HOME/.docker/config.json" 2>/dev/null; then
-  info "检测到尚未登录 $REG_HOST，现在登录（ghcr 需要 GitHub 用户名 + Token，Token 需勾选 write:packages 权限）"
+  info "检测到尚未登录 ${REG_HOST}，现在登录（ghcr 需要 GitHub 用户名 + Token，Token 需勾选 write:packages 权限）"
   printf "GitHub 用户名: "; read -r GH_USER
   printf "粘贴 GitHub Token（输入时不显示）: "; read -rs GH_TOKEN; echo
   if ! printf '%s' "$GH_TOKEN" | docker login "$REG_HOST" -u "$GH_USER" --password-stdin; then
@@ -53,26 +56,31 @@ if ! grep -q "\"$REG_HOST\"" "$HOME/.docker/config.json" 2>/dev/null; then
   fi
   ok "已登录 $REG_HOST"
 else
-  ok "已登录 $REG_HOST（复用现有凭证）"
+  ok "已登录 ${REG_HOST}（复用现有凭证）"
 fi
 
 # 5. 本机架构（Apple Silicon 走 arm64，避免模拟 amd64 巨慢）
 case "$(uname -m)" in arm64|aarch64) export CD_PLATFORM="linux/arm64";; *) export CD_PLATFORM="linux/amd64";; esac
-export COMPOSE_FILE="docker-compose.yml:docker-compose.build.yaml:docker-compose.macbuild.yml"
 info "构建架构: $CD_PLATFORM"
+# 镜像标签（与控制面运行时解析的名字一致：CONTAINER_REGISTRY 替换 ghcr.io）
+CP_TAG="$CONTAINER_REGISTRY/claudedock/claudedock/control-plane:latest"
+MU_TAG="$CONTAINER_REGISTRY/claudedock/claudedock/managed-user:latest"
 
-# 6. 构建（控制面 + 用户镜像；用户镜像较大，首次很慢）
-info "构建 control-plane + managed-user（首次较慢，请耐心）..."
-if ! $COMPOSE --profile build-only build control-plane managed-user; then
-  err "构建失败，详见上面输出。"; pause_exit 1
+# 6. 直接用 docker build 构建（按官方 CI 的做法，不走 compose，避开 profile 服务名坑）
+info "构建 control-plane ..."
+if ! docker build --platform "$CD_PLATFORM" -t "$CP_TAG" -f deploy/docker/control-plane/Dockerfile .; then
+  err "control-plane 构建失败，详见上面输出。"; pause_exit 1
+fi
+info "构建 managed-user（基于 Ubuntu，较大，首次很慢，请耐心）..."
+if ! docker build --platform "$CD_PLATFORM" -t "$MU_TAG" -f deploy/docker/managed-user/Dockerfile .; then
+  err "managed-user 构建失败，详见上面输出。"; pause_exit 1
 fi
 ok "构建完成"
 
 # 7. 推送
-info "推送到 $CONTAINER_REGISTRY ..."
-if ! $COMPOSE --profile build-only push control-plane managed-user; then
-  err "推送失败。常见原因：Token 无 write:packages 权限，或 registry 地址/账号不对。"; pause_exit 1
-fi
+info "推送镜像到 $CONTAINER_REGISTRY ..."
+if ! docker push "$CP_TAG"; then err "control-plane 推送失败（Token 是否有 write:packages 权限？）"; pause_exit 1; fi
+if ! docker push "$MU_TAG"; then err "managed-user 推送失败。"; pause_exit 1; fi
 ok "推送完成 🎉"
 
 echo

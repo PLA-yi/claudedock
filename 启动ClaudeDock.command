@@ -7,6 +7,9 @@ set -uo pipefail
 
 # 双击时 launchd 给的 PATH 很精简，手动补上 docker 常见安装位置
 export PATH="/usr/local/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
+# 双击运行时 launchd 不给 UTF-8 locale，会导致 bash 误解析「$变量紧跟中文」，强制设好
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR" || { echo "找不到项目目录"; exit 1; }
 
@@ -80,22 +83,33 @@ EOF
   echo "   （密码也保存在 $PROJECT_DIR/.env，请妥善记录）"
 fi
 
+# 本地构建：控制面 + 用户镜像，并启用离线模式（不再去 registry 拉取，避免 denied）
+build_local(){
+  local nocache="$1"
+  export COMPOSE_FILE="$BUILD_FILES:docker-compose.offline.yml"
+  info "本地构建控制面镜像（首次较慢：容器内编译前端 + Go）..."
+  if ! $COMPOSE build $nocache control-plane; then err "控制面构建失败。查看：$COMPOSE build control-plane"; pause_exit 1; fi
+  info "构建用户容器镜像 managed-user（基于 Ubuntu，较大，首次很慢，请耐心，可能十几分钟）..."
+  local mu_tag="$CONTAINER_REGISTRY/claudedock/claudedock/managed-user:latest"
+  if ! docker build --platform "$CD_PLATFORM" -t "$mu_tag" -f deploy/docker/managed-user/Dockerfile .; then err "用户镜像构建失败。查看：docker build -f deploy/docker/managed-user/Dockerfile ."; pause_exit 1; fi
+  ok "本地构建完成（控制面 + 用户镜像），已启用离线模式：不再去 registry 拉取，「镜像版本」不会再 denied"
+}
+
 # 5. 获取镜像：先从公司 registry 拉取；拉不到（未授权/未公开/离线）则本地源码构建
 if [ "${REBUILD:-0}" = "1" ]; then
-  info "REBUILD=1：跳过拉取，强制本地干净重建（--no-cache，较慢）..."
-  export COMPOSE_FILE="$BUILD_FILES"
-  if ! $COMPOSE build --no-cache control-plane; then err "构建失败。"; pause_exit 1; fi
-  ok "本地重建完成"
+  info "REBUILD=1：强制本地干净重建..."
+  build_local "--no-cache"
 elif COMPOSE_FILE="$PULL_FILES" $COMPOSE pull control-plane >/dev/null 2>&1; then
   export COMPOSE_FILE="$PULL_FILES"
-  ok "已从 $CONTAINER_REGISTRY 拉取预构建镜像（免本地构建，快）"
-  docker pull "$CONTAINER_REGISTRY/claudedock/claudedock/managed-user:latest" >/dev/null 2>&1 \
-    && ok "已预拉用户容器镜像" || info "用户容器镜像将在创建主机时自动拉取"
+  ok "已从 $CONTAINER_REGISTRY 拉取控制面镜像（免本地构建，快）"
+  if docker pull "$CONTAINER_REGISTRY/claudedock/claudedock/managed-user:latest" >/dev/null 2>&1; then
+    ok "已预拉用户容器镜像"
+  else
+    info "用户容器镜像未能预拉（可能未推送/未公开）；如后续创建主机报 denied，请改用本地构建：REBUILD=1 双击本脚本"
+  fi
 else
-  info "拉取不可用（未授权/未公开/离线），改为本地源码构建（首次较慢：容器内编译前端 + Go）..."
-  export COMPOSE_FILE="$BUILD_FILES"
-  if ! $COMPOSE build control-plane; then err "构建失败。查看详细输出：$COMPOSE build control-plane"; pause_exit 1; fi
-  ok "本地构建完成"
+  info "拉取不可用（未授权/未公开/离线），改为本地源码构建..."
+  build_local ""
 fi
 
 # 6. 启动控制面
