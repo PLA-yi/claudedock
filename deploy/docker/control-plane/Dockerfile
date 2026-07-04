@@ -20,8 +20,16 @@ RUN CGO_ENABLED=0 go build -o /usr/local/bin/control-plane ./cmd/control-plane
 
 FROM debian:bookworm-slim
 
+# 安装 Docker 官方新版 docker-ce-cli（旧 docker.io 的 API 1.41 太老，
+# 新版 Docker Desktop 的 daemon 最低要求 API 1.44；新 CLI 会自动协商 API 版本，新旧 daemon 都兼容）
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates docker.io \
+    && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/control-plane /usr/local/bin/control-plane

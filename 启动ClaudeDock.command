@@ -111,8 +111,15 @@ EOF
 fi
 
 # 5. 本地构建控制面镜像并启动（不拉取私有镜像）
-info "本地构建控制面镜像（首次较慢，需在容器内编译前端 + Go，请耐心等待）..."
-if ! $COMPOSE build control-plane; then
+# 默认走缓存的快速构建；设 REBUILD=1 双击前的终端里导出，可强制干净重建（--no-cache）。
+BUILD_ARGS=""
+if [ "${REBUILD:-0}" = "1" ]; then
+  BUILD_ARGS="--no-cache"
+  info "强制干净重建（--no-cache），会比较慢..."
+else
+  info "本地构建控制面镜像（有缓存则很快；Dockerfile 有改动会自动重建对应层）..."
+fi
+if ! $COMPOSE build $BUILD_ARGS control-plane; then
   err "镜像构建失败。查看详细输出：cd \"$PROJECT_DIR\" && $COMPOSE build control-plane"
   pause_exit 1
 fi
